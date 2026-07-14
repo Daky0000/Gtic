@@ -10,7 +10,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
       nav={[
         { label: "Dashboard", href: "/student" },
         { label: "My profile", href: "/student/profile" },
-        { label: "Course registration", href: "/student/registration", comingSoon: true },
+        { label: "Course registration", href: "/student/registration" },
         { label: "Results", href: "/student/results", comingSoon: true },
         { label: "Fees & payments", href: "/student/fees", comingSoon: true },
         { label: "Accommodation", href: "/student/accommodation", comingSoon: true },

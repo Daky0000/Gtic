@@ -9,7 +9,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       user={user}
       nav={[
         { label: "Dashboard", href: "/staff" },
-        { label: "My courses", href: "/staff/courses", comingSoon: true },
+        { label: "My courses", href: "/staff/courses" },
         { label: "Grading", href: "/staff/grading", comingSoon: true },
         { label: "Approvals", href: "/staff/approvals", comingSoon: true },
         { label: "Admissions review", href: "/staff/admissions" },
