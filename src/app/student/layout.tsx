@@ -11,6 +11,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         { label: "Dashboard", href: "/student" },
         { label: "My profile", href: "/student/profile" },
         { label: "Course registration", href: "/student/registration" },
+        { label: "Timetable", href: "/student/timetable" },
         { label: "Results", href: "/student/results" },
         { label: "Transcript", href: "/student/transcript" },
         { label: "Fees & payments", href: "/student/fees" },
