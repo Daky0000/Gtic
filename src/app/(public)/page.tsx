@@ -2,8 +2,9 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
 
-// Refresh the public landing data every 5 minutes rather than freezing at build.
-export const revalidate = 300;
+// Dynamic (not ISR): avoids requiring a database connection at build time,
+// and institution/announcement data should never be frozen from a build.
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const institution = await db.institution.findFirst();

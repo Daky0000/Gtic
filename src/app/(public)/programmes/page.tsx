@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 
-// Refresh the catalogue every 5 minutes rather than freezing at build.
-export const revalidate = 300;
+// Dynamic (not ISR): avoids requiring a database connection at build time.
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Programmes" };
 

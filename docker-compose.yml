@@ -17,5 +17,29 @@ services:
       timeout: 3s
       retries: 10
 
+  # Production app container. Not used in local development (use `npm run
+  # dev` against the `db` service above instead) — this is for deploying the
+  # built image, e.g. `docker compose --profile prod up --build`.
+  app:
+    profiles: ["prod"]
+    build: .
+    container_name: campuscore-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://campuscore:campuscore_dev@db:5432/campuscore
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+    volumes:
+      - campuscore_uploads:/app/storage/uploads
+
 volumes:
   campuscore_pgdata:
+  campuscore_uploads:
