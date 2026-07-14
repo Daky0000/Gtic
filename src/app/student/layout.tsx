@@ -1,0 +1,23 @@
+import { requirePortal } from "@/lib/rbac";
+import { PortalShell } from "@/components/portal-shell";
+
+export default async function StudentLayout({ children }: { children: React.ReactNode }) {
+  const user = await requirePortal("student");
+  return (
+    <PortalShell
+      portalName="Student Portal"
+      user={user}
+      nav={[
+        { label: "Dashboard", href: "/student" },
+        { label: "Course registration", href: "/student/registration", comingSoon: true },
+        { label: "Results", href: "/student/results", comingSoon: true },
+        { label: "Fees & payments", href: "/student/fees", comingSoon: true },
+        { label: "Accommodation", href: "/student/accommodation", comingSoon: true },
+        { label: "E-learning", href: "/student/elearning", comingSoon: true },
+        { label: "Requests", href: "/student/requests", comingSoon: true },
+      ]}
+    >
+      {children}
+    </PortalShell>
+  );
+}

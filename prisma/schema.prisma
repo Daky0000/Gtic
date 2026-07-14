@@ -1,0 +1,323 @@
+// CampusCore — Phase 0 schema: identity & access, institution config,
+// academic structure (demo scope), audit, notifications, AI core.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Identity & access ───────────────────────────
+// User/Session/Account/Verification follow better-auth's required shape.
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  roleAssignments RoleAssignment[]
+  notifications   Notification[]
+  aiConversations AIConversation[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────────────── RBAC ──────────────────────────────────
+
+model Role {
+  id          String  @id @default(cuid())
+  code        String  @unique // e.g. "student", "registrar", "system_admin"
+  name        String
+  description String?
+
+  permissions RolePermission[]
+  assignments RoleAssignment[]
+}
+
+model Permission {
+  id     String @id @default(cuid())
+  code   String @unique // e.g. "admissions.review", "results.publish"
+  name   String
+  module String // owning module, e.g. "admissions"
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model RoleAssignment {
+  id            String    @id @default(cuid())
+  userId        String
+  roleId        String
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime? // null = open-ended
+  assignedById  String?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([roleId])
+}
+
+// ─────────────────────── Institution (white-label) ───────────────────────
+
+model Institution {
+  id             String  @id @default(cuid())
+  name           String
+  shortName      String
+  motto          String?
+  primaryColor   String  @default("#166534")
+  secondaryColor String  @default("#14532d")
+  logoUrl        String?
+  address        String?
+  contactEmail   String?
+  contactPhone   String?
+  website        String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// ───────────────────── Academic structure (demo scope) ───────────────────
+
+enum ProgrammeLevel {
+  UNDERGRADUATE
+  POSTGRADUATE
+  DIPLOMA
+}
+
+model School {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  departments Department[]
+}
+
+model Department {
+  id       String @id @default(cuid())
+  code     String @unique
+  name     String
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  programmes Programme[]
+
+  @@index([schoolId])
+}
+
+model Programme {
+  id                String         @id @default(cuid())
+  code              String         @unique
+  name              String
+  level             ProgrammeLevel @default(UNDERGRADUATE)
+  durationSemesters Int            @default(8)
+  departmentId      String
+  department        Department     @relation(fields: [departmentId], references: [id])
+  entryRequirements String? // plain-text summary shown in the catalogue (structured rules come in Phase 1)
+
+  @@index([departmentId])
+}
+
+// ──────────────────────────────── Audit ──────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String? // null = system
+  actorEmail String?
+  action     String // e.g. "user.role_assigned", "knowledge.published"
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ───────────────────────────── Notifications ─────────────────────────────
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+// ──────────────────────────────── AI core ────────────────────────────────
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model KnowledgeDocument {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  category    String // e.g. "handbook", "exam-regulations", "fees", "admissions"
+  version     Int            @default(1)
+  status      DocumentStatus @default(DRAFT)
+  sourceText  String // full original text
+  publishedAt DateTime?
+  createdById String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  chunks KnowledgeChunk[]
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(cuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ord        Int
+  heading    String?
+  content    String
+
+  @@index([documentId])
+}
+
+model AIFeatureConfig {
+  id                 String  @id @default(cuid())
+  feature            String  @unique // "assistant", "doc_extraction", "prescreen", ...
+  enabled            Boolean @default(true)
+  provider           String  @default("auto") // auto | anthropic | mock
+  model              String  @default("claude-opus-4-8")
+  effort             String  @default("high") // low | medium | high | xhigh | max
+  monthlyTokenBudget Int? // null = unlimited
+  systemPromptExtra  String?
+
+  updatedAt DateTime @updatedAt
+}
+
+enum AIMessageRole {
+  USER
+  ASSISTANT
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature   String   @default("assistant")
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AIMessage[]
+
+  @@index([userId])
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           AIMessageRole
+  content        String
+  citations      Json? // [{documentSlug, documentTitle, heading}]
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
+}
+
+enum AIOutcome {
+  OK
+  ERROR
+  REFUSAL
+  BUDGET_BLOCKED
+  DISABLED
+}
+
+model AIAuditLog {
+  id              String    @id @default(cuid())
+  userId          String?
+  feature         String
+  provider        String
+  model           String
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  cacheReadTokens Int       @default(0)
+  latencyMs       Int       @default(0)
+  outcome         AIOutcome
+  error           String?
+  createdAt       DateTime  @default(now())
+
+  @@index([feature, createdAt])
+  @@index([userId])
+}
