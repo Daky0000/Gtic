@@ -42,6 +42,12 @@ export default async function ClassListPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex gap-2">
           <Link
+            href={`/staff/courses/${offering.id}/elearning`}
+            className="rounded-md border border-ink-300 px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100"
+          >
+            E-learning
+          </Link>
+          <Link
             href={`/staff/courses/${offering.id}/grading`}
             className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
