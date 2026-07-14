@@ -40,12 +40,20 @@ export default async function ClassListPage({ params }: { params: Promise<{ id: 
           <h1 className="text-2xl font-bold">{offering.course.code} — {offering.course.title}</h1>
           <p className="text-sm text-ink-500">{offering.semester.label}</p>
         </div>
-        <a
-          href={`/api/staff/courses/${offering.id}/roster.csv`}
-          className="rounded-md border border-ink-300 px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100"
-        >
-          Export CSV
-        </a>
+        <div className="flex gap-2">
+          <Link
+            href={`/staff/courses/${offering.id}/grading`}
+            className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Grading
+          </Link>
+          <a
+            href={`/api/staff/courses/${offering.id}/roster.csv`}
+            className="rounded-md border border-ink-300 px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
