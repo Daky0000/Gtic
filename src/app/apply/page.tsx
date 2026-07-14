@@ -1,20 +1,76 @@
+import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
+import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
+import { APPLICATION_STATUS_COLOR, APPLICATION_STATUS_LABEL } from "@/lib/status-labels";
 
 export const metadata = { title: "Applicant Portal" };
 
 export default async function ApplyHome() {
   const user = await requirePortal("apply");
+  const app = await getOrCreateDraftApplication(user.id);
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
-      <p className="mt-2 text-ink-500">
-        The full application journey (form, documents, payment, status tracking)
-        arrives with Phase 1. Meanwhile, the AI assistant in the corner can answer
-        questions about programmes and admission requirements.
-      </p>
+
+      {!app ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          There is no admission cycle open for applications right now. Please check back later.
+        </p>
+      ) : (
+        <div className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-ink-500">Reference number</div>
+              <div className="font-mono text-lg font-semibold">{app.refNo}</div>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${APPLICATION_STATUS_COLOR[app.status]}`}
+            >
+              {APPLICATION_STATUS_LABEL[app.status]}
+            </span>
+          </div>
+
+          {app.status === "INFO_REQUESTED" && app.infoRequest && (
+            <div className="mt-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+              <strong>The admissions office needs more information:</strong> {app.infoRequest}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/apply/application"
+              className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              {app.status === "DRAFT" ? "Continue application" : "View application"}
+            </Link>
+            <Link
+              href="/apply/documents"
+              className="rounded-md border border-ink-300 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-100"
+            >
+              Documents
+            </Link>
+            <Link
+              href="/apply/payments"
+              className="rounded-md border border-ink-300 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-100"
+            >
+              Payments
+            </Link>
+            {(app.status === "OFFER_ISSUED" || app.status === "ACCEPTED") && (
+              <Link
+                href="/apply/letter"
+                className="rounded-md border border-brand-300 bg-brand-50 px-4 py-2 text-sm font-medium text-brand-800 hover:bg-brand-100"
+              >
+                View admission letter
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-        Tip: ask the assistant “What are the entry requirements for BSc Computer
-        Engineering?”
+        Tip: ask the assistant (bottom-right) &ldquo;What are the entry requirements for BSc Computer
+        Engineering?&rdquo;
       </div>
     </div>
   );

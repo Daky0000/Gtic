@@ -5,8 +5,16 @@ import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { chunkDocument } from "../src/lib/ai/chunker";
+import {
+  applicationRefNo, indexNumber, invoiceNo, staffNo, verificationCode,
+  voucherPin, voucherSerial,
+} from "../src/lib/codes";
 
 const db = new PrismaClient();
+
+// One account holding EVERY role — for exercising the whole system during
+// testing before roles are divided across real staff (per project decision).
+const SUPER_USER_EMAIL = "super@demo.campuscore.test";
 
 // Local better-auth instance (no Next.js plugins) so seeded passwords use the
 // exact same hashing as the running app.
@@ -322,6 +330,27 @@ async function main() {
   }
   console.log(`  ✓ ${ROLES.length} demo users (password: ${DEMO_PASSWORD})`);
 
+  // 3b. Super user — holds every role, for testing the whole system before
+  // roles are divided across real staff.
+  let superUser = await db.user.findUnique({ where: { email: SUPER_USER_EMAIL } });
+  if (!superUser) {
+    await seedAuth.api.signUpEmail({
+      body: { email: SUPER_USER_EMAIL, password: DEMO_PASSWORD, name: "Super Admin" },
+    });
+    superUser = await db.user.findUniqueOrThrow({ where: { email: SUPER_USER_EMAIL } });
+    await db.user.update({ where: { id: superUser.id }, data: { emailVerified: true } });
+  }
+  for (const [code] of ROLES) {
+    const role = await db.role.findUniqueOrThrow({ where: { code } });
+    const existing = await db.roleAssignment.findFirst({
+      where: { userId: superUser.id, roleId: role.id },
+    });
+    if (!existing) {
+      await db.roleAssignment.create({ data: { userId: superUser.id, roleId: role.id } });
+    }
+  }
+  console.log(`  ✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles`);
+
   // 4. Academic structure
   for (const s of STRUCTURE) {
     const school = await db.school.upsert({
@@ -385,7 +414,276 @@ async function main() {
   });
   console.log("  ✓ AI feature config (assistant)");
 
+  // 7. Academic calendar — current year/semester with open windows so every
+  // date-gated flow (registration, hostel booking) can be exercised now.
+  const now = new Date();
+  const inDays = (n: number) => new Date(now.getTime() + n * 86_400_000);
+
+  const year = await db.academicYear.upsert({
+    where: { label: "2026/2027" },
+    update: { isCurrent: true },
+    create: {
+      label: "2026/2027",
+      startsOn: inDays(-60),
+      endsOn: inDays(240),
+      isCurrent: true,
+    },
+  });
+
+  const semester1 = await db.semester.upsert({
+    where: { academicYearId_number: { academicYearId: year.id, number: 1 } },
+    update: { isCurrent: true },
+    create: {
+      academicYearId: year.id,
+      number: 1,
+      label: "2026/2027 Semester 1",
+      startsOn: inDays(-30),
+      endsOn: inDays(90),
+      isCurrent: true,
+    },
+  });
+
+  for (const w of [
+    { type: "REGISTRATION" as const, opensAt: inDays(-14), closesAt: inDays(14) },
+    { type: "ADD_DROP" as const, opensAt: inDays(-14), closesAt: inDays(21) },
+    { type: "HOSTEL_BOOKING" as const, opensAt: inDays(-7), closesAt: inDays(30) },
+    { type: "EVALUATION" as const, opensAt: inDays(60), closesAt: inDays(75) },
+  ]) {
+    await db.window.upsert({
+      where: { semesterId_type: { semesterId: semester1.id, type: w.type } },
+      update: { opensAt: w.opensAt, closesAt: w.closesAt },
+      create: { semesterId: semester1.id, ...w },
+    });
+  }
+  console.log("  ✓ academic calendar (2026/2027, Semester 1, open windows)");
+
+  // 8. Admission cycle, quotas and a voucher batch
+  const flagshipProgrammes = ["BSC-CPE", "BSC-EEE", "BSC-MTH", "BSC-AGR"];
+  let cycle = await db.admissionCycle.findFirst({ where: { name: "2026/2027 Undergraduate Admissions" } });
+  if (!cycle) {
+    cycle = await db.admissionCycle.create({
+      data: {
+        name: "2026/2027 Undergraduate Admissions",
+        academicYearId: year.id,
+        opensAt: inDays(-20),
+        closesAt: inDays(45),
+        applicationFee: 20000, // GHS 200
+        acceptanceFee: 50000, // GHS 500
+        status: "OPEN",
+      },
+    });
+    for (const code of flagshipProgrammes) {
+      const programme = await db.programme.findUniqueOrThrow({ where: { code } });
+      await db.cycleProgramme.create({
+        data: { cycleId: cycle.id, programmeId: programme.id, quota: 60 },
+      });
+    }
+  }
+  const existingVouchers = await db.voucher.count({ where: { cycleId: cycle.id } });
+  const demoVoucher = { serial: "VDEMO001", pin: "12345678" };
+  if (existingVouchers === 0) {
+    await db.voucher.create({ data: { cycleId: cycle.id, ...demoVoucher, status: "GENERATED" } });
+    for (let i = 0; i < 4; i++) {
+      await db.voucher.create({
+        data: { cycleId: cycle.id, serial: voucherSerial(), pin: voucherPin(), status: "GENERATED" },
+      });
+    }
+  }
+  console.log(`  ✓ admission cycle open (demo voucher ${demoVoucher.serial} / PIN ${demoVoucher.pin})`);
+
+  // 9. Courses + prerequisites + curriculum (BSc Computer Engineering, Year 1)
+  const cee = await db.department.findUniqueOrThrow({ where: { code: "CEE" } });
+  const bscCpe = await db.programme.findUniqueOrThrow({ where: { code: "BSC-CPE" } });
+
+  const courseDefs = [
+    { code: "CPE 101", title: "Introduction to Computer Engineering", credits: 3, sem: 1 },
+    { code: "MATH 101", title: "Calculus I", credits: 3, sem: 1 },
+    { code: "PHY 101", title: "Physics I", credits: 3, sem: 1 },
+    { code: "ENG 101", title: "Communication Skills I", credits: 2, sem: 1 },
+    { code: "CPE 102", title: "Programming Fundamentals", credits: 3, sem: 2, requires: "CPE 101" },
+    { code: "MATH 102", title: "Calculus II", credits: 3, sem: 2, requires: "MATH 101" },
+  ];
+  const courseIds: Record<string, string> = {};
+  for (const c of courseDefs) {
+    const course = await db.course.upsert({
+      where: { code: c.code },
+      update: { title: c.title, credits: c.credits, departmentId: cee.id },
+      create: { code: c.code, title: c.title, credits: c.credits, departmentId: cee.id },
+    });
+    courseIds[c.code] = course.id;
+  }
+  for (const c of courseDefs) {
+    if (c.requires) {
+      await db.prerequisite.upsert({
+        where: { courseId_requiresId: { courseId: courseIds[c.code], requiresId: courseIds[c.requires] } },
+        update: {},
+        create: { courseId: courseIds[c.code], requiresId: courseIds[c.requires] },
+      });
+    }
+  }
+
+  const curriculum = await db.curriculumVersion.upsert({
+    where: { programmeId_name: { programmeId: bscCpe.id, name: "2026 entry" } },
+    update: { minCredits: 9, maxCredits: 15 },
+    create: { programmeId: bscCpe.id, name: "2026 entry", minCredits: 9, maxCredits: 15 },
+  });
+  for (const c of courseDefs) {
+    await db.curriculumCourse.upsert({
+      where: { curriculumId_courseId: { curriculumId: curriculum.id, courseId: courseIds[c.code] } },
+      update: { semesterNumber: c.sem, type: "CORE" },
+      create: { curriculumId: curriculum.id, courseId: courseIds[c.code], semesterNumber: c.sem, type: "CORE" },
+    });
+  }
+  console.log(`  ✓ ${courseDefs.length} courses + curriculum "2026 entry" for BSc Computer Engineering`);
+
+  // 10. Fee schedule for the academic year
+  const feeSchedule = await db.feeSchedule.upsert({
+    where: { academicYearId_level: { academicYearId: year.id, level: "UNDERGRADUATE" } },
+    update: {},
+    create: { academicYearId: year.id, level: "UNDERGRADUATE", name: "2026/2027 Undergraduate Fees" },
+  });
+  const feeItemCount = await db.feeItem.count({ where: { scheduleId: feeSchedule.id } });
+  if (feeItemCount === 0) {
+    await db.feeItem.createMany({
+      data: [
+        { scheduleId: feeSchedule.id, name: "Tuition", amount: 350_000 },
+        { scheduleId: feeSchedule.id, name: "Academic Facility User Fee", amount: 20_000 },
+        { scheduleId: feeSchedule.id, name: "SRC Dues", amount: 5_000 },
+        { scheduleId: feeSchedule.id, name: "ICT Fee", amount: 10_000 },
+      ],
+    });
+  }
+  console.log("  ✓ 2026/2027 undergraduate fee schedule (GHS 3,850.00 per semester)");
+
+  // 11. Course offerings for the current semester, with lecturers assigned
+  const lecturerUser = await db.user.findUniqueOrThrow({ where: { email: "lecturer@demo.campuscore.test" } });
+  const offeringIds: Record<string, string> = {};
+  for (const c of courseDefs.filter((c) => c.sem === 1)) {
+    const offering = await db.courseOffering.upsert({
+      where: { courseId_semesterId: { courseId: courseIds[c.code], semesterId: semester1.id } },
+      update: {},
+      create: { courseId: courseIds[c.code], semesterId: semester1.id, capacity: 80 },
+    });
+    offeringIds[c.code] = offering.id;
+    for (const staffUserId of [lecturerUser.id, superUser.id]) {
+      await db.offeringLecturer.upsert({
+        where: { offeringId_staffUserId: { offeringId: offering.id, staffUserId } },
+        update: {},
+        create: { offeringId: offering.id, staffUserId },
+      });
+    }
+  }
+  console.log(`  ✓ ${Object.keys(offeringIds).length} course offerings for Semester 1, lecturers assigned`);
+
+  // 12. Enroll the demo student and the super user as real students
+  for (const email of ["student@demo.campuscore.test", SUPER_USER_EMAIL]) {
+    const u = await db.user.findUniqueOrThrow({ where: { email } });
+    const already = await db.student.findUnique({ where: { userId: u.id } });
+    if (!already) {
+      await db.student.create({
+        data: {
+          userId: u.id,
+          indexNo: indexNumber(year.label),
+          programmeId: bscCpe.id,
+          curriculumVersionId: curriculum.id,
+          entryYearId: year.id,
+          status: "ACTIVE",
+        },
+      });
+    }
+  }
+  console.log("  ✓ demo student + super user enrolled as students of BSc Computer Engineering");
+
+  // 13. Venues
+  for (const v of [
+    { name: "Lecture Theatre A", capacity: 200 },
+    { name: "Lecture Theatre B", capacity: 150 },
+    { name: "Engineering Lab 1", capacity: 40 },
+  ]) {
+    await db.venue.upsert({ where: { name: v.name }, update: {}, create: v });
+  }
+  console.log("  ✓ venues");
+
+  // 14. Hostels, rooms and beds
+  const hostelDefs: { name: string; gender: "MALE" | "FEMALE" | "MIXED"; feePerYear: number; rooms: number; bedsPerRoom: number }[] = [
+    { name: "Unity Hall", gender: "MALE", feePerYear: 250_000, rooms: 2, bedsPerRoom: 2 },
+    { name: "Hall of Grace", gender: "FEMALE", feePerYear: 250_000, rooms: 2, bedsPerRoom: 2 },
+    { name: "International House", gender: "MIXED", feePerYear: 300_000, rooms: 2, bedsPerRoom: 2 },
+  ];
+  for (const h of hostelDefs) {
+    const hostel = await db.hostel.upsert({
+      where: { name: h.name },
+      update: { gender: h.gender, feePerYear: h.feePerYear },
+      create: { name: h.name, gender: h.gender, feePerYear: h.feePerYear },
+    });
+    for (let r = 1; r <= h.rooms; r++) {
+      const label = `R${r}`;
+      const room = await db.room.upsert({
+        where: { hostelId_label: { hostelId: hostel.id, label } },
+        update: {},
+        create: { hostelId: hostel.id, label, capacity: h.bedsPerRoom },
+      });
+      for (let b = 1; b <= h.bedsPerRoom; b++) {
+        const bedLabel = `B${b}`;
+        await db.bed.upsert({
+          where: { roomId_label: { roomId: room.id, label: bedLabel } },
+          update: {},
+          create: { roomId: room.id, label: bedLabel },
+        });
+      }
+    }
+  }
+  console.log(`  ✓ ${hostelDefs.length} hostels with rooms and beds`);
+
+  // 15. Library items
+  const bookCount = await db.libraryItem.count();
+  if (bookCount === 0) {
+    await db.libraryItem.createMany({
+      data: [
+        { title: "Introduction to Algorithms", author: "Cormen, Leiserson, Rivest, Stein", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "Fundamentals of Electric Circuits", author: "Sadiku & Alexander", copiesTotal: 4, copiesAvailable: 4 },
+        { title: "Calculus: Early Transcendentals", author: "James Stewart", copiesTotal: 5, copiesAvailable: 5 },
+        { title: "University Physics", author: "Young & Freedman", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "Renewable Energy: Power for a Sustainable Future", author: "Godfrey Boyle", copiesTotal: 2, copiesAvailable: 2 },
+      ],
+    });
+  }
+  console.log("  ✓ library catalogue");
+
+  // 16. Staff profiles (HR)
+  const staffEmails = ["lecturer@demo.campuscore.test", "hod@demo.campuscore.test", "dean@demo.campuscore.test"];
+  for (const email of staffEmails) {
+    const u = await db.user.findUniqueOrThrow({ where: { email } });
+    const existing = await db.staffProfile.findUnique({ where: { userId: u.id } });
+    if (!existing) {
+      await db.staffProfile.create({
+        data: { userId: u.id, staffNo: staffNo(), position: u.name.replace("Demo ", ""), departmentCode: "CEE", hiredOn: inDays(-900) },
+      });
+    }
+  }
+  const superStaff = await db.staffProfile.findUnique({ where: { userId: superUser.id } });
+  if (!superStaff) {
+    await db.staffProfile.create({
+      data: { userId: superUser.id, staffNo: staffNo(), position: "Super Admin", departmentCode: "CEE", hiredOn: inDays(-900) },
+    });
+  }
+  console.log("  ✓ staff HR profiles");
+
+  // 17. Welcome announcement
+  const announcementCount = await db.announcement.count();
+  if (announcementCount === 0) {
+    await db.announcement.create({
+      data: {
+        title: "Welcome to the 2026/2027 Academic Year",
+        body: "Registration for Semester 1 is now open. Please check the academic calendar for key dates and ensure your fees are paid before the registration deadline.",
+        audience: "ALL",
+      },
+    });
+  }
+  console.log("  ✓ welcome announcement");
+
   console.log("Seed complete.");
+  console.log(`\nSuper user login: ${SUPER_USER_EMAIL} / ${DEMO_PASSWORD}`);
 }
 
 main()

@@ -12,7 +12,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
         { label: "My courses", href: "/staff/courses", comingSoon: true },
         { label: "Grading", href: "/staff/grading", comingSoon: true },
         { label: "Approvals", href: "/staff/approvals", comingSoon: true },
-        { label: "Admissions review", href: "/staff/admissions", comingSoon: true },
+        { label: "Admissions review", href: "/staff/admissions" },
         { label: "Reports", href: "/staff/reports", comingSoon: true },
       ]}
     >

@@ -1,7 +1,14 @@
 import Link from "next/link";
-import type { CurrentUser } from "@/lib/rbac";
+import { accessiblePortals, PORTAL_HOME, type CurrentUser } from "@/lib/rbac";
 import { SignOutButton } from "@/components/sign-out-button";
 import { AssistantPanel } from "@/components/chat/assistant-panel";
+
+const PORTAL_LABEL: Record<string, string> = {
+  apply: "Applicant",
+  student: "Student",
+  staff: "Staff",
+  admin: "Admin",
+};
 
 export type NavItem = {
   label: string;
@@ -72,6 +79,7 @@ export function PortalShell({
           </div>
           <div className="hidden text-sm text-ink-500 md:block">{portalName}</div>
           <div className="flex items-center gap-3">
+            <PortalSwitcher roles={user.roles} />
             <span className="hidden text-sm text-ink-700 sm:block">{user.name}</span>
             <SignOutButton />
           </div>
@@ -81,6 +89,26 @@ export function PortalShell({
 
       {/* Floating AI assistant, available in every portal */}
       <AssistantPanel />
+    </div>
+  );
+}
+
+/** Shown only to accounts holding roles across several portals (e.g. the
+ * all-roles testing super user) — lets them jump between portals directly. */
+function PortalSwitcher({ roles }: { roles: string[] }) {
+  const portals = accessiblePortals(roles);
+  if (portals.length <= 1) return null;
+  return (
+    <div className="hidden gap-1 rounded-md border border-ink-300/60 bg-ink-50 p-1 lg:flex">
+      {portals.map((p) => (
+        <Link
+          key={p}
+          href={PORTAL_HOME[p]}
+          className="rounded px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-white hover:text-brand-800"
+        >
+          {PORTAL_LABEL[p]}
+        </Link>
+      ))}
     </div>
   );
 }

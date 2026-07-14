@@ -9,10 +9,10 @@ export default async function ApplyLayout({ children }: { children: React.ReactN
       user={user}
       nav={[
         { label: "Overview", href: "/apply" },
-        { label: "My application", href: "/apply/application", comingSoon: true },
-        { label: "Documents", href: "/apply/documents", comingSoon: true },
-        { label: "Payments", href: "/apply/payments", comingSoon: true },
-        { label: "Messages", href: "/apply/messages", comingSoon: true },
+        { label: "My application", href: "/apply/application" },
+        { label: "Documents", href: "/apply/documents" },
+        { label: "Payments", href: "/apply/payments" },
+        { label: "Admission letter", href: "/apply/letter" },
       ]}
     >
       {children}

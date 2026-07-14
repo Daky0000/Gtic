@@ -57,6 +57,12 @@ export function homePortalFor(roles: string[]): Portal | null {
   return null;
 }
 
+/** All portals a set of roles may enter — powers the portal switcher for
+ * multi-role accounts (e.g. the testing super user holding every role). */
+export function accessiblePortals(roles: string[]): Portal[] {
+  return PORTAL_PRIORITY.filter((p) => PORTAL_ACCESS[p].some((r) => roles.includes(r)));
+}
+
 export const PORTAL_HOME: Record<Portal, string> = {
   apply: "/apply",
   student: "/student",
@@ -123,6 +129,20 @@ export async function requirePermission(code: string): Promise<CurrentUser> {
   const user = await requireUser();
   if (!user.permissions.includes(code)) {
     throw new Error(`Forbidden: missing permission "${code}"`);
+  }
+  return user;
+}
+
+export function hasRole(user: CurrentUser, ...roles: RoleCode[]): boolean {
+  return roles.some((r) => user.roles.includes(r));
+}
+
+/** Used inside server actions/mutations — throws (rather than redirects) so
+ * the calling form surfaces a clear error instead of a silent navigation. */
+export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!hasRole(user, ...roles)) {
+    throw new Error(`Forbidden: requires role ${roles.join(" or ")}`);
   }
   return user;
 }

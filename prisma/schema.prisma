@@ -28,6 +28,16 @@ model User {
   notifications   Notification[]
   aiConversations AIConversation[]
 
+  // Domain links (phases 1+)
+  applications     Application[]
+  student          Student?
+  staffProfile     StaffProfile?
+  invoices         Invoice[]
+  documentRequests DocumentRequest[]
+  loans            Loan[]
+  leaveRequests    LeaveRequest[]
+  taughtOfferings  OfferingLecturer[]
+
   @@map("user")
 }
 
@@ -166,6 +176,7 @@ model Department {
   school   School @relation(fields: [schoolId], references: [id])
 
   programmes Programme[]
+  courses    Course[]
 
   @@index([schoolId])
 }
@@ -179,6 +190,12 @@ model Programme {
   departmentId      String
   department        Department     @relation(fields: [departmentId], references: [id])
   entryRequirements String? // plain-text summary shown in the catalogue (structured rules come in Phase 1)
+
+  cycleProgrammes    CycleProgramme[]
+  applicationChoices ApplicationChoice[]
+  offers             Offer[]
+  students           Student[]
+  curriculumVersions CurriculumVersion[]
 
   @@index([departmentId])
 }
@@ -320,4 +337,964 @@ model AIAuditLog {
 
   @@index([feature, createdAt])
   @@index([userId])
+}
+
+// ═══════════════════════ Phases 1–10 domain schema ═══════════════════════
+
+// ─── Academic calendar ───
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  label     String   @unique // "2026/2027"
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+
+  semesters    Semester[]
+  cycles       AdmissionCycle[]
+  feeSchedules FeeSchedule[]
+  students     Student[]
+  bookings     Booking[]
+}
+
+model Semester {
+  id             String       @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  number         Int // 1 or 2
+  label          String // "2026/2027 Semester 1"
+  startsOn       DateTime
+  endsOn         DateTime
+  isCurrent      Boolean      @default(false)
+
+  windows       Window[]
+  offerings     CourseOffering[]
+  registrations Registration[]
+  results       SemesterResult[]
+  invoices      Invoice[]
+
+  @@unique([academicYearId, number])
+}
+
+enum WindowType {
+  REGISTRATION
+  ADD_DROP
+  HOSTEL_BOOKING
+  EVALUATION
+}
+
+model Window {
+  id         String     @id @default(cuid())
+  semesterId String
+  semester   Semester   @relation(fields: [semesterId], references: [id])
+  type       WindowType
+  opensAt    DateTime
+  closesAt   DateTime
+
+  @@unique([semesterId, type])
+}
+
+// ─── Admissions (Phase 1) ───
+
+enum CycleStatus {
+  OPEN
+  CLOSED
+}
+
+model AdmissionCycle {
+  id             String       @id @default(cuid())
+  name           String
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  opensAt        DateTime
+  closesAt       DateTime
+  applicationFee Int // pesewas
+  acceptanceFee  Int // pesewas
+  status         CycleStatus  @default(OPEN)
+
+  programmes   CycleProgramme[]
+  applications Application[]
+  vouchers     Voucher[]
+}
+
+model CycleProgramme {
+  id          String         @id @default(cuid())
+  cycleId     String
+  cycle       AdmissionCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  programmeId String
+  programme   Programme      @relation(fields: [programmeId], references: [id])
+  quota       Int?
+  cutoffNote  String?
+
+  @@unique([cycleId, programmeId])
+}
+
+enum VoucherStatus {
+  GENERATED
+  SOLD
+  REDEEMED
+}
+
+model Voucher {
+  id           String         @id @default(cuid())
+  cycleId      String
+  cycle        AdmissionCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  serial       String         @unique
+  pin          String
+  status       VoucherStatus  @default(GENERATED)
+  redeemedById String?
+  redeemedAt   DateTime?
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INFO_REQUESTED
+  RECOMMENDED
+  APPROVED
+  OFFER_ISSUED
+  ACCEPTED
+  DECLINED
+  REJECTED
+  ENROLLED
+}
+
+enum Recommendation {
+  OFFER_FIRST_CHOICE
+  OFFER_ALTERNATIVE
+  WAITLIST
+  REJECT
+}
+
+model Application {
+  id      String            @id @default(cuid())
+  refNo   String            @unique
+  cycleId String
+  cycle   AdmissionCycle    @relation(fields: [cycleId], references: [id])
+  userId  String
+  user    User              @relation(fields: [userId], references: [id])
+  status  ApplicationStatus @default(DRAFT)
+
+  // Personal details (snapshot at application time)
+  surname        String?
+  firstName      String?
+  otherNames     String?
+  dateOfBirth    DateTime?
+  gender         String?
+  nationality    String?
+  phone          String?
+  address        String?
+  emergencyName  String?
+  emergencyPhone String?
+
+  // Qualifications
+  qualificationType String? // WASSCE, MATURE, INTERNATIONAL, POSTGRADUATE
+  examIndexNo       String?
+  examYear          String?
+  results           Json? // [{subject, grade}]
+
+  // Review
+  aiPrescreen    Json?
+  infoRequest    String?
+  recommendation Recommendation?
+  decisionNote   String?
+  submittedAt    DateTime?
+  decidedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  choices   ApplicationChoice[]
+  documents ApplicationDocument[]
+  offer     Offer?
+  student   Student?
+
+  @@index([cycleId, status])
+  @@index([userId])
+}
+
+model ApplicationChoice {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  programmeId   String
+  programme     Programme   @relation(fields: [programmeId], references: [id])
+  rank          Int // 1, 2, 3
+
+  @@unique([applicationId, rank])
+}
+
+enum ApplicationDocKind {
+  RESULTS_SLIP
+  CERTIFICATE
+  TRANSCRIPT
+  PHOTO
+  ID_DOCUMENT
+  OTHER
+}
+
+model ApplicationDocument {
+  id            String             @id @default(cuid())
+  applicationId String
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          ApplicationDocKind
+  fileName      String
+  filePath      String
+  mimeType      String
+  size          Int
+  extracted     Json? // AI-extracted structured data (user-confirmed)
+  uploadedAt    DateTime           @default(now())
+
+  @@index([applicationId])
+}
+
+model Offer {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+  programmeId   String
+  programme     Programme   @relation(fields: [programmeId], references: [id])
+  issuedAt      DateTime    @default(now())
+  expiresAt     DateTime?
+  acceptedAt    DateTime?
+  declinedAt    DateTime?
+  letterCode    String      @unique // public verification code
+}
+
+// ─── Students (Phase 2) ───
+
+enum StudentStatus {
+  ACTIVE
+  DEFERRED
+  WITHDRAWN
+  DISMISSED
+  GRADUATED
+}
+
+model Student {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id])
+  indexNo             String             @unique
+  programmeId         String
+  programme           Programme          @relation(fields: [programmeId], references: [id])
+  curriculumVersionId String?
+  curriculumVersion   CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id])
+  entryYearId         String
+  entryYear           AcademicYear       @relation(fields: [entryYearId], references: [id])
+  applicationId       String?            @unique
+  application         Application?       @relation(fields: [applicationId], references: [id])
+  status              StudentStatus      @default(ACTIVE)
+  admittedAt          DateTime           @default(now())
+
+  statusHistory StudentStatusHistory[]
+  registrations Registration[]
+  gradeEntries  GradeEntry[]
+  results       SemesterResult[]
+  invoices      Invoice[]
+  bookings      Booking[]
+  submissions   Submission[]
+  quizAttempts  QuizAttempt[]
+  candidature   Candidature?
+  evaluations   Evaluation[]
+
+  @@index([programmeId])
+}
+
+model StudentStatusHistory {
+  id        String        @id @default(cuid())
+  studentId String
+  student   Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  from      StudentStatus
+  to        StudentStatus
+  reason    String?
+  actorId   String?
+  at        DateTime      @default(now())
+
+  @@index([studentId])
+}
+
+// ─── Curriculum & courses (Phase 3) ───
+
+model Course {
+  id           String     @id @default(cuid())
+  code         String     @unique // "CPE 101"
+  title        String
+  credits      Int
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  description  String?
+
+  curriculumCourses CurriculumCourse[]
+  offerings         CourseOffering[]
+  prerequisites     Prerequisite[]     @relation("course")
+  requiredBy        Prerequisite[]     @relation("requires")
+}
+
+model Prerequisite {
+  courseId   String
+  course     Course @relation("course", fields: [courseId], references: [id], onDelete: Cascade)
+  requiresId String
+  requires   Course @relation("requires", fields: [requiresId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, requiresId])
+}
+
+model CurriculumVersion {
+  id          String    @id @default(cuid())
+  programmeId String
+  programme   Programme @relation(fields: [programmeId], references: [id])
+  name        String // "2026 entry"
+  minCredits  Int       @default(15)
+  maxCredits  Int       @default(21)
+
+  courses  CurriculumCourse[]
+  students Student[]
+
+  @@unique([programmeId, name])
+}
+
+enum CourseType {
+  CORE
+  ELECTIVE
+}
+
+model CurriculumCourse {
+  id             String            @id @default(cuid())
+  curriculumId   String
+  curriculum     CurriculumVersion @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course            @relation(fields: [courseId], references: [id])
+  semesterNumber Int // 1..N over the whole programme
+  type           CourseType        @default(CORE)
+
+  @@unique([curriculumId, courseId])
+}
+
+// ─── Registration (Phase 3) ───
+
+model CourseOffering {
+  id         String   @id @default(cuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  semesterId String
+  semester   Semester @relation(fields: [semesterId], references: [id])
+  capacity   Int?
+
+  lecturers           OfferingLecturer[]
+  registrationCourses RegistrationCourse[]
+  gradeSheet          GradeSheet?
+  materials           Material[]
+  assignments         Assignment[]
+  quizzes             Quiz[]
+  sessions            TimetableSession[]
+  evaluations         Evaluation[]
+
+  @@unique([courseId, semesterId])
+}
+
+model OfferingLecturer {
+  offeringId  String
+  offering    CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  staffUserId String
+  staffUser   User           @relation(fields: [staffUserId], references: [id])
+
+  @@id([offeringId, staffUserId])
+}
+
+enum RegistrationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+model Registration {
+  id           String             @id @default(cuid())
+  studentId    String
+  student      Student            @relation(fields: [studentId], references: [id])
+  semesterId   String
+  semester     Semester           @relation(fields: [semesterId], references: [id])
+  status       RegistrationStatus @default(DRAFT)
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  approvedById String?
+
+  courses RegistrationCourse[]
+
+  @@unique([studentId, semesterId])
+}
+
+model RegistrationCourse {
+  id             String         @id @default(cuid())
+  registrationId String
+  registration   Registration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  offeringId     String
+  offering       CourseOffering @relation(fields: [offeringId], references: [id])
+  isRetake       Boolean        @default(false)
+
+  @@unique([registrationId, offeringId])
+}
+
+// ─── Examinations & results (Phase 4) ───
+
+enum GradeSheetStatus {
+  DRAFT
+  SUBMITTED
+  HOD_APPROVED
+  DEAN_APPROVED
+  VALIDATED
+  PUBLISHED
+  RETURNED
+}
+
+model GradeSheet {
+  id          String           @id @default(cuid())
+  offeringId  String           @unique
+  offering    CourseOffering   @relation(fields: [offeringId], references: [id])
+  status      GradeSheetStatus @default(DRAFT)
+  caWeight    Int              @default(30)
+  examWeight  Int              @default(70)
+  submittedAt DateTime?
+  publishedAt DateTime?
+
+  entries   GradeEntry[]
+  approvals GradeSheetApproval[]
+}
+
+model GradeEntry {
+  id           String     @id @default(cuid())
+  gradeSheetId String
+  gradeSheet   GradeSheet @relation(fields: [gradeSheetId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  caScore      Float?
+  examScore    Float?
+  total        Float?
+  grade        String? // A, B+, ... F
+  gradePoint   Float?
+
+  @@unique([gradeSheetId, studentId])
+}
+
+enum ApprovalStage {
+  HOD
+  DEAN
+  EXAMS_OFFICE
+  REGISTRAR
+}
+
+enum ApprovalDecision {
+  APPROVED
+  RETURNED
+}
+
+model GradeSheetApproval {
+  id           String           @id @default(cuid())
+  gradeSheetId String
+  gradeSheet   GradeSheet       @relation(fields: [gradeSheetId], references: [id], onDelete: Cascade)
+  stage        ApprovalStage
+  decision     ApprovalDecision
+  note         String?
+  actorId      String
+  at           DateTime         @default(now())
+
+  @@index([gradeSheetId])
+}
+
+enum AcademicStanding {
+  GOOD
+  PROBATION
+  WITHDRAWN
+}
+
+model SemesterResult {
+  id                String           @id @default(cuid())
+  studentId         String
+  student           Student          @relation(fields: [studentId], references: [id])
+  semesterId        String
+  semester          Semester         @relation(fields: [semesterId], references: [id])
+  creditsTaken      Int
+  creditsEarned     Int
+  semesterAverage   Float // credit-weighted average (CWA regime)
+  cumulativeAverage Float
+  standing          AcademicStanding @default(GOOD)
+  publishedAt       DateTime         @default(now())
+
+  @@unique([studentId, semesterId])
+}
+
+// ─── Fees & finance (Phase 5) ───
+
+model FeeSchedule {
+  id             String         @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id])
+  level          ProgrammeLevel
+  name           String
+
+  items FeeItem[]
+
+  @@unique([academicYearId, level])
+}
+
+model FeeItem {
+  id         String      @id @default(cuid())
+  scheduleId String
+  schedule   FeeSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  name       String
+  amount     Int // pesewas per semester
+}
+
+enum InvoiceKind {
+  APPLICATION
+  ACCEPTANCE
+  TUITION
+  HOSTEL
+  DOCUMENT
+  RESIT
+  FINE
+  OTHER
+}
+
+enum InvoiceStatus {
+  PENDING
+  PART_PAID
+  PAID
+  VOID
+}
+
+model Invoice {
+  id         String        @id @default(cuid())
+  invoiceNo  String        @unique
+  kind       InvoiceKind
+  status     InvoiceStatus @default(PENDING)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id])
+  studentId  String?
+  student    Student?      @relation(fields: [studentId], references: [id])
+  semesterId String?
+  semester   Semester?     @relation(fields: [semesterId], references: [id])
+  total      Int
+  paid       Int           @default(0)
+  dueAt      DateTime?
+  meta       Json?
+  createdAt  DateTime      @default(now())
+
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  @@index([userId])
+  @@index([studentId, kind])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  amount      Int
+}
+
+enum PaymentChannel {
+  MOCK
+  PAYSTACK
+  TELLER
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model Payment {
+  id        String         @id @default(cuid())
+  invoiceId String
+  invoice   Invoice        @relation(fields: [invoiceId], references: [id])
+  channel   PaymentChannel
+  reference String         @unique
+  amount    Int
+  status    PaymentStatus  @default(PENDING)
+  paidAt    DateTime?
+  meta      Json?
+  createdAt DateTime       @default(now())
+
+  @@index([invoiceId])
+}
+
+// ─── Issued documents & verification (Phases 1, 4, 8) ───
+
+enum IssuedDocType {
+  ADMISSION_LETTER
+  RECEIPT
+  TRANSCRIPT
+  PROOF_OF_REGISTRATION
+  ALLOCATION_SLIP
+  ATTESTATION
+}
+
+model IssuedDocument {
+  id        String        @id @default(cuid())
+  type      IssuedDocType
+  code      String        @unique // public verification code
+  title     String
+  userId    String?
+  payload   Json // everything needed to re-render and verify
+  createdAt DateTime      @default(now())
+
+  @@index([userId])
+}
+
+// ─── Accommodation (Phase 6) ───
+
+enum HostelGender {
+  MALE
+  FEMALE
+  MIXED
+}
+
+model Hostel {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  gender      HostelGender @default(MIXED)
+  description String?
+  feePerYear  Int // pesewas
+
+  rooms Room[]
+}
+
+model Room {
+  id       String @id @default(cuid())
+  hostelId String
+  hostel   Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  label    String
+  capacity Int
+
+  beds Bed[]
+
+  @@unique([hostelId, label])
+}
+
+model Bed {
+  id     String @id @default(cuid())
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  label  String
+
+  bookings Booking[]
+
+  @@unique([roomId, label])
+}
+
+enum BookingStatus {
+  HELD
+  PAID
+  EXPIRED
+  CANCELLED
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  bedId          String
+  bed            Bed           @relation(fields: [bedId], references: [id])
+  studentId      String
+  student        Student       @relation(fields: [studentId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id])
+  status         BookingStatus @default(HELD)
+  heldUntil      DateTime?
+  invoiceId      String?
+  checkedInAt    DateTime?
+  checkedOutAt   DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([bedId, academicYearId])
+  @@index([studentId])
+}
+
+// ─── E-learning (Phase 7) ───
+
+enum MaterialKind {
+  FILE
+  LINK
+  TEXT
+}
+
+model Material {
+  id          String         @id @default(cuid())
+  offeringId  String
+  offering    CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  title       String
+  kind        MaterialKind
+  content     String? // link URL or text body
+  filePath    String?
+  week        Int?
+  createdById String?
+  createdAt   DateTime       @default(now())
+}
+
+model Assignment {
+  id           String         @id @default(cuid())
+  offeringId   String
+  offering     CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  title        String
+  instructions String
+  dueAt        DateTime
+  maxScore     Int            @default(100)
+  createdAt    DateTime       @default(now())
+
+  submissions Submission[]
+}
+
+model Submission {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  text         String?
+  filePath     String?
+  submittedAt  DateTime   @default(now())
+  score        Float?
+  feedback     String?
+  gradedAt     DateTime?
+  aiSuggestion Json? // {score, rationale} — advisory until lecturer approves
+
+  @@unique([assignmentId, studentId])
+}
+
+model Quiz {
+  id          String         @id @default(cuid())
+  offeringId  String
+  offering    CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  title       String
+  durationMin Int?
+  opensAt     DateTime?
+  closesAt    DateTime?
+  published   Boolean        @default(false)
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String @id @default(cuid())
+  quizId       String
+  quiz         Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  ord          Int
+  prompt       String
+  options      Json // string[]
+  correctIndex Int
+  points       Int    @default(1)
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  answers     Json? // number[] by question ord
+  score       Float?
+
+  @@unique([quizId, studentId])
+}
+
+// ─── Communications & document services (Phase 8) ───
+
+enum Audience {
+  ALL
+  APPLICANTS
+  STUDENTS
+  STAFF
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  audience    Audience @default(ALL)
+  authorId    String?
+  publishedAt DateTime @default(now())
+}
+
+enum DocRequestType {
+  TRANSCRIPT
+  ATTESTATION
+  VERIFICATION_LETTER
+}
+
+enum DocRequestStatus {
+  PENDING_PAYMENT
+  QUEUED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+model DocumentRequest {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  type        DocRequestType
+  status      DocRequestStatus @default(PENDING_PAYMENT)
+  invoiceId   String?
+  note        String?
+  issuedDocId String?
+  createdAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  @@index([userId])
+}
+
+// ─── Library (Phase 9) ───
+
+model LibraryItem {
+  id              String  @id @default(cuid())
+  title           String
+  author          String
+  isbn            String?
+  copiesTotal     Int     @default(1)
+  copiesAvailable Int     @default(1)
+
+  loans Loan[]
+}
+
+model Loan {
+  id            String      @id @default(cuid())
+  itemId        String
+  item          LibraryItem @relation(fields: [itemId], references: [id])
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  borrowedAt    DateTime    @default(now())
+  dueAt         DateTime
+  returnedAt    DateTime?
+  fineInvoiceId String?
+
+  @@index([userId, returnedAt])
+}
+
+// ─── HR (Phase 9) ───
+
+model StaffProfile {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id])
+  staffNo        String    @unique
+  title          String?
+  position       String?
+  departmentCode String?
+  hiredOn        DateTime?
+
+  leaveBalance Int @default(30) // days per year (demo simplification)
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  staffUserId String
+  staffUser   User        @relation(fields: [staffUserId], references: [id])
+  type        LeaveType   @default(ANNUAL)
+  fromDate    DateTime
+  toDate      DateTime
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([staffUserId])
+}
+
+// ─── Timetabling (Phase 9) ───
+
+model Venue {
+  id       String @id @default(cuid())
+  name     String @unique
+  capacity Int
+
+  sessions TimetableSession[]
+}
+
+enum SessionKind {
+  TEACHING
+  EXAM
+}
+
+model TimetableSession {
+  id         String         @id @default(cuid())
+  kind       SessionKind
+  offeringId String
+  offering   CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  venueId    String?
+  venue      Venue?         @relation(fields: [venueId], references: [id])
+  dayOfWeek  Int? // 1=Mon..7=Sun (teaching)
+  startTime  String? // "08:00"
+  endTime    String? // "10:00"
+  examDate   DateTime? // (exam)
+
+  @@index([offeringId])
+}
+
+// ─── Graduate studies (Phase 10) ───
+
+enum MilestoneStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  RETURNED
+}
+
+model Candidature {
+  id               String  @id @default(cuid())
+  studentId        String  @unique
+  student          Student @relation(fields: [studentId], references: [id])
+  topic            String?
+  supervisorUserId String?
+
+  milestones Milestone[]
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  candidatureId String
+  candidature   Candidature     @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+  ord           Int
+  name          String
+  status        MilestoneStatus @default(PENDING)
+  submittedAt   DateTime?
+  approvedAt    DateTime?
+  feedback      String?
+
+  @@unique([candidatureId, ord])
+}
+
+// ─── QA evaluations (Phase 10) ───
+
+model Evaluation {
+  id         String         @id @default(cuid())
+  offeringId String
+  offering   CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student        @relation(fields: [studentId], references: [id])
+  rating     Int // 1..5
+  comment    String?
+  createdAt  DateTime       @default(now())
+
+  @@unique([offeringId, studentId])
 }
