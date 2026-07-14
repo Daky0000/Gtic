@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
 import { APPLICATION_STATUS_COLOR, APPLICATION_STATUS_LABEL } from "@/lib/status-labels";
+import { AnnouncementsBanner } from "@/components/announcements-banner";
 
 export const metadata = { title: "Applicant Portal" };
 
@@ -12,6 +13,8 @@ export default async function ApplyHome() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
+
+      <div className="mt-4"><AnnouncementsBanner audience="APPLICANTS" /></div>
 
       {!app ? (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

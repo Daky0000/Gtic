@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { AnnouncementsBanner } from "@/components/announcements-banner";
 
 // Refresh the public landing data every 5 minutes rather than freezing at build.
 export const revalidate = 300;
@@ -55,6 +56,11 @@ export default async function HomePage() {
               AI assistant for applicants and students
             </div>
           </div>
+        </div>
+
+        <h2 className="mt-10 text-lg font-semibold text-ink-700">Announcements</h2>
+        <div className="mt-3">
+          <AnnouncementsBanner audience="ALL" />
         </div>
       </section>
     </div>
