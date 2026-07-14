@@ -13,6 +13,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
         { label: "Grading", href: "/staff/grading", comingSoon: true },
         { label: "Approvals", href: "/staff/approvals", comingSoon: true },
         { label: "Admissions review", href: "/staff/admissions" },
+        { label: "Enrollment", href: "/staff/enrollment" },
         { label: "Reports", href: "/staff/reports", comingSoon: true },
       ]}
     >
