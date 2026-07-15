@@ -28,5 +28,12 @@ export function trustedOrigins(): string[] {
   ]) {
     if (v) origins.add(v.replace(/\/$/, ""));
   }
+  // Optional, comma-separated escape hatch — e.g. keep a platform-generated
+  // subdomain (gtic-production.up.railway.app) trusted alongside a custom
+  // domain during a migration, without hardcoding either into source.
+  for (const v of (process.env.EXTRA_TRUSTED_ORIGINS ?? "").split(",")) {
+    const trimmed = v.trim().replace(/\/$/, "");
+    if (trimmed) origins.add(trimmed);
+  }
   return [...origins];
 }
