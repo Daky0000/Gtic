@@ -5,6 +5,11 @@ import { db } from "@/lib/db";
 import { requireRole, requireUser, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { indexNumber } from "@/lib/codes";
+import { notify } from "@/lib/notify";
+
+function fail(message: string): never {
+  redirect(`/staff/enrollment?error=${encodeURIComponent(message)}`);
+}
 
 /**
  * Registrar action (REG-04): converts an accepted applicant into a student
@@ -18,8 +23,8 @@ export async function enrollAcceptedApplicant(formData: FormData) {
     where: { id: applicationId },
     include: { offer: true },
   });
-  if (app.status !== "ACCEPTED") throw new Error("Only accepted applications can be enrolled.");
-  if (!app.offer) throw new Error("This application has no offer on record.");
+  if (app.status !== "ACCEPTED") fail("Only accepted applications can be enrolled.");
+  if (!app.offer) fail("This application has no offer on record.");
 
   const currentYear = await db.academicYear.findFirstOrThrow({ where: { isCurrent: true } });
   const curriculum = await db.curriculumVersion.findFirst({
@@ -67,6 +72,12 @@ export async function enrollAcceptedApplicant(formData: FormData) {
     actorId: registrar.id, action: "sis.applicant_enrolled", entityType: "Student",
     entityId: student.id, after: { applicationId: app.id, indexNo: student.indexNo },
   });
+  await notify(
+    app.userId,
+    "You are now enrolled 🎓",
+    `Welcome! Your student index number is ${student.indexNo}. The Student Portal is now open to you — register your courses to begin.`,
+    "/student"
+  );
 
   redirect("/staff/enrollment");
 }

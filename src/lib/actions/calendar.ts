@@ -11,6 +11,9 @@ export async function updateWindowDates(formData: FormData) {
   const windowId = String(formData.get("windowId"));
   const opensAt = new Date(String(formData.get("opensAt")));
   const closesAt = new Date(String(formData.get("closesAt")));
+  if (Number.isNaN(opensAt.getTime()) || Number.isNaN(closesAt.getTime()) || closesAt <= opensAt) {
+    redirect(`/admin/calendar?error=${encodeURIComponent("The closing date must come after the opening date.")}`);
+  }
 
   await db.window.update({ where: { id: windowId }, data: { opensAt, closesAt } });
   await audit({

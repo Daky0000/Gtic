@@ -2,10 +2,16 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { submitMilestone } from "@/lib/actions/graduate";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "My Candidature" };
 
-export default async function CandidaturePage() {
+export default async function CandidaturePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const user = await requirePortal("student");
   const student = await db.student.findUnique({ where: { userId: user.id } });
   if (!student) redirect("/student");
@@ -19,6 +25,7 @@ export default async function CandidaturePage() {
     return (
       <div className="mx-auto max-w-lg text-center">
         <h1 className="text-2xl font-bold">My candidature</h1>
+        <Flash error={error} />
         <p className="mt-3 text-sm text-ink-500">
           No research candidature has been set up for you yet. This applies to postgraduate research
           students — contact the Graduate School office if you believe this is missing.

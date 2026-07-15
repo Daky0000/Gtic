@@ -82,7 +82,7 @@ export async function askAnalyticsQuestion(opts: {
   const FEATURE = "analytics";
   const startedAt = Date.now();
   const cfg = await getFeatureConfig(FEATURE);
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProvider(cfg);
 
   if (provider.name === "mock") {
     const q = opts.question.toLowerCase();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -30,6 +31,8 @@ export default function LoginPage() {
       <h1 className="text-2xl font-bold">Sign in</h1>
       <p className="mt-1 text-sm text-ink-500">
         One account for every portal — applicant, student, staff and administration.
+        New applicant?{" "}
+        <Link href="/signup" className="text-brand-800 underline">Create an account</Link>.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">

@@ -1,6 +1,7 @@
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { updateWindowDates } from "@/lib/actions/calendar";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Academic Calendar" };
 
@@ -15,7 +16,12 @@ function toLocalInput(d: Date) {
   return d.toISOString().slice(0, 16);
 }
 
-export default async function CalendarAdminPage() {
+export default async function CalendarAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   await requirePortal("admin");
 
   const year = await db.academicYear.findFirst({ where: { isCurrent: true } });
@@ -29,6 +35,7 @@ export default async function CalendarAdminPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">Academic calendar</h1>
+      <Flash error={error} />
 
       {!year || !semester ? (
         <p className="mt-4 text-ink-500">No current academic year/semester configured.</p>

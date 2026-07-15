@@ -2,10 +2,16 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import { borrowItem, returnItem } from "@/lib/actions/library";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Library" };
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   await requirePortal("staff");
 
   const items = await db.libraryItem.findMany({ orderBy: { title: "asc" } });
@@ -18,6 +24,7 @@ export default async function LibraryPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Library</h1>
+      <Flash error={error} />
 
       <h2 className="mt-6 font-semibold text-ink-700">Catalogue</h2>
       <div className="mt-3 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">

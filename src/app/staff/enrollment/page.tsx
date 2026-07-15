@@ -1,11 +1,17 @@
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { enrollAcceptedApplicant } from "@/lib/actions/sis";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Enrollment" };
 
-export default async function EnrollmentPage() {
+export default async function EnrollmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   await requirePortal("staff");
+  const { error } = await searchParams;
 
   const accepted = await db.application.findMany({
     where: { status: "ACCEPTED" },
@@ -22,6 +28,7 @@ export default async function EnrollmentPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Enrollment</h1>
+      <Flash error={error} />
       <p className="mt-1 text-sm text-ink-500">
         Convert accepted applicants into students — index number, programme and curriculum are carried
         over automatically.

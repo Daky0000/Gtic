@@ -6,7 +6,12 @@ import { hasRole, requireRole, requireUser, ROLES, type RoleCode } from "@/lib/r
 import { audit } from "@/lib/audit";
 import { verificationCode } from "@/lib/codes";
 import { PASS_MARK, scoreToGrade } from "@/lib/grading";
+import { notifyMany } from "@/lib/notify";
 import type { GradeSheetStatus } from "@prisma/client";
+
+function failApprovals(message: string): never {
+  redirect(`/staff/approvals?error=${encodeURIComponent(message)}`);
+}
 
 /** Lecturer's grading workspace, created on first visit (no separate "set up
  * a grade sheet" step needed — matches the getOrCreateDraftApplication
@@ -91,9 +96,9 @@ export async function approveGradeSheet(formData: FormData) {
   const sheet = await db.gradeSheet.findUniqueOrThrow({ where: { id: gradeSheetId } });
 
   const stage = NEXT_STAGE[sheet.status];
-  if (!stage) throw new Error("This grade sheet is not awaiting approval.");
+  if (!stage) failApprovals("This grade sheet is not awaiting approval.");
   if (!hasRole(user, stage.role, ROLES.SYSTEM_ADMIN)) {
-    throw new Error(`Requires the ${stage.label} role.`);
+    failApprovals(`Requires the ${stage.label} role.`);
   }
 
   await db.$transaction(async (tx) => {
@@ -124,8 +129,8 @@ export async function returnGradeSheet(formData: FormData) {
   const sheet = await db.gradeSheet.findUniqueOrThrow({ where: { id: gradeSheetId } });
 
   const stage = NEXT_STAGE[sheet.status];
-  if (!stage) throw new Error("This grade sheet cannot be returned from its current state.");
-  if (!hasRole(user, stage.role, ROLES.SYSTEM_ADMIN)) throw new Error(`Requires the ${stage.label} role.`);
+  if (!stage) failApprovals("This grade sheet cannot be returned from its current state.");
+  if (!hasRole(user, stage.role, ROLES.SYSTEM_ADMIN)) failApprovals(`Requires the ${stage.label} role.`);
 
   await db.$transaction([
     db.gradeSheet.update({ where: { id: gradeSheetId }, data: { status: "RETURNED" } }),
@@ -147,15 +152,26 @@ export async function publishGradeSheet(formData: FormData) {
 
   const sheet = await db.gradeSheet.findUniqueOrThrow({
     where: { id: gradeSheetId },
-    include: { entries: true, offering: true },
+    include: { entries: true, offering: { include: { course: true } } },
   });
-  if (sheet.status !== "VALIDATED") throw new Error("This grade sheet has not been validated yet.");
+  if (sheet.status !== "VALIDATED") failApprovals("This grade sheet has not been validated yet.");
 
   await db.gradeSheet.update({ where: { id: gradeSheetId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
 
   for (const entry of sheet.entries) {
     await recomputeSemesterResult(entry.studentId, sheet.offering.semesterId);
   }
+
+  const students = await db.student.findMany({
+    where: { id: { in: sheet.entries.map((e) => e.studentId) } },
+    select: { userId: true },
+  });
+  await notifyMany(
+    students.map((s) => s.userId),
+    "Results published",
+    `Your results for ${sheet.offering.course.code} — ${sheet.offering.course.title} are now available.`,
+    "/student/results"
+  );
 
   await audit({
     actorId: registrar.id, action: "exams.results_published", entityType: "GradeSheet",

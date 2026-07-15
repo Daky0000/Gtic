@@ -2,7 +2,8 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { payDocumentFeeMock, requestDocument } from "@/lib/actions/comms";
+import { payDocumentFee, requestDocument } from "@/lib/actions/comms";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Document Requests" };
 
@@ -19,7 +20,12 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: "Rejected",
 };
 
-export default async function DocumentRequestsPage() {
+export default async function DocumentRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; paid?: string }>;
+}) {
+  const { error, paid } = await searchParams;
   const user = await requirePortal("student");
 
   const requests = await db.documentRequest.findMany({
@@ -35,6 +41,7 @@ export default async function DocumentRequestsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">Document requests</h1>
+      <Flash error={error} success={paid ? "Payment received — your request has been queued." : undefined} />
       <p className="mt-1 text-sm text-ink-500">
         For a free, instantly verifiable transcript, use the <Link href="/student/transcript" className="text-brand-800 underline">Transcript</Link> page.
         Use this for a paid, officially processed copy or attestation.
@@ -61,7 +68,7 @@ export default async function DocumentRequestsPage() {
                 <span className="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{STATUS_LABEL[r.status]}</span>
               </div>
               {invoice && r.status === "PENDING_PAYMENT" && (
-                <form action={payDocumentFeeMock} className="mt-2">
+                <form action={payDocumentFee} className="mt-2">
                   <input type="hidden" name="requestId" value={r.id} />
                   <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
                     Pay {formatGHS(invoice.total)}

@@ -39,7 +39,12 @@ export default async function OfferingElearningPage({ params }: { params: Promis
         <ul className="mt-3 space-y-1 text-sm">
           {materials.map((m) => (
             <li key={m.id} className="flex justify-between border-b border-ink-100 py-1">
-              <span>{m.week ? `Week ${m.week}: ` : ""}{m.title}</span>
+              <span>
+                {m.week ? `Week ${m.week}: ` : ""}{m.title}
+                {m.kind === "FILE" && m.filePath && (
+                  <> — <a href={`/api/files/${m.filePath}`} target="_blank" rel="noreferrer" className="text-brand-800 underline">Download</a></>
+                )}
+              </span>
               <span className="text-xs text-ink-500">{m.kind}</span>
             </li>
           ))}

@@ -152,6 +152,16 @@ model Institution {
   updatedAt DateTime @updatedAt
 }
 
+// Key-value system configuration managed from the developer console.
+// Values override environment variables at runtime (secrets included) —
+// integration keys, configurable fees, feature switches.
+model SystemSetting {
+  key         String   @id
+  value       String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 // ───────────────────── Academic structure (demo scope) ───────────────────
 
 enum ProgrammeLevel {
@@ -453,6 +463,7 @@ enum ApplicationStatus {
   INFO_REQUESTED
   RECOMMENDED
   APPROVED
+  WAITLISTED
   OFFER_ISSUED
   ACCEPTED
   DECLINED

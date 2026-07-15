@@ -3,12 +3,20 @@ import { notFound, redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { submitAssignment } from "@/lib/actions/elearning";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Course E-Learning" };
 
-export default async function StudentCourseElearningPage({ params }: { params: Promise<{ offeringId: string }> }) {
+export default async function StudentCourseElearningPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ offeringId: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("student");
   const { offeringId } = await params;
+  const { error } = await searchParams;
   const student = await db.student.findUnique({ where: { userId: user.id } });
   if (!student) redirect("/student");
 
@@ -35,6 +43,7 @@ export default async function StudentCourseElearningPage({ params }: { params: P
     <div className="mx-auto max-w-3xl">
       <Link href="/student/elearning" className="text-sm text-ink-500 hover:underline">← My courses</Link>
       <h1 className="mt-2 text-2xl font-bold">{offering.course.code} — {offering.course.title}</h1>
+      <Flash error={error} />
 
       <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
         <h2 className="font-semibold text-brand-800">Materials</h2>
@@ -43,6 +52,7 @@ export default async function StudentCourseElearningPage({ params }: { params: P
             <li key={m.id}>
               {m.week ? `Week ${m.week}: ` : ""}{m.title}
               {m.kind === "LINK" && m.content && <> — <a href={m.content} target="_blank" rel="noreferrer" className="text-brand-800 underline">Open link</a></>}
+              {m.kind === "FILE" && m.filePath && <> — <a href={`/api/files/${m.filePath}`} target="_blank" rel="noreferrer" className="text-brand-800 underline">Download</a></>}
               {m.kind === "TEXT" && m.content && <p className="text-ink-600">{m.content}</p>}
             </li>
           ))}

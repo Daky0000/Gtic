@@ -44,6 +44,7 @@ const ROLES: [code: string, name: string][] = [
   ["management", "University Management"],
   ["alumni", "Alumnus/Alumna"],
   ["system_admin", "System Administrator"],
+  ["developer", "Developer / Super Administrator"],
 ];
 
 const PERMISSIONS: [code: string, name: string, module: string][] = [
@@ -56,6 +57,7 @@ const PERMISSIONS: [code: string, name: string, module: string][] = [
 ];
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
+  developer: PERMISSIONS.map(([code]) => code),
   system_admin: PERMISSIONS.map(([code]) => code),
   registrar: ["knowledge.manage", "audit.view"],
   management: ["audit.view"],

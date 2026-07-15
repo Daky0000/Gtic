@@ -2,11 +2,17 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import { confirmTellerPayment, generateSemesterBills, rejectTellerPayment } from "@/lib/actions/finance";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Finance" };
 
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   await requirePortal("staff");
+  const { error } = await searchParams;
 
   const semester = await db.semester.findFirst({ where: { isCurrent: true } });
   const invoices = semester
@@ -29,6 +35,7 @@ export default async function FinancePage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Finance</h1>
+      <Flash error={error} />
       <p className="mt-1 text-sm text-ink-500">{semester?.label ?? "No current semester"}</p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">

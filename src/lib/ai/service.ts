@@ -117,7 +117,7 @@ export async function assistantChat(opts: {
         }));
 
         const { system, citations } = await buildAssistantSystem(opts.user, opts.message);
-        const provider = resolveProvider(cfg);
+        const provider = await resolveProvider(cfg);
         providerName = provider.name;
 
         const result = await provider.chatStream({

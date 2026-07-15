@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { db } from "@/lib/db";
 import { accessiblePortals, PORTAL_HOME, type CurrentUser } from "@/lib/rbac";
 import { SignOutButton } from "@/components/sign-out-button";
 import { AssistantPanel } from "@/components/chat/assistant-panel";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 const PORTAL_LABEL: Record<string, string> = {
   apply: "Applicant",
@@ -17,7 +19,7 @@ export type NavItem = {
   comingSoon?: boolean;
 };
 
-export function PortalShell({
+export async function PortalShell({
   portalName,
   accent = "brand",
   nav,
@@ -30,6 +32,23 @@ export function PortalShell({
   user: CurrentUser;
   children: React.ReactNode;
 }) {
+  const [recent, unreadCount] = await Promise.all([
+    db.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    db.notification.count({ where: { userId: user.id, readAt: null } }),
+  ]);
+  const bellItems = recent.map((n) => ({
+    id: n.id,
+    title: n.title,
+    body: n.body,
+    href: n.href,
+    readAt: n.readAt ? n.readAt.toISOString() : null,
+    createdAt: n.createdAt.toISOString(),
+  }));
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -80,6 +99,7 @@ export function PortalShell({
           <div className="hidden text-sm text-ink-500 md:block">{portalName}</div>
           <div className="flex items-center gap-3">
             <PortalSwitcher roles={user.roles} />
+            <NotificationsBell notifications={bellItems} unreadCount={unreadCount} />
             <span className="hidden text-sm text-ink-700 sm:block">{user.name}</span>
             <SignOutButton />
           </div>

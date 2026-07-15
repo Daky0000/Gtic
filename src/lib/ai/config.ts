@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { anthropicProvider } from "./providers/anthropic";
+import { getSetting, SETTING_KEYS } from "@/lib/settings";
+import { anthropicProvider, setAnthropicKey } from "./providers/anthropic";
 import { mockProvider } from "./providers/mock";
 import type { AIProvider, Effort } from "./types";
 
@@ -48,19 +49,24 @@ export async function getFeatureConfig(feature: string): Promise<FeatureConfig> 
   return value;
 }
 
-export function resolveProvider(cfg: FeatureConfig): AIProvider {
+export async function resolveProvider(cfg: FeatureConfig): Promise<AIProvider> {
   const forced = cfg.provider;
-  const envPref = (process.env.AI_PROVIDER ?? "auto").toLowerCase();
-  const hasKey = !!process.env.ANTHROPIC_API_KEY;
+  // System settings (developer console) override env vars at runtime.
+  const pref = ((await getSetting(SETTING_KEYS.AI_PROVIDER)) ?? "auto").toLowerCase();
+  const apiKey = await getSetting(SETTING_KEYS.ANTHROPIC_API_KEY);
 
   const choice =
-    forced !== "auto" ? forced : envPref !== "auto" ? envPref : hasKey ? "anthropic" : "mock";
+    forced !== "auto" ? forced : pref !== "auto" ? pref : apiKey ? "anthropic" : "mock";
 
-  if (choice === "anthropic" && !hasKey) {
+  if (choice === "anthropic" && !apiKey) {
     console.warn(`[ai] feature "${cfg.feature}" forced to anthropic but no API key — using mock`);
     return mockProvider;
   }
-  return choice === "anthropic" ? anthropicProvider : mockProvider;
+  if (choice === "anthropic") {
+    setAnthropicKey(apiKey ?? undefined);
+    return anthropicProvider;
+  }
+  return mockProvider;
 }
 
 /** Monthly token budget check (tokens used this calendar month per feature). */

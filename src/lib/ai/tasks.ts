@@ -33,7 +33,7 @@ export async function extractApplicationDocument(opts: {
   const FEATURE = "doc_extraction";
   const startedAt = Date.now();
   const cfg = await getFeatureConfig(FEATURE);
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProvider(cfg);
 
   if (provider.name === "mock") {
     const result: ExtractionResult = {
@@ -112,7 +112,7 @@ export async function prescreenApplication(opts: {
   const FEATURE = "prescreen";
   const startedAt = Date.now();
   const cfg = await getFeatureConfig(FEATURE);
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProvider(cfg);
 
   if (provider.name === "mock") {
     const credits = opts.results.filter((r) => CREDIT_GRADES.has(r.grade.toUpperCase())).length;
@@ -196,7 +196,7 @@ export async function suggestSubmissionScore(opts: {
   const FEATURE = "grading_assist";
   const startedAt = Date.now();
   const cfg = await getFeatureConfig(FEATURE);
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProvider(cfg);
 
   if (provider.name === "mock") {
     // Deterministic stand-in: reward answers that engage substantively with
@@ -274,7 +274,7 @@ export async function draftQuizQuestions(opts: {
   const FEATURE = "quiz_generation";
   const startedAt = Date.now();
   const cfg = await getFeatureConfig(FEATURE);
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProvider(cfg);
 
   if (provider.name === "mock") {
     await logAICall({ userId: opts.userId, feature: FEATURE, provider: "mock", model: cfg.model, inputTokens: 100, outputTokens: 90, latencyMs: Date.now() - startedAt, outcome: "OK" });

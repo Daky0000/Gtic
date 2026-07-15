@@ -1,10 +1,16 @@
 import { hasRole, requirePortal, ROLES } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { createCandidature, decideMilestone, graduateStudent } from "@/lib/actions/graduate";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Graduate Studies" };
 
-export default async function GraduateStudiesPage() {
+export default async function GraduateStudiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const user = await requirePortal("staff");
   const canCreate = hasRole(user, ROLES.GRAD_SCHOOL_OFFICER, ROLES.SYSTEM_ADMIN);
   const canGraduate = hasRole(user, ROLES.REGISTRAR, ROLES.SYSTEM_ADMIN);
@@ -21,6 +27,7 @@ export default async function GraduateStudiesPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">Graduate studies</h1>
+      <Flash error={error} />
 
       {canCreate && (
         <form action={createCandidature} className="mt-4 grid gap-2 rounded-lg border border-ink-300/60 bg-white p-4 sm:grid-cols-4">

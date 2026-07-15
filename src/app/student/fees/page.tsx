@@ -2,11 +2,17 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { payTuitionMock, recordTellerPayment } from "@/lib/actions/finance";
+import { payTuition, recordTellerPayment } from "@/lib/actions/finance";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Fees & Payments" };
 
-export default async function FeesPage() {
+export default async function FeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; paid?: string }>;
+}) {
+  const { error, paid } = await searchParams;
   const user = await requirePortal("student");
   const student = await db.student.findUnique({ where: { userId: user.id } });
   if (!student) redirect("/student");
@@ -20,6 +26,7 @@ export default async function FeesPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">Fees &amp; payments</h1>
+      <Flash error={error} success={paid ? "Payment received — thank you." : undefined} />
 
       {invoices.length === 0 && <p className="mt-4 text-sm text-ink-500">No bills issued yet.</p>}
 
@@ -52,7 +59,7 @@ export default async function FeesPage() {
 
             {balance > 0 && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <form action={payTuitionMock}>
+                <form action={payTuition}>
                   <input type="hidden" name="invoiceId" value={inv.id} />
                   <button type="submit" className="w-full rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                     Pay {formatGHS(balance)} online

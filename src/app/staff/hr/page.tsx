@@ -1,10 +1,16 @@
 import { hasRole, requirePortal, ROLES } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { applyForLeave, decideLeaveRequest } from "@/lib/actions/hr";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "HR" };
 
-export default async function HrPage() {
+export default async function HrPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const user = await requirePortal("staff");
   const canDecide = hasRole(user, ROLES.HR_OFFICER, ROLES.SYSTEM_ADMIN);
 
@@ -17,6 +23,7 @@ export default async function HrPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">HR</h1>
+      <Flash error={error} />
 
       <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
         <h2 className="font-semibold text-brand-800">My leave</h2>

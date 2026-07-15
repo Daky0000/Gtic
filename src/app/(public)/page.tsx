@@ -26,8 +26,14 @@ export default async function HomePage() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href="/programmes"
+              href="/signup"
               className="rounded-md bg-white px-5 py-2.5 font-medium text-brand-900 hover:bg-brand-50"
+            >
+              Apply now
+            </Link>
+            <Link
+              href="/programmes"
+              className="rounded-md border border-brand-200/50 px-5 py-2.5 font-medium text-white hover:bg-brand-800"
             >
               Explore programmes
             </Link>

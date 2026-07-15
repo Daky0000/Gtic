@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { bookBed, payHostelFeeMock } from "@/lib/actions/accommodation";
+import { bookBed, payHostelFee } from "@/lib/actions/accommodation";
 import type { BookingStatus } from "@prisma/client";
 
 export const metadata = { title: "Accommodation" };
@@ -12,10 +12,10 @@ const ACTIVE_STATUSES: BookingStatus[] = ["HELD", "PAID", "CHECKED_IN"];
 export default async function AccommodationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; paid?: string }>;
 }) {
   const user = await requirePortal("student");
-  const { error } = await searchParams;
+  const { error, paid } = await searchParams;
   const student = await db.student.findUnique({ where: { userId: user.id } });
   if (!student) redirect("/student");
 
@@ -43,6 +43,7 @@ export default async function AccommodationPage({
       <h1 className="text-2xl font-bold">Accommodation</h1>
 
       {error && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+      {paid && <div className="mt-4 rounded-md bg-brand-50 p-3 text-sm text-brand-800">Payment received — thank you.</div>}
 
       {!isOpen && !myBooking && (
         <div className="mt-4 rounded-md bg-ink-100 p-3 text-sm text-ink-700">Hostel booking is not currently open.</div>
@@ -59,7 +60,7 @@ export default async function AccommodationPage({
               <p className="mt-1 text-xs text-brand-700">
                 Pay before {myBooking.heldUntil?.toLocaleDateString()} or this hold is released.
               </p>
-              <form action={payHostelFeeMock} className="mt-3">
+              <form action={payHostelFee} className="mt-3">
                 <input type="hidden" name="bookingId" value={myBooking.id} />
                 <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                   Pay hostel fee

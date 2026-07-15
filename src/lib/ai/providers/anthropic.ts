@@ -4,9 +4,22 @@ import type {
   AIProvider, ChatStreamOptions, ChatStreamResult, ChatUsage,
 } from "../types";
 
+// The API key can be changed at runtime from the developer console;
+// resolveProvider() pushes the effective key here before every call and the
+// client is rebuilt whenever it changes.
+let resolvedKey: string | undefined = process.env.ANTHROPIC_API_KEY;
 let client: Anthropic | null = null;
+let clientKey: string | undefined;
+
+export function setAnthropicKey(key: string | undefined) {
+  resolvedKey = key ?? process.env.ANTHROPIC_API_KEY;
+}
+
 export function getClient(): Anthropic {
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  if (!client || clientKey !== resolvedKey) {
+    client = new Anthropic({ apiKey: resolvedKey });
+    clientKey = resolvedKey;
+  }
   return client;
 }
 

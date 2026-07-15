@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireRole, requireUser, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { invoiceNo } from "@/lib/codes";
-import { payInvoiceMock } from "@/lib/payments";
+import { beginInvoicePayment } from "@/lib/payments";
 import type { BookingStatus } from "@prisma/client";
 
 const ACTIVE_STATUSES: BookingStatus[] = ["HELD", "PAID", "CHECKED_IN"];
@@ -34,12 +34,14 @@ export async function bookBed(formData: FormData) {
   const bedId = String(formData.get("bedId"));
   const bed = await db.bed.findUniqueOrThrow({ where: { id: bedId }, include: { room: { include: { hostel: true } } } });
 
-  const taken = await db.booking.findFirst({
-    where: { bedId, academicYearId: year.id, status: { in: ACTIVE_STATUSES } },
-  });
-  if (taken) fail("That bed was just taken — please choose another.");
-
   const booking = await db.$transaction(async (tx) => {
+    // Availability check lives inside the transaction (with the serializable
+    // isolation below) so two students racing for the last bed can't both win.
+    const taken = await tx.booking.findFirst({
+      where: { bedId, academicYearId: year.id, status: { in: ACTIVE_STATUSES } },
+    });
+    if (taken) return null;
+
     const invoice = await tx.invoice.create({
       data: {
         invoiceNo: invoiceNo("HOS"),
@@ -57,24 +59,33 @@ export async function bookBed(formData: FormData) {
         invoiceId: invoice.id,
       },
     });
-  });
+  }, { isolationLevel: "Serializable" });
+
+  if (!booking) fail("That bed was just taken — please choose another.");
 
   await audit({ actorId: user.id, action: "accommodation.bed_booked", entityType: "Booking", entityId: booking.id });
   redirect("/student/accommodation");
 }
 
-export async function payHostelFeeMock(formData: FormData) {
+export async function payHostelFee(formData: FormData) {
   const user = await requireUser();
   const bookingId = String(formData.get("bookingId"));
   const student = await db.student.findUniqueOrThrow({ where: { userId: user.id } });
   const booking = await db.booking.findFirstOrThrow({ where: { id: bookingId, studentId: student.id } });
   if (!booking.invoiceId) fail("No invoice linked to this booking.");
+  if (booking.status !== "HELD") fail("This booking is not awaiting payment.");
+  if (booking.heldUntil && booking.heldUntil.getTime() < Date.now()) {
+    fail("Your hold on this bed has expired — please book again.");
+  }
 
-  const invoice = await db.invoice.findUniqueOrThrow({ where: { id: booking.invoiceId } });
-  await payInvoiceMock(invoice.id, invoice.total - invoice.paid, user.id);
-  await db.booking.update({ where: { id: booking.id }, data: { status: "PAID" } });
-
-  redirect("/student/accommodation");
+  // The booking flips to PAID in settleInvoiceSideEffects once payment confirms.
+  const result = await beginInvoicePayment({
+    invoiceId: booking.invoiceId,
+    userEmail: user.email,
+    returnTo: "/student/accommodation",
+  });
+  if (result.kind === "failed") fail(result.message);
+  redirect(result.kind === "redirect" ? result.url : "/student/accommodation?paid=1");
 }
 
 /** ACC-08: releases bookings whose payment deadline has passed. Run manually

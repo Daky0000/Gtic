@@ -1,18 +1,32 @@
 import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
-import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
+import { db } from "@/lib/db";
+import {
+  getOrCreateDraftApplication, isApplicationFeeCleared, withdrawApplication,
+} from "@/lib/actions/admissions";
 import { APPLICATION_STATUS_COLOR, APPLICATION_STATUS_LABEL } from "@/lib/status-labels";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Applicant Portal" };
 
-export default async function ApplyHome() {
+export default async function ApplyHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; withdrawn?: string }>;
+}) {
   const user = await requirePortal("apply");
+  const { error, withdrawn } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
+
+  const checklist = app
+    ? await buildChecklist(app.id, user.id, app.cycleId)
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
+      <Flash error={error} success={withdrawn ? "Your application was withdrawn back to draft — you can edit and resubmit it." : undefined} />
 
       <div className="mt-4"><AnnouncementsBanner audience="APPLICANTS" /></div>
 
@@ -40,12 +54,34 @@ export default async function ApplyHome() {
             </div>
           )}
 
+          {checklist && ["DRAFT", "INFO_REQUESTED"].includes(app.status) && (
+            <div className="mt-5 rounded-md border border-ink-200 bg-ink-50/60 p-4">
+              <h2 className="text-sm font-semibold text-ink-700">Before you can submit</h2>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {checklist.map((item) => (
+                  <li key={item.label} className="flex items-center gap-2">
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                        item.done ? "bg-brand-800 text-white" : "border border-ink-300 text-ink-400"
+                      }`}
+                    >
+                      {item.done ? "✓" : ""}
+                    </span>
+                    <Link href={item.href} className={item.done ? "text-ink-500 line-through" : "text-ink-700 hover:underline"}>
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               href="/apply/application"
               className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
-              {app.status === "DRAFT" ? "Continue application" : "View application"}
+              {["DRAFT", "INFO_REQUESTED"].includes(app.status) ? "Continue application" : "View application"}
             </Link>
             <Link
               href="/apply/documents"
@@ -68,6 +104,18 @@ export default async function ApplyHome() {
               </Link>
             )}
           </div>
+
+          {["SUBMITTED", "UNDER_REVIEW"].includes(app.status) && (
+            <form action={withdrawApplication} className="mt-4 border-t border-ink-100 pt-3">
+              <input type="hidden" name="applicationId" value={app.id} />
+              <button
+                type="submit"
+                className="text-xs text-ink-500 underline hover:text-red-700"
+              >
+                Withdraw application (returns it to draft for editing)
+              </button>
+            </form>
+          )}
         </div>
       )}
 
@@ -77,4 +125,24 @@ export default async function ApplyHome() {
       </div>
     </div>
   );
+}
+
+async function buildChecklist(applicationId: string, userId: string, cycleId: string) {
+  const [app, docCount, feeCleared] = await Promise.all([
+    db.application.findUniqueOrThrow({
+      where: { id: applicationId },
+      include: { choices: true },
+    }),
+    db.applicationDocument.count({ where: { applicationId } }),
+    isApplicationFeeCleared(applicationId, userId, cycleId),
+  ]);
+  const results = (app.results as unknown[] | null) ?? [];
+  return [
+    { label: "Fill in your personal details", href: "/apply/application", done: !!(app.surname && app.firstName && app.dateOfBirth) },
+    { label: "Enter your examination results", href: "/apply/application", done: results.length > 0 },
+    { label: "Choose your programmes", href: "/apply/application", done: app.choices.length > 0 },
+    { label: "Upload supporting documents", href: "/apply/documents", done: docCount > 0 },
+    { label: "Pay the application fee", href: "/apply/payments", done: feeCleared },
+    { label: "Submit your application", href: "/apply/application", done: false },
+  ];
 }

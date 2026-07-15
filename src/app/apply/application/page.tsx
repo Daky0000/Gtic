@@ -2,13 +2,19 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getOrCreateDraftApplication, saveApplicationDetails, submitApplication } from "@/lib/actions/admissions";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "My Application" };
 
 const RESULT_ROWS = 9;
 
-export default async function ApplicationPage() {
+export default async function ApplicationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; saved?: string }>;
+}) {
   const user = await requirePortal("apply");
+  const { error, saved } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -30,6 +36,7 @@ export default async function ApplicationPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">My application</h1>
       <p className="mt-1 text-sm text-ink-500">Reference {app.refNo}</p>
+      <Flash error={error} success={saved ? "Your application details were saved." : undefined} />
       {!editable && (
         <p className="mt-3 rounded-md bg-ink-100 p-3 text-sm text-ink-700">
           This application has been submitted and can no longer be edited here.

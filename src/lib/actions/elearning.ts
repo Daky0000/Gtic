@@ -69,7 +69,9 @@ export async function submitAssignment(formData: FormData) {
   const student = await db.student.findUniqueOrThrow({ where: { userId: user.id } });
   const assignment = await db.assignment.findUniqueOrThrow({ where: { id: assignmentId } });
 
-  if (new Date() > assignment.dueAt) throw new Error("The deadline for this assignment has passed.");
+  if (new Date() > assignment.dueAt) {
+    redirect(`/student/elearning/${assignment.offeringId}?error=${encodeURIComponent("The deadline for this assignment has passed.")}`);
+  }
 
   const text = String(formData.get("text") ?? "");
   await db.submission.upsert({
@@ -183,6 +185,16 @@ export async function submitQuizAttempt(formData: FormData) {
   const quizId = String(formData.get("quizId"));
   const student = await db.student.findUniqueOrThrow({ where: { userId: user.id } });
   const quiz = await db.quiz.findUniqueOrThrow({ where: { id: quizId }, include: { questions: true } });
+
+  if (!quiz.published) {
+    redirect(`/student/elearning/${quiz.offeringId}?error=${encodeURIComponent("This quiz is not open yet.")}`);
+  }
+  const prior = await db.quizAttempt.findUnique({
+    where: { quizId_studentId: { quizId, studentId: student.id } },
+  });
+  if (prior?.submittedAt) {
+    redirect(`/student/elearning/${quiz.offeringId}?error=${encodeURIComponent("You have already submitted this quiz — one attempt only.")}`);
+  }
 
   const answers = quiz.questions.map((q) => Number(formData.get(`q_${q.id}`)));
   const maxPoints = quiz.questions.reduce((s, q) => s + q.points, 0);

@@ -3,18 +3,26 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import {
-  getOrCreateDraftApplication, isApplicationFeeCleared, payApplicationFeeMock, redeemVoucher,
+  getOrCreateDraftApplication, isApplicationFeeCleared, payApplicationFee, redeemVoucher,
 } from "@/lib/actions/admissions";
+import { isPaystackConfigured } from "@/lib/paystack";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Payments" };
 
-export default async function PaymentsPage() {
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; paid?: string }>;
+}) {
   const user = await requirePortal("apply");
+  const { error, paid } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
   const cycle = await db.admissionCycle.findUniqueOrThrow({ where: { id: app.cycleId } });
   const feeCleared = await isApplicationFeeCleared(app.id, user.id, app.cycleId);
+  const paystackReady = await isPaystackConfigured();
 
   const applicationInvoice = await db.invoice.findFirst({
     where: { userId: user.id, kind: "APPLICATION", meta: { path: ["applicationId"], equals: app.id } },
@@ -28,6 +36,7 @@ export default async function PaymentsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">Payments</h1>
+      <Flash error={error} success={paid ? "Payment received — thank you." : undefined} />
 
       <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
         <div className="flex items-center justify-between">
@@ -40,10 +49,14 @@ export default async function PaymentsPage() {
 
         {!feeCleared && (
           <div className="mt-4 grid gap-6 sm:grid-cols-2">
-            <form action={payApplicationFeeMock}>
+            <form action={payApplicationFee}>
               <input type="hidden" name="applicationId" value={app.id} />
               <h3 className="text-sm font-medium text-ink-700">Pay online</h3>
-              <p className="text-xs text-ink-500">Card or mobile money (demo payment — settles instantly).</p>
+              <p className="text-xs text-ink-500">
+                {paystackReady
+                  ? "Card or mobile money (MTN, Telecel, AT) — secure checkout via Paystack."
+                  : "Card or mobile money (demo payment — settles instantly)."}
+              </p>
               <button type="submit" className="mt-2 rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                 Pay {formatGHS(cycle.applicationFee)}
               </button>
@@ -61,11 +74,13 @@ export default async function PaymentsPage() {
             </form>
           </div>
         )}
-        {applicationInvoice?.payments.map((p) => (
-          <div key={p.id} className="mt-3 text-xs text-ink-500">
-            Paid {formatGHS(p.amount)} via {p.channel} · ref {p.reference}
-          </div>
-        ))}
+        {applicationInvoice?.payments
+          .filter((p) => p.status !== "FAILED")
+          .map((p) => (
+            <div key={p.id} className="mt-3 text-xs text-ink-500">
+              {p.status === "CONFIRMED" ? "Paid" : "Pending"} {formatGHS(p.amount)} via {p.channel} · ref {p.reference}
+            </div>
+          ))}
       </section>
 
       {(app.status === "OFFER_ISSUED" || app.status === "ACCEPTED") && (

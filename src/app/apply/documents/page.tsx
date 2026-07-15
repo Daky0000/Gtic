@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import {
-  applyExtractedResults, getOrCreateDraftApplication, runDocumentExtractionAction, uploadApplicationDocument,
+  applyExtractedResults, deleteApplicationDocument, getOrCreateDraftApplication,
+  runDocumentExtractionAction, uploadApplicationDocument,
 } from "@/lib/actions/admissions";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Documents" };
 
@@ -16,8 +18,13 @@ const KIND_LABEL: Record<string, string> = {
   OTHER: "Other",
 };
 
-export default async function DocumentsPage() {
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("apply");
+  const { error } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -34,6 +41,7 @@ export default async function DocumentsPage() {
         Upload your results slip, certificates and photo. The AI assistant can read your results slip and
         fill in your grades automatically — you always confirm what it found before it&apos;s applied.
       </p>
+      <Flash error={error} />
 
       {editable && (
         <form
@@ -68,19 +76,37 @@ export default async function DocumentsPage() {
             | null;
           return (
             <div key={doc.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="font-medium">{KIND_LABEL[doc.kind]}</div>
                   <div className="text-xs text-ink-500">{doc.fileName} · {(doc.size / 1024).toFixed(0)} KB</div>
                 </div>
-                {(doc.kind === "RESULTS_SLIP" || doc.kind === "CERTIFICATE") && editable && (
-                  <form action={runDocumentExtractionAction}>
-                    <input type="hidden" name="documentId" value={doc.id} />
-                    <button type="submit" className="rounded-md border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100">
-                      {extracted ? "Re-run AI extraction" : "Run AI extraction"}
-                    </button>
-                  </form>
-                )}
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/files/${doc.filePath}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-100"
+                  >
+                    View
+                  </a>
+                  {(doc.kind === "RESULTS_SLIP" || doc.kind === "CERTIFICATE") && editable && (
+                    <form action={runDocumentExtractionAction}>
+                      <input type="hidden" name="documentId" value={doc.id} />
+                      <button type="submit" className="rounded-md border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100">
+                        {extracted ? "Re-run AI extraction" : "Run AI extraction"}
+                      </button>
+                    </form>
+                  )}
+                  {editable && (
+                    <form action={deleteApplicationDocument}>
+                      <input type="hidden" name="documentId" value={doc.id} />
+                      <button type="submit" className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50">
+                        Delete
+                      </button>
+                    </form>
+                  )}
+                </div>
               </div>
 
               {extracted && (

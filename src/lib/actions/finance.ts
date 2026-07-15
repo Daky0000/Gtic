@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { requireRole, requireUser, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { invoiceNo, paymentReference } from "@/lib/codes";
-import { payInvoiceMock } from "@/lib/payments";
+import { beginInvoicePayment, confirmPayment } from "@/lib/payments";
+import { notify } from "@/lib/notify";
+import { formatGHS } from "@/lib/money";
 
 /** FIN-02: bulk-generate this semester's tuition bills from the active fee
  * schedule. Idempotent per student — running it twice does not double-bill. */
@@ -50,14 +52,21 @@ export async function generateSemesterBills() {
   redirect("/staff/finance");
 }
 
-export async function payTuitionMock(formData: FormData) {
+export async function payTuition(formData: FormData) {
   const user = await requireUser();
   const invoiceId = String(formData.get("invoiceId"));
   const invoice = await db.invoice.findFirstOrThrow({ where: { id: invoiceId, userId: user.id } });
   if (invoice.status === "PAID") redirect("/student/fees");
 
-  await payInvoiceMock(invoice.id, invoice.total - invoice.paid, user.id);
-  redirect("/student/fees");
+  const result = await beginInvoicePayment({
+    invoiceId: invoice.id,
+    userEmail: user.email,
+    returnTo: "/student/fees",
+  });
+  if (result.kind === "failed") {
+    redirect(`/student/fees?error=${encodeURIComponent(result.message)}`);
+  }
+  redirect(result.kind === "redirect" ? result.url : "/student/fees?paid=1");
 }
 
 export async function recordTellerPayment(formData: FormData) {
@@ -65,7 +74,9 @@ export async function recordTellerPayment(formData: FormData) {
   const invoiceId = String(formData.get("invoiceId"));
   const amount = Math.round(Number(formData.get("amount")) * 100);
   const tellerRef = String(formData.get("tellerRef") ?? "").trim();
-  if (!tellerRef || amount <= 0) throw new Error("Enter a valid teller reference and amount.");
+  if (!tellerRef || !Number.isFinite(amount) || amount <= 0) {
+    redirect(`/student/fees?error=${encodeURIComponent("Enter a valid teller reference and amount.")}`);
+  }
 
   const invoice = await db.invoice.findFirstOrThrow({ where: { id: invoiceId, userId: user.id } });
   await db.payment.create({
@@ -82,17 +93,18 @@ export async function confirmTellerPayment(formData: FormData) {
   const paymentId = String(formData.get("paymentId"));
 
   const payment = await db.payment.findUniqueOrThrow({ where: { id: paymentId }, include: { invoice: true } });
-  if (payment.status !== "PENDING") throw new Error("Already processed.");
+  if (payment.status !== "PENDING") {
+    redirect(`/staff/finance?error=${encodeURIComponent("This payment has already been processed.")}`);
+  }
 
-  await db.$transaction(async (tx) => {
-    await tx.payment.update({ where: { id: payment.id }, data: { status: "CONFIRMED", paidAt: new Date() } });
-    const newPaid = payment.invoice.paid + payment.amount;
-    await tx.invoice.update({
-      where: { id: payment.invoiceId },
-      data: { paid: newPaid, status: newPaid >= payment.invoice.total ? "PAID" : "PART_PAID" },
-    });
-  });
+  await confirmPayment(payment.id, finance.id);
   await audit({ actorId: finance.id, action: "finance.teller_confirmed", entityType: "Payment", entityId: payment.id });
+  await notify(
+    payment.invoice.userId,
+    "Payment confirmed",
+    `Your bank teller payment of ${formatGHS(payment.amount)} on invoice ${payment.invoice.invoiceNo} has been confirmed.`,
+    "/student/fees"
+  );
   redirect("/staff/finance");
 }
 
@@ -100,7 +112,17 @@ export async function rejectTellerPayment(formData: FormData) {
   const finance = await requireRole(ROLES.FINANCE_OFFICER, ROLES.SYSTEM_ADMIN);
   const paymentId = String(formData.get("paymentId"));
 
-  await db.payment.update({ where: { id: paymentId }, data: { status: "FAILED" } });
+  const payment = await db.payment.update({
+    where: { id: paymentId },
+    data: { status: "FAILED" },
+    include: { invoice: true },
+  });
   await audit({ actorId: finance.id, action: "finance.teller_rejected", entityType: "Payment", entityId: paymentId });
+  await notify(
+    payment.invoice.userId,
+    "Payment could not be verified",
+    `Your bank teller payment on invoice ${payment.invoice.invoiceNo} could not be verified. Please check the reference and resubmit, or contact the finance office.`,
+    "/student/fees"
+  );
   redirect("/staff/finance");
 }

@@ -2,12 +2,18 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { getOrCreateDraftApplication, acceptOffer, payAcceptanceFeeMock, declineOffer } from "@/lib/actions/admissions";
+import { getOrCreateDraftApplication, acceptOffer, payAcceptanceFee, declineOffer } from "@/lib/actions/admissions";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Admission Letter" };
 
-export default async function LetterPage() {
+export default async function LetterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; paid?: string }>;
+}) {
   const user = await requirePortal("apply");
+  const { error, paid } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -29,8 +35,17 @@ export default async function LetterPage() {
     where: { userId: user.id, kind: "ACCEPTANCE", meta: { path: ["applicationId"], equals: app.id } },
   });
 
+  const expired = !offer.acceptedAt && !!offer.expiresAt && offer.expiresAt.getTime() < Date.now();
+
   return (
     <div className="mx-auto max-w-2xl">
+      <Flash error={error} success={paid ? "Payment received — thank you." : undefined} />
+      {expired && app.status === "OFFER_ISSUED" && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          This offer expired on {offer.expiresAt!.toLocaleDateString()}. Contact the admissions office if you
+          still wish to take up your place.
+        </div>
+      )}
       <div className="rounded-lg border-2 border-brand-800 bg-white p-8 print:border-none">
         <div className="flex items-center justify-between border-b border-ink-300/60 pb-4">
           <div>
@@ -77,7 +92,7 @@ export default async function LetterPage() {
         account. Always confirm a letter using the public verification code above.
       </div>
 
-      {app.status === "OFFER_ISSUED" && (
+      {app.status === "OFFER_ISSUED" && !expired && (
         <div className="mt-6 flex flex-wrap gap-3">
           {!acceptanceInvoice ? (
             <form action={acceptOffer}>
@@ -87,7 +102,7 @@ export default async function LetterPage() {
               </button>
             </form>
           ) : acceptanceInvoice.status !== "PAID" ? (
-            <form action={payAcceptanceFeeMock}>
+            <form action={payAcceptanceFee}>
               <input type="hidden" name="applicationId" value={app.id} />
               <button type="submit" className="rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700">
                 Pay acceptance fee to confirm

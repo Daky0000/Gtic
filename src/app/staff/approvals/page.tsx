@@ -1,6 +1,7 @@
 import { hasRole, requirePortal, ROLES, type RoleCode } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { approveGradeSheet, publishGradeSheet, returnGradeSheet } from "@/lib/actions/exams";
+import { Flash } from "@/components/flash";
 import type { GradeSheetStatus } from "@prisma/client";
 
 export const metadata = { title: "Approvals" };
@@ -12,8 +13,13 @@ const STAGE_FOR_STATUS: Record<string, { role: RoleCode; label: string }> = {
   VALIDATED: { role: ROLES.REGISTRAR, label: "Awaiting Registrar publication" },
 };
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("staff");
+  const { error } = await searchParams;
 
   const relevantStatuses = Object.keys(STAGE_FOR_STATUS).filter((status) =>
     hasRole(user, STAGE_FOR_STATUS[status].role, ROLES.SYSTEM_ADMIN)
@@ -30,6 +36,7 @@ export default async function ApprovalsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Approvals</h1>
+      <Flash error={error} />
       <p className="mt-1 text-sm text-ink-500">Grade sheets awaiting a decision at your role&apos;s stage.</p>
 
       <div className="mt-6 space-y-4">

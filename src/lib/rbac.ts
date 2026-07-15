@@ -25,6 +25,10 @@ export const ROLES = {
   MANAGEMENT: "management",
   ALUMNI: "alumni",
   SYSTEM_ADMIN: "system_admin",
+  /** Super administrator of the entire system: passes every role and
+   * permission check, enters every portal, and owns the developer console
+   * (system settings, integrations, fees, users & roles). */
+  DEVELOPER: "developer",
 } as const;
 
 export type RoleCode = (typeof ROLES)[keyof typeof ROLES];
@@ -39,10 +43,10 @@ const STAFF_ROLES: RoleCode[] = [
 
 // Which roles may enter which portal (route group).
 export const PORTAL_ACCESS: Record<Portal, RoleCode[]> = {
-  apply: [ROLES.APPLICANT],
-  student: [ROLES.STUDENT, ROLES.ALUMNI],
-  staff: STAFF_ROLES,
-  admin: [ROLES.SYSTEM_ADMIN, ROLES.MANAGEMENT, ROLES.REGISTRAR],
+  apply: [ROLES.APPLICANT, ROLES.DEVELOPER],
+  student: [ROLES.STUDENT, ROLES.ALUMNI, ROLES.DEVELOPER],
+  staff: [...STAFF_ROLES, ROLES.DEVELOPER],
+  admin: [ROLES.SYSTEM_ADMIN, ROLES.MANAGEMENT, ROLES.REGISTRAR, ROLES.DEVELOPER],
 };
 
 export type Portal = "apply" | "student" | "staff" | "admin";
@@ -127,13 +131,15 @@ export async function requirePortal(portal: Portal): Promise<CurrentUser> {
 
 export async function requirePermission(code: string): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!user.permissions.includes(code)) {
+  if (!user.roles.includes(ROLES.DEVELOPER) && !user.permissions.includes(code)) {
     throw new Error(`Forbidden: missing permission "${code}"`);
   }
   return user;
 }
 
 export function hasRole(user: CurrentUser, ...roles: RoleCode[]): boolean {
+  // The developer role is a superset — it satisfies every role check.
+  if (user.roles.includes(ROLES.DEVELOPER)) return true;
   return roles.some((r) => user.roles.includes(r));
 }
 
@@ -144,6 +150,15 @@ export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
   if (!hasRole(user, ...roles)) {
     throw new Error(`Forbidden: requires role ${roles.join(" or ")}`);
   }
+  return user;
+}
+
+/** Page guard for the developer console (/admin/settings, /admin/fees,
+ * /admin/users, /admin/audit): developer or system admin only — other admin
+ * portal roles (registrar, management) are bounced to the admin overview. */
+export async function requireDeveloperConsole(): Promise<CurrentUser> {
+  const user = await requirePortal("admin");
+  if (!hasRole(user, ROLES.SYSTEM_ADMIN)) redirect(PORTAL_HOME.admin);
   return user;
 }
 

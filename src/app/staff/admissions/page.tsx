@@ -7,7 +7,7 @@ import type { ApplicationStatus } from "@prisma/client";
 export const metadata = { title: "Admissions Review" };
 
 const QUEUE_STATUSES: ApplicationStatus[] = [
-  "SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED", "RECOMMENDED", "OFFER_ISSUED", "ACCEPTED", "REJECTED", "DECLINED",
+  "SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED", "RECOMMENDED", "WAITLISTED", "OFFER_ISSUED", "ACCEPTED", "REJECTED", "DECLINED",
 ];
 
 export default async function AdmissionsQueuePage({
@@ -57,6 +57,7 @@ export default async function AdmissionsQueuePage({
               <th className="px-4 py-2">Reference</th>
               <th className="px-4 py-2">Applicant</th>
               <th className="px-4 py-2">First choice</th>
+              <th className="px-4 py-2">Submitted</th>
               <th className="px-4 py-2">Status</th>
               <th className="px-4 py-2" />
             </tr>
@@ -67,6 +68,7 @@ export default async function AdmissionsQueuePage({
                 <td className="px-4 py-2 font-mono text-xs">{app.refNo}</td>
                 <td className="px-4 py-2">{[app.firstName, app.surname].filter(Boolean).join(" ") || app.user.name}</td>
                 <td className="px-4 py-2">{app.choices[0]?.programme.name ?? "—"}</td>
+                <td className="px-4 py-2 text-xs text-ink-500">{app.submittedAt?.toLocaleDateString() ?? "—"}</td>
                 <td className="px-4 py-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${APPLICATION_STATUS_COLOR[app.status]}`}>
                     {APPLICATION_STATUS_LABEL[app.status]}
@@ -80,7 +82,7 @@ export default async function AdmissionsQueuePage({
               </tr>
             ))}
             {applications.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-ink-500">No applications in this view.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-ink-500">No applications in this view.</td></tr>
             )}
           </tbody>
         </table>

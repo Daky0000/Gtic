@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { requireRole, requireUser, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { invoiceNo, verificationCode } from "@/lib/codes";
-import { payInvoiceMock } from "@/lib/payments";
+import { beginInvoicePayment } from "@/lib/payments";
+import { notify } from "@/lib/notify";
+import { getIntFee, SETTING_KEYS, type SettingKey } from "@/lib/settings";
 import type { Audience, DocRequestType } from "@prisma/client";
 
 export async function publishAnnouncement(formData: FormData) {
@@ -22,24 +24,31 @@ export async function publishAnnouncement(formData: FormData) {
   redirect("/staff/announcements");
 }
 
-const DOC_FEES: Record<DocRequestType, number> = {
-  TRANSCRIPT: 5000, // GHS 50 (official transcripts also generate free on the transcript page — this is the requested/mailed copy)
-  ATTESTATION: 3000,
-  VERIFICATION_LETTER: 2000,
+// Defaults in pesewas; the developer console can override each via settings.
+const DOC_FEE_DEFAULTS: Record<DocRequestType, { key: SettingKey; amount: number }> = {
+  TRANSCRIPT: { key: SETTING_KEYS.DOC_FEE_TRANSCRIPT, amount: 5000 }, // GHS 50 (requested/mailed copy; the transcript page generates free)
+  ATTESTATION: { key: SETTING_KEYS.DOC_FEE_ATTESTATION, amount: 3000 },
+  VERIFICATION_LETTER: { key: SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER, amount: 2000 },
 };
+
+export async function documentFee(type: DocRequestType): Promise<number> {
+  const cfg = DOC_FEE_DEFAULTS[type];
+  return getIntFee(cfg.key, cfg.amount);
+}
 
 export async function requestDocument(formData: FormData) {
   const user = await requireUser();
   const type = String(formData.get("type")) as DocRequestType;
   const note = String(formData.get("note") ?? "");
+  const fee = await documentFee(type);
 
   const invoice = await db.invoice.create({
     data: {
       invoiceNo: invoiceNo("DOC"),
       kind: "DOCUMENT",
       userId: user.id,
-      total: DOC_FEES[type],
-      lines: { create: [{ description: `${type.replace("_", " ")} request fee`, amount: DOC_FEES[type] }] },
+      total: fee,
+      lines: { create: [{ description: `${type.replace("_", " ")} request fee`, amount: fee }] },
     },
   });
   await db.documentRequest.create({
@@ -49,24 +58,33 @@ export async function requestDocument(formData: FormData) {
   redirect("/student/requests");
 }
 
-export async function payDocumentFeeMock(formData: FormData) {
+export async function payDocumentFee(formData: FormData) {
   const user = await requireUser();
   const requestId = String(formData.get("requestId"));
   const request = await db.documentRequest.findFirstOrThrow({ where: { id: requestId, userId: user.id } });
-  if (!request.invoiceId) throw new Error("No invoice linked to this request.");
+  if (!request.invoiceId) {
+    redirect(`/student/requests?error=${encodeURIComponent("No invoice is linked to this request.")}`);
+  }
 
-  const invoice = await db.invoice.findUniqueOrThrow({ where: { id: request.invoiceId } });
-  await payInvoiceMock(invoice.id, invoice.total - invoice.paid, user.id);
-  await db.documentRequest.update({ where: { id: requestId }, data: { status: "QUEUED" } });
-
-  redirect("/student/requests");
+  // The request moves to QUEUED in settleInvoiceSideEffects once payment confirms.
+  const result = await beginInvoicePayment({
+    invoiceId: request.invoiceId,
+    userEmail: user.email,
+    returnTo: "/student/requests",
+  });
+  if (result.kind === "failed") {
+    redirect(`/student/requests?error=${encodeURIComponent(result.message)}`);
+  }
+  redirect(result.kind === "redirect" ? result.url : "/student/requests?paid=1");
 }
 
 export async function processDocumentRequest(formData: FormData) {
   const officer = await requireRole(ROLES.EXAMS_OFFICER, ROLES.REGISTRAR, ROLES.SYSTEM_ADMIN);
   const requestId = String(formData.get("requestId"));
   const request = await db.documentRequest.findUniqueOrThrow({ where: { id: requestId }, include: { user: true } });
-  if (request.status !== "QUEUED") throw new Error("This request is not ready for processing.");
+  if (request.status !== "QUEUED") {
+    redirect(`/staff/documents?error=${encodeURIComponent("This request is not ready for processing (fee may be unpaid).")}`);
+  }
 
   const code = verificationCode();
   await db.$transaction(async (tx) => {
@@ -86,13 +104,25 @@ export async function processDocumentRequest(formData: FormData) {
   });
 
   await audit({ actorId: officer.id, action: "documents.request_completed", entityType: "DocumentRequest", entityId: requestId });
+  await notify(
+    request.userId,
+    "Your document is ready",
+    `Your ${request.type.replace("_", " ").toLowerCase()} has been issued with verification code ${code}.`,
+    "/student/requests"
+  );
   redirect("/staff/documents");
 }
 
 export async function rejectDocumentRequest(formData: FormData) {
   const officer = await requireRole(ROLES.EXAMS_OFFICER, ROLES.REGISTRAR, ROLES.SYSTEM_ADMIN);
   const requestId = String(formData.get("requestId"));
-  await db.documentRequest.update({ where: { id: requestId }, data: { status: "REJECTED" } });
+  const request = await db.documentRequest.update({ where: { id: requestId }, data: { status: "REJECTED" } });
   await audit({ actorId: officer.id, action: "documents.request_rejected", entityType: "DocumentRequest", entityId: requestId });
+  await notify(
+    request.userId,
+    "Document request rejected",
+    `Your ${request.type.replace("_", " ").toLowerCase()} request was rejected. Contact the registry for details.`,
+    "/student/requests"
+  );
   redirect("/staff/documents");
 }

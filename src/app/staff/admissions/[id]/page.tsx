@@ -7,6 +7,7 @@ import {
   approveAndIssueOffer, recordRecommendation, requestInfo, runDocumentExtractionAction,
   runPrescreenAction, startReview,
 } from "@/lib/actions/admissions";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Review Application" };
 
@@ -15,9 +16,16 @@ const KIND_LABEL: Record<string, string> = {
   PHOTO: "Passport photo", ID_DOCUMENT: "ID document", OTHER: "Other",
 };
 
-export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ApplicationDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("staff");
   const { id } = await params;
+  const { error } = await searchParams;
 
   const app = await db.application.findUnique({
     where: { id },
@@ -38,6 +46,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
   return (
     <div className="mx-auto max-w-4xl">
       <Link href="/staff/admissions" className="text-sm text-ink-500 hover:underline">← Back to queue</Link>
+      <Flash error={error} />
 
       <div className="mt-2 flex items-center justify-between">
         <div>
@@ -61,8 +70,12 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
               <div><dt className="text-ink-500">Date of birth</dt><dd>{app.dateOfBirth?.toLocaleDateString() ?? "—"}</dd></div>
               <div><dt className="text-ink-500">Nationality</dt><dd>{app.nationality ?? "—"}</dd></div>
               <div><dt className="text-ink-500">Phone</dt><dd>{app.phone ?? "—"}</dd></div>
+              <div><dt className="text-ink-500">Address</dt><dd>{app.address ?? "—"}</dd></div>
+              <div><dt className="text-ink-500">Emergency contact</dt><dd>{app.emergencyName ? `${app.emergencyName} (${app.emergencyPhone ?? "no phone"})` : "—"}</dd></div>
               <div><dt className="text-ink-500">Qualification type</dt><dd>{app.qualificationType ?? "—"}</dd></div>
+              <div><dt className="text-ink-500">Exam index no</dt><dd>{app.examIndexNo ?? "—"}</dd></div>
               <div><dt className="text-ink-500">Exam year</dt><dd>{app.examYear ?? "—"}</dd></div>
+              <div><dt className="text-ink-500">Submitted</dt><dd>{app.submittedAt?.toLocaleString() ?? "—"}</dd></div>
             </dl>
 
             <h3 className="mt-4 text-sm font-semibold text-ink-700">Programme choices</h3>
@@ -92,14 +105,24 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
             ) : (
               <div className="mt-3 space-y-2">
                 {app.documents.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between rounded-md border border-ink-200 px-3 py-2 text-sm">
+                  <div key={d.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-200 px-3 py-2 text-sm">
                     <span>{KIND_LABEL[d.kind]} — {d.fileName}</span>
-                    {isOfficer && !d.extracted && (d.kind === "RESULTS_SLIP" || d.kind === "CERTIFICATE") && (
-                      <form action={runDocumentExtractionAction}>
-                        <input type="hidden" name="documentId" value={d.id} />
-                        <button type="submit" className="text-xs text-brand-800 hover:underline">Run AI extraction</button>
-                      </form>
-                    )}
+                    <span className="flex items-center gap-3">
+                      <a
+                        href={`/api/files/${d.filePath}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-brand-800 hover:underline"
+                      >
+                        Open
+                      </a>
+                      {isOfficer && !d.extracted && (d.kind === "RESULTS_SLIP" || d.kind === "CERTIFICATE") && (
+                        <form action={runDocumentExtractionAction}>
+                          <input type="hidden" name="documentId" value={d.id} />
+                          <button type="submit" className="text-xs text-brand-800 hover:underline">Run AI extraction</button>
+                        </form>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -187,12 +210,42 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
               {isRegistrar ? (
                 <form action={approveAndIssueOffer} className="mt-3">
                   <input type="hidden" name="applicationId" value={app.id} />
-                  <button type="submit" className="w-full rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                    Approve &amp; issue offer
+                  <button
+                    type="submit"
+                    className={`w-full rounded-md px-3 py-2 text-sm font-medium text-white ${
+                      app.recommendation === "REJECT"
+                        ? "bg-red-700 hover:bg-red-600"
+                        : app.recommendation === "WAITLIST"
+                          ? "bg-amber-600 hover:bg-amber-500"
+                          : "bg-brand-800 hover:bg-brand-700"
+                    }`}
+                  >
+                    {app.recommendation === "REJECT"
+                      ? "Confirm rejection"
+                      : app.recommendation === "WAITLIST"
+                        ? "Place on waitlist"
+                        : "Approve & issue offer"}
                   </button>
                 </form>
               ) : (
-                <p className="mt-3 text-xs text-ink-500">Awaiting Registrar approval — a second, independent sign-off before any offer is issued.</p>
+                <p className="mt-3 text-xs text-ink-500">Awaiting Registrar approval — a second, independent sign-off before any decision takes effect.</p>
+              )}
+            </div>
+          )}
+
+          {app.status === "WAITLISTED" && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <h3 className="text-sm font-semibold text-amber-900">On the waitlist</h3>
+              <p className="mt-1 text-xs text-amber-800">
+                If a place opens up, the Registrar can issue an offer for the applicant&apos;s first choice.
+              </p>
+              {isRegistrar && (
+                <form action={approveAndIssueOffer} className="mt-3">
+                  <input type="hidden" name="applicationId" value={app.id} />
+                  <button type="submit" className="w-full rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Issue offer now
+                  </button>
+                </form>
               )}
             </div>
           )}

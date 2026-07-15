@@ -1,6 +1,7 @@
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { processDocumentRequest, rejectDocumentRequest } from "@/lib/actions/comms";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Document Requests" };
 
@@ -8,7 +9,12 @@ const TYPE_LABEL: Record<string, string> = {
   TRANSCRIPT: "Official transcript", ATTESTATION: "Attestation letter", VERIFICATION_LETTER: "Verification letter",
 };
 
-export default async function StaffDocumentsPage() {
+export default async function StaffDocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   await requirePortal("staff");
 
   const requests = await db.documentRequest.findMany({
@@ -20,6 +26,7 @@ export default async function StaffDocumentsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Document requests</h1>
+      <Flash error={error} />
       <p className="mt-1 text-sm text-ink-500">Paid requests awaiting fulfilment.</p>
 
       <div className="mt-6 space-y-3">
