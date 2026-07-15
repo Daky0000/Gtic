@@ -40,7 +40,14 @@ export async function registerApplicant(
     throw e;
   }
 
-  const role = await db.role.findUniqueOrThrow({ where: { code: ROLES.APPLICANT } });
+  // Self-healing: the seed normally creates roles, but a fresh production
+  // database must never turn public signup into a 500 — create the role on
+  // first use if it's missing.
+  const role = await db.role.upsert({
+    where: { code: ROLES.APPLICANT },
+    update: {},
+    create: { code: ROLES.APPLICANT, name: "Prospective Applicant" },
+  });
   await db.roleAssignment.create({ data: { userId, roleId: role.id } });
 
   await audit({ actorId: userId, action: "account.applicant_registered", entityType: "User", entityId: userId });

@@ -5,6 +5,12 @@ import { db } from "@/lib/db";
 
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
+  // Accept browser requests from the public app URL as well as
+  // BETTER_AUTH_URL, so a mismatch between the two env vars doesn't brick
+  // every login with "Invalid origin".
+  trustedOrigins: [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL].filter(
+    (v): v is string => !!v
+  ),
   emailAndPassword: {
     enabled: true,
     // Email verification and password reset flows are wired to the
