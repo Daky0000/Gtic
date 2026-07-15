@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { formatGHS } from "@/lib/money";
 import { initializePaystackTransaction, isPaystackConfigured } from "@/lib/paystack";
+import { appBaseUrl } from "@/lib/base-url";
 
 /**
  * Payment layer. Online payments go through Paystack (cards + MTN/Telecel/AT
@@ -163,7 +164,7 @@ export async function beginInvoicePayment(params: {
     },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = appBaseUrl();
   try {
     const { authorizationUrl } = await initializePaystackTransaction({
       email: params.userEmail,

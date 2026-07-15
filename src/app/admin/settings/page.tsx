@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireDeveloperConsole } from "@/lib/rbac";
+import { appBaseUrl } from "@/lib/base-url";
 import { getSettingOverride, maskSecret, SETTING_KEYS } from "@/lib/settings";
 import { saveIntegrations, saveInstitution } from "@/lib/actions/system";
 import { Flash } from "@/components/flash";
@@ -67,7 +68,7 @@ export default async function SystemSettingsPage({
             </label>
             <p className="mt-1 text-xs text-ink-500">
               Webhook URL for your Paystack dashboard:{" "}
-              <span className="font-mono">{process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/payments/paystack/webhook</span>
+              <span className="font-mono">{appBaseUrl()}/api/payments/paystack/webhook</span>
             </p>
           </div>
 

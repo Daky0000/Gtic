@@ -2,15 +2,14 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
+import { appBaseUrl, trustedOrigins } from "@/lib/base-url";
 
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
-  // Accept browser requests from the public app URL as well as
-  // BETTER_AUTH_URL, so a mismatch between the two env vars doesn't brick
-  // every login with "Invalid origin".
-  trustedOrigins: [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL].filter(
-    (v): v is string => !!v
-  ),
+  // Resolved from explicit env vars or the Railway-injected public domain,
+  // so an unset BETTER_AUTH_URL can't brick every login with "Invalid origin".
+  baseURL: appBaseUrl(),
+  trustedOrigins: trustedOrigins(),
   emailAndPassword: {
     enabled: true,
     // Email verification and password reset flows are wired to the
