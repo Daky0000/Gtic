@@ -2,19 +2,20 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { registerApplicant, type SignupState } from "@/lib/actions/account";
+import { startApplicationWithPayment, type SignupState } from "@/lib/actions/account";
 
 export default function SignupPage() {
-  const [state, action, pending] = useActionState<SignupState, FormData>(registerApplicant, null);
+  const [state, action, pending] = useActionState<SignupState, FormData>(startApplicationWithPayment, null);
 
   const field =
     "mt-1 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600";
 
   return (
     <div className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
-      <h1 className="text-2xl font-bold">Create your applicant account</h1>
+      <h1 className="text-2xl font-bold">Start your application</h1>
       <p className="mt-1 text-sm text-ink-500">
-        Start your application in minutes. Already have an account?{" "}
+        Pay the application voucher fee to create your account — we&apos;ll set up your login for you.
+        Already applying?{" "}
         <Link href="/login" className="text-brand-800 underline">Sign in</Link>.
       </p>
 
@@ -26,14 +27,11 @@ export default function SignupPage() {
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-ink-700">Email</label>
           <input id="email" name="email" type="email" required autoComplete="email" className={field} />
+          <p className="mt-1 text-xs text-ink-500">Your login details will be shown here once payment is confirmed.</p>
         </div>
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-ink-700">Password</label>
-          <input
-            id="password" name="password" type="password" required minLength={8}
-            autoComplete="new-password" className={field}
-          />
-          <p className="mt-1 text-xs text-ink-500">At least 8 characters.</p>
+          <label htmlFor="phone" className="block text-sm font-medium text-ink-700">Phone number</label>
+          <input id="phone" name="phone" type="tel" required autoComplete="tel" placeholder="0241234567" className={field} />
         </div>
 
         {state?.error && (
@@ -47,7 +45,7 @@ export default function SignupPage() {
           disabled={pending}
           className="w-full rounded-md bg-brand-800 px-4 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {pending ? "Creating account…" : "Create account & start applying"}
+          {pending ? "Setting up your account…" : "Pay voucher fee & continue"}
         </button>
       </form>
 

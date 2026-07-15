@@ -32,7 +32,7 @@ export default function LoginPage() {
       <p className="mt-1 text-sm text-ink-500">
         One account for every portal — applicant, student, staff and administration.
         New applicant?{" "}
-        <Link href="/signup" className="text-brand-800 underline">Create an account</Link>.
+        <Link href="/signup" className="text-brand-800 underline">Start your application</Link>.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
