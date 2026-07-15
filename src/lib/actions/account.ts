@@ -42,21 +42,30 @@ export async function registerApplicant(
 
   // Self-healing: the seed normally creates roles, but a fresh production
   // database must never turn public signup into a 500 — create the role on
-  // first use if it's missing.
-  const role = await db.role.upsert({
-    where: { code: ROLES.APPLICANT },
-    update: {},
-    create: { code: ROLES.APPLICANT, name: "Prospective Applicant" },
+  // first use if it's missing. Atomic so an account is never left without a
+  // role (the auth user already exists at this point regardless).
+  await db.$transaction(async (tx) => {
+    const role = await tx.role.upsert({
+      where: { code: ROLES.APPLICANT },
+      update: {},
+      create: { code: ROLES.APPLICANT, name: "Prospective Applicant" },
+    });
+    await tx.roleAssignment.create({ data: { userId, roleId: role.id } });
   });
-  await db.roleAssignment.create({ data: { userId, roleId: role.id } });
 
   await audit({ actorId: userId, action: "account.applicant_registered", entityType: "User", entityId: userId });
-  await notify(
-    userId,
-    "Welcome to CampusCore",
-    "Your applicant account is ready. Complete your application, upload your documents and pay the application fee to submit.",
-    "/apply"
-  );
+  // Best-effort: a notification failure must not undo the role grant above
+  // or block the user from reaching their new account.
+  try {
+    await notify(
+      userId,
+      "Welcome to CampusCore",
+      "Your applicant account is ready. Complete your application, upload your documents and pay the application fee to submit.",
+      "/apply"
+    );
+  } catch (e) {
+    console.error("[signup] welcome notification failed", e);
+  }
 
   redirect("/apply");
 }
