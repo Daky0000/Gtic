@@ -65,6 +65,8 @@ export async function PortalShell({
   }));
   const userInitial = initials(user.name);
   const portals = accessiblePortals(user.roles);
+  // Derive the active portal from the nav's own hrefs (e.g. "/staff/..." → "staff").
+  const currentPortal = nav[0]?.href.split("/")[1] ?? "";
 
   return (
     <div className="flex min-h-screen bg-cream text-ink">
@@ -85,6 +87,32 @@ export async function PortalShell({
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
+          {portals.length > 1 && (
+            <div className="mb-4 border-b border-line-soft pb-4">
+              <div className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                Portals
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {portals.map((p) => {
+                  const active = p === currentPortal;
+                  return (
+                    <Link
+                      key={p}
+                      href={PORTAL_HOME[p]}
+                      aria-current={active ? "page" : undefined}
+                      className={
+                        active
+                          ? "rounded-[10px] bg-forest px-3 py-2 text-center text-[12px] font-medium text-white"
+                          : "rounded-[10px] border border-line bg-paper px-3 py-2 text-center text-[12px] text-muted transition-colors hover:border-forest hover:text-forest"
+                      }
+                    >
+                      {PORTAL_LABEL[p] ?? p}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <SidebarNav nav={nav} />
           <div className="mt-4 border-t border-line-soft pt-4">
             <OpenAssistantButton />
@@ -92,24 +120,6 @@ export async function PortalShell({
         </div>
 
         <div className="border-t border-line-soft p-3">
-          {portals.length > 1 && (
-            <>
-              <div className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
-                Switch portal
-              </div>
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {portals.map((p) => (
-                  <Link
-                    key={p}
-                    href={PORTAL_HOME[p]}
-                    className="rounded-full border border-line bg-paper px-[11px] py-1.5 text-[12px] text-muted transition-colors hover:border-forest hover:text-forest"
-                  >
-                    {PORTAL_LABEL[p] ?? p}
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
           <div className="flex items-center gap-[10px] px-1.5 py-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-moss text-[13px] font-semibold text-white">
               {userInitial}
