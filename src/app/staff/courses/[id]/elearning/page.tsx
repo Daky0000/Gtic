@@ -34,7 +34,7 @@ export default async function OfferingElearningPage({ params }: { params: Promis
       <h1 className="mt-2 text-2xl font-bold">{offering.course.code} — E-learning</h1>
 
       {/* Materials */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Materials</h2>
         <ul className="mt-3 space-y-1 text-sm">
           {materials.map((m) => (
@@ -59,12 +59,12 @@ export default async function OfferingElearningPage({ params }: { params: Promis
             <option value="LINK">Link</option>
           </select>
           <input name="content" placeholder="Text or URL" className="rounded-md border border-ink-300 px-2 py-1.5 text-sm sm:col-span-3" />
-          <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">Add</button>
+          <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">Add</button>
         </form>
       </section>
 
       {/* Assignments */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Assignments</h2>
         {assignments.map((a) => (
           <div key={a.id} className="mt-3 rounded-md border border-ink-200 p-3">
@@ -98,7 +98,7 @@ export default async function OfferingElearningPage({ params }: { params: Promis
                           <input type="hidden" name="offeringId" value={offeringId} />
                           <input name="score" type="number" step="0.5" defaultValue={suggestion?.suggestedScore ?? ""} placeholder="Score" required className="w-16 rounded border border-ink-300 px-1 py-0.5" />
                           <input name="feedback" placeholder="Feedback" className="w-32 rounded border border-ink-300 px-1 py-0.5" />
-                          <button type="submit" className="rounded bg-brand-800 px-2 py-1 text-white hover:bg-brand-700">Save grade</button>
+                          <button type="submit" className="rounded bg-brand-800 px-2 py-1 text-white hover:bg-forest-deep">Save grade</button>
                         </form>
                       </div>
                     )}
@@ -115,12 +115,12 @@ export default async function OfferingElearningPage({ params }: { params: Promis
           <input name="dueAt" type="datetime-local" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <input name="maxScore" type="number" defaultValue={100} className="rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <textarea name="instructions" placeholder="Instructions" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm sm:col-span-4" />
-          <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 sm:col-span-1">Create</button>
+          <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep sm:col-span-1">Create</button>
         </form>
       </section>
 
       {/* Quizzes */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Quizzes</h2>
         <ul className="mt-3 space-y-1 text-sm">
           {quizzes.map((q) => (
@@ -135,7 +135,7 @@ export default async function OfferingElearningPage({ params }: { params: Promis
           <input type="hidden" name="offeringId" value={offeringId} />
           <input name="title" placeholder="Quiz title" required className="flex-1 rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <input name="durationMin" type="number" placeholder="Minutes" className="w-24 rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
-          <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">Create quiz</button>
+          <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">Create quiz</button>
         </form>
       </section>
     </div>

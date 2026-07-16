@@ -63,7 +63,7 @@ export default async function ApplicationDetailPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {/* Personal + qualification */}
-          <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+          <section className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="font-semibold text-brand-800">Applicant details</h2>
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div><dt className="text-ink-500">Gender</dt><dd>{app.gender ?? "—"}</dd></div>
@@ -98,7 +98,7 @@ export default async function ApplicationDetailPage({
           </section>
 
           {/* Documents */}
-          <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+          <section className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="font-semibold text-brand-800">Documents</h2>
             {app.documents.length === 0 ? (
               <p className="mt-2 text-sm text-ink-500">No documents uploaded.</p>
@@ -130,7 +130,7 @@ export default async function ApplicationDetailPage({
           </section>
 
           {/* AI prescreen */}
-          <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+          <section className="rounded-2xl border border-line bg-paper p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-brand-800">AI eligibility pre-screen</h2>
               {isOfficer && (
@@ -166,9 +166,9 @@ export default async function ApplicationDetailPage({
         {/* Action panel */}
         <div className="space-y-4">
           {app.status === "SUBMITTED" && isOfficer && (
-            <form action={startReview} className="rounded-lg border border-ink-300/60 bg-white p-4">
+            <form action={startReview} className="rounded-2xl border border-line bg-paper p-4">
               <input type="hidden" name="applicationId" value={app.id} />
-              <button type="submit" className="w-full rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+              <button type="submit" className="w-full rounded-full bg-forest px-3 py-2 text-sm font-medium text-white hover:bg-forest-deep">
                 Start review
               </button>
             </form>
@@ -176,7 +176,7 @@ export default async function ApplicationDetailPage({
 
           {(app.status === "UNDER_REVIEW" || app.status === "INFO_REQUESTED") && isOfficer && (
             <>
-              <form action={requestInfo} className="rounded-lg border border-ink-300/60 bg-white p-4">
+              <form action={requestInfo} className="rounded-2xl border border-line bg-paper p-4">
                 <input type="hidden" name="applicationId" value={app.id} />
                 <h3 className="text-sm font-semibold text-ink-700">Request more information</h3>
                 <textarea name="note" rows={2} required className="mt-2 w-full rounded-md border border-ink-300 p-2 text-sm" placeholder="What's missing?" />
@@ -185,7 +185,7 @@ export default async function ApplicationDetailPage({
                 </button>
               </form>
 
-              <form action={recordRecommendation} className="rounded-lg border border-ink-300/60 bg-white p-4">
+              <form action={recordRecommendation} className="rounded-2xl border border-line bg-paper p-4">
                 <input type="hidden" name="applicationId" value={app.id} />
                 <h3 className="text-sm font-semibold text-ink-700">Record recommendation</h3>
                 <select name="recommendation" required className="mt-2 w-full rounded-md border border-ink-300 px-2 py-2 text-sm">
@@ -195,7 +195,7 @@ export default async function ApplicationDetailPage({
                   <option value="REJECT">Reject</option>
                 </select>
                 <textarea name="note" rows={2} className="mt-2 w-full rounded-md border border-ink-300 p-2 text-sm" placeholder="Note (optional)" />
-                <button type="submit" className="mt-2 w-full rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                <button type="submit" className="mt-2 w-full rounded-full bg-forest px-3 py-2 text-sm font-medium text-white hover:bg-forest-deep">
                   Submit recommendation
                 </button>
               </form>
@@ -203,7 +203,7 @@ export default async function ApplicationDetailPage({
           )}
 
           {app.status === "RECOMMENDED" && (
-            <div className="rounded-lg border border-ink-300/60 bg-white p-4">
+            <div className="rounded-2xl border border-line bg-paper p-4">
               <h3 className="text-sm font-semibold text-ink-700">Officer recommendation</h3>
               <p className="mt-1 text-sm">{app.recommendation?.replaceAll("_", " ")}</p>
               {app.decisionNote && <p className="mt-1 text-xs text-ink-500">{app.decisionNote}</p>}
@@ -217,7 +217,7 @@ export default async function ApplicationDetailPage({
                         ? "bg-red-700 hover:bg-red-600"
                         : app.recommendation === "WAITLIST"
                           ? "bg-amber-600 hover:bg-amber-500"
-                          : "bg-brand-800 hover:bg-brand-700"
+                          : "bg-brand-800 hover:bg-forest-deep"
                     }`}
                   >
                     {app.recommendation === "REJECT"
@@ -242,7 +242,7 @@ export default async function ApplicationDetailPage({
               {isRegistrar && (
                 <form action={approveAndIssueOffer} className="mt-3">
                   <input type="hidden" name="applicationId" value={app.id} />
-                  <button type="submit" className="w-full rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                  <button type="submit" className="w-full rounded-full bg-forest px-3 py-2 text-sm font-medium text-white hover:bg-forest-deep">
                     Issue offer now
                   </button>
                 </form>

@@ -33,7 +33,7 @@ export default async function UsersPage({
       <Flash error={error} success={saved ? "Saved." : undefined} />
 
       {/* Create user */}
-      <form action={adminCreateUser} className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-ink-300/60 bg-white p-5">
+      <form action={adminCreateUser} className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-paper p-5">
         <h2 className="w-full font-semibold text-brand-800">Create an account</h2>
         <label className="text-xs text-ink-600">
           Full name
@@ -54,7 +54,7 @@ export default async function UsersPage({
             {roles.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
           </select>
         </label>
-        <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
           Create
         </button>
       </form>
@@ -70,7 +70,7 @@ export default async function UsersPage({
       {/* User list */}
       <div className="mt-4 space-y-3">
         {users.map((u) => (
-          <div key={u.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+          <div key={u.id} className="rounded-2xl border border-line bg-paper p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="font-medium">{u.name}</div>

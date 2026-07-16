@@ -27,46 +27,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
-      <h1 className="text-2xl font-bold">Sign in</h1>
-      <p className="mt-1 text-sm text-ink-500">
-        One account for every portal — applicant, student, staff and administration.
-        New applicant?{" "}
-        <Link href="/signup" className="text-brand-800 underline">Start your application</Link>.
+    <div className="scr mx-auto max-w-[440px] px-7 py-[72px]">
+      <h1 className="mb-3 font-serif text-[38px] font-normal">Sign in</h1>
+      <p className="mb-7 text-[15px] leading-[1.6] text-muted">
+        One account for every portal — applicant, student, staff and administration. New applicant?{" "}
+        <Link href="/signup" className="text-forest hover:text-moss">
+          Start your application
+        </Link>
+        .
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-ink-700">
-            Email
-          </label>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <label className="text-[13px] text-muted">
+          Email
           <input
-            id="email"
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+            placeholder="you@example.com"
+            className="field mt-[7px]"
           />
-        </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-ink-700">
-            Password
-          </label>
+        </label>
+        <label className="text-[13px] text-muted">
+          Password
           <input
-            id="password"
             type="password"
             required
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+            placeholder="••••••••"
+            className="field mt-[7px]"
           />
-        </div>
+        </label>
 
         {error && (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="text-[13px] text-[#b23a2e]">
             {error}
           </p>
         )}
@@ -74,11 +72,23 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-md bg-brand-800 px-4 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="mt-1 w-full rounded-xl bg-forest py-[14px] text-[15px] font-medium text-white transition-colors hover:bg-forest-deep disabled:opacity-60"
         >
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      <div className="mt-7 border-t border-line pt-6">
+        <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
+          New applicant?
+        </div>
+        <Link
+          href="/signup"
+          className="inline-flex rounded-xl border border-line bg-paper px-[14px] py-[11px] text-[13px] text-ink transition-colors hover:border-forest"
+        >
+          Start your application →
+        </Link>
+      </div>
     </div>
   );
 }

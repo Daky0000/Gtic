@@ -45,7 +45,7 @@ export default async function StudentCourseElearningPage({
       <h1 className="mt-2 text-2xl font-bold">{offering.course.code} — {offering.course.title}</h1>
       <Flash error={error} />
 
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Materials</h2>
         <ul className="mt-2 space-y-2 text-sm">
           {materials.map((m) => (
@@ -60,7 +60,7 @@ export default async function StudentCourseElearningPage({
         </ul>
       </section>
 
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Assignments</h2>
         {assignments.map((a) => {
           const mySubmission = a.submissions[0];
@@ -83,7 +83,7 @@ export default async function StudentCourseElearningPage({
                 <form action={submitAssignment} className="mt-2">
                   <input type="hidden" name="assignmentId" value={a.id} />
                   <textarea name="text" required rows={3} className="w-full rounded-md border border-ink-300 p-2 text-sm" placeholder="Your answer" />
-                  <button type="submit" className="mt-1 rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">Submit</button>
+                  <button type="submit" className="mt-1 rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">Submit</button>
                 </form>
               )}
             </div>
@@ -92,7 +92,7 @@ export default async function StudentCourseElearningPage({
         {assignments.length === 0 && <p className="mt-2 text-sm text-ink-500">No assignments yet.</p>}
       </section>
 
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Quizzes</h2>
         <ul className="mt-2 space-y-2 text-sm">
           {quizzes.map((q) => (

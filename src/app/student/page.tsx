@@ -3,6 +3,7 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
+import { PageHeader, Card } from "@/components/ui";
 
 export const metadata = { title: "Student Portal" };
 
@@ -23,60 +24,104 @@ export default async function StudentHome() {
     ? await db.semesterResult.findFirst({ where: { studentId: student.id }, orderBy: { publishedAt: "desc" } })
     : null;
 
+  const firstName = user.name.split(/\s+/)[0] || user.name;
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Welcome back, {user.name}</h1>
+    <div className="scr">
+      <PageHeader
+        title={<>Good morning, <em className="text-forest">{firstName}.</em></>}
+        lead={student ? `${student.programme.name} · ${student.status.toLowerCase()}` : "Your student dashboard."}
+      />
 
-      <div className="mt-4"><AnnouncementsBanner audience="STUDENTS" /></div>
-
-      {!student ? (
-        <p className="mt-4 rounded-md bg-amber-50 p-4 text-sm text-amber-900">
-          You hold the student role but have no student record yet — this normally happens automatically
-          when the Registrar enrolls an accepted applicant.
-        </p>
-      ) : (
-        <div className="mt-4 rounded-lg border border-ink-300/60 bg-white p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div><div className="text-xs text-ink-500">Index number</div><div className="font-mono font-semibold">{student.indexNo}</div></div>
-            <div><div className="text-xs text-ink-500">Programme</div><div className="font-semibold">{student.programme.name}</div></div>
-            <div><div className="text-xs text-ink-500">Status</div><div className="font-semibold">{student.status}</div></div>
-          </div>
-          {student.curriculumVersion && (
-            <div className="mt-2 text-xs text-ink-500">Curriculum: {student.curriculumVersion.name}</div>
-          )}
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Link href="/student/registration" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Registration</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">
-            {registration ? `${registration.status}` : "Not registered"}
-          </div>
-          <div className="mt-1 text-xs text-ink-500">{semester?.label ?? "No current semester"}</div>
-        </Link>
-        <Link href="/student/fees" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Outstanding fees</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">{formatGHS(outstanding)}</div>
-          <div className="mt-1 text-xs text-ink-500">{outstanding > 0 ? "Payment required" : "All clear"}</div>
-        </Link>
-        <Link href="/student/results" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Cumulative average</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">{latestResult ? latestResult.cumulativeAverage.toFixed(2) : "—"}</div>
-          <div className="mt-1 text-xs text-ink-500">{latestResult ? latestResult.standing : "No results yet"}</div>
-        </Link>
+      <div className="mb-6">
+        <AnnouncementsBanner audience="STUDENTS" />
       </div>
 
-      {student && (
-        <p className="mt-6 text-sm">
-          <Link href="/student/profile" className="text-brand-800 underline">View/update my profile →</Link>
-        </p>
+      {!student ? (
+        <div className="rounded-2xl border border-gold/30 bg-[#f6efdf] p-5 text-sm text-[#7a5a22]">
+          You hold the student role but have no student record yet — this normally happens
+          automatically when the Registrar enrolls an accepted applicant.
+        </div>
+      ) : (
+        <>
+          <Card className="mb-6">
+            <div className="grid gap-5 sm:grid-cols-3">
+              <Field label="Index number" value={<span className="font-mono">{student.indexNo}</span>} />
+              <Field label="Programme" value={student.programme.name} />
+              <Field label="Status" value={student.status} />
+            </div>
+            {student.curriculumVersion && (
+              <div className="mt-3 border-t border-line-soft pt-3 text-xs text-faint">
+                Curriculum: {student.curriculumVersion.name}
+              </div>
+            )}
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricCard
+              href="/student/registration"
+              label="Registration"
+              value={registration ? registration.status : "Not registered"}
+              sub={semester?.label ?? "No current semester"}
+            />
+            <MetricCard
+              href="/student/fees"
+              label="Outstanding fees"
+              value={formatGHS(outstanding)}
+              sub={outstanding > 0 ? "Payment required" : "All clear"}
+            />
+            <MetricCard
+              href="/student/results"
+              label="Cumulative average"
+              value={latestResult ? latestResult.cumulativeAverage.toFixed(2) : "—"}
+              sub={latestResult ? latestResult.standing : "No results yet"}
+            />
+          </div>
+
+          <p className="mt-6 text-sm">
+            <Link href="/student/profile" className="text-forest hover:text-moss">
+              View / update my profile →
+            </Link>
+          </p>
+        </>
       )}
 
-      <p className="mt-6 text-sm text-ink-500">
+      <p className="mt-6 text-sm text-muted">
         The AI assistant (bottom-right) answers questions from the student handbook and examination
         regulations.
       </p>
     </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{label}</div>
+      <div className="text-[15px] font-semibold text-ink">{value}</div>
+    </div>
+  );
+}
+
+function MetricCard({
+  href,
+  label,
+  value,
+  sub,
+}: {
+  href: string;
+  label: string;
+  value: React.ReactNode;
+  sub: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl border border-line bg-paper p-5 transition-colors hover:border-forest"
+    >
+      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{label}</div>
+      <div className="mt-2 font-serif text-[26px] text-ink">{value}</div>
+      <div className="mt-1 text-xs text-muted">{sub}</div>
+    </Link>
   );
 }

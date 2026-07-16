@@ -10,12 +10,19 @@ export async function AnnouncementsBanner({ audience }: { audience: Audience }) 
   if (announcements.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {announcements.map((a) => (
-        <div key={a.id} className="rounded-md border border-ink-300/60 bg-white p-3 text-sm">
-          <div className="font-medium text-brand-800">{a.title}</div>
-          <p className="mt-0.5 text-ink-600">{a.body}</p>
-          <div className="mt-1 text-xs text-ink-400">{a.publishedAt.toLocaleDateString()}</div>
+        <div
+          key={a.id}
+          className="flex items-baseline gap-4 rounded-2xl border border-line bg-paper p-5 transition-colors hover:border-forest"
+        >
+          <span className="flex-shrink-0 whitespace-nowrap rounded-md bg-[#eaf0ea] px-[10px] py-[5px] font-mono text-[11px] uppercase tracking-[0.06em] text-moss">
+            {a.publishedAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+          </span>
+          <div>
+            <div className="font-serif text-[18px] text-ink">{a.title}</div>
+            <p className="mt-0.5 text-sm leading-[1.55] text-muted">{a.body}</p>
+          </div>
         </div>
       ))}
     </div>

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { hasRole, requirePortal, ROLES } from "@/lib/rbac";
+import { PageHeader, Stat } from "@/components/ui";
 
 export const metadata = { title: "Administration" };
+
+const TINTS = ["#8AA84B", "#E7B54A", "#6FA9C4", "#7E6BB0"];
 
 export default async function AdminHome() {
   const user = await requirePortal("admin");
@@ -23,22 +26,24 @@ export default async function AdminHome() {
   ];
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">System overview</h1>
-      <div className="mt-6 grid gap-4 md:grid-cols-4">
-        {stats.map(([title, value, note]) => (
-          <div key={title} className="rounded-lg border border-ink-300/60 bg-white p-5">
-            <div className="text-sm font-medium text-ink-500">{title}</div>
-            <div className="mt-1 text-2xl font-bold text-brand-800">{value}</div>
-            <div className="mt-1 text-xs text-ink-500">{note}</div>
-          </div>
+    <div className="scr">
+      <PageHeader
+        title={<>Administration <em className="text-forest">overview.</em></>}
+        lead="SYDA — Green Energy & Innovation Center · system at a glance."
+      />
+
+      <div className="grid gap-[14px] sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map(([title, value, note], i) => (
+          <Stat key={title} n={value} label={title} sub={note} tint={TINTS[i % TINTS.length]} />
         ))}
       </div>
 
       {isConsole && (
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-ink-700">Developer console</h2>
-          <div className="mt-3 grid gap-4 md:grid-cols-4">
+          <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
+            Developer console
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {(
               [
                 ["Users & roles", "/admin/users", "Create accounts, assign and revoke roles"],
@@ -47,9 +52,13 @@ export default async function AdminHome() {
                 ["Audit log", "/admin/audit", "Every sensitive action, append-only"],
               ] as const
             ).map(([title, href, note]) => (
-              <Link key={href} href={href} className="rounded-lg border border-brand-200 bg-brand-50 p-5 hover:bg-brand-100">
-                <div className="font-semibold text-brand-900">{title}</div>
-                <div className="mt-1 text-xs text-brand-800">{note}</div>
+              <Link
+                key={href}
+                href={href}
+                className="rounded-2xl border border-line bg-paper p-5 transition-colors hover:border-forest"
+              >
+                <div className="font-serif text-[19px] text-ink">{title}</div>
+                <div className="mt-1 text-xs leading-[1.5] text-muted">{note}</div>
               </Link>
             ))}
           </div>

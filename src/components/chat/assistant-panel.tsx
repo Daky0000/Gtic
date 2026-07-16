@@ -17,6 +17,13 @@ export function AssistantPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, open]);
 
+  // Sidebar "Assistant" entry opens the panel via a window event.
+  useEffect(() => {
+    const openPanel = () => setOpen(true);
+    window.addEventListener("open-assistant", openPanel);
+    return () => window.removeEventListener("open-assistant", openPanel);
+  }, []);
+
   async function send() {
     const message = input.trim();
     if (!message || busy) return;
@@ -94,30 +101,35 @@ export function AssistantPanel() {
         type="button"
         aria-label={open ? "Close assistant" : "Open assistant"}
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-5 right-5 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-brand-800 p-3.5 text-white shadow-lg hover:bg-brand-700"
+        className="fixed bottom-5 right-5 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-forest p-3.5 text-white shadow-lg transition-colors hover:bg-forest-deep"
       >
         {open ? (
           <span className="text-lg leading-none">×</span>
         ) : (
-          <span className="text-sm font-semibold">AI</span>
+          <span className="font-mono text-sm font-medium">AI</span>
         )}
       </button>
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-20 right-5 z-40 flex h-[70vh] max-h-[560px] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-xl border border-ink-300/60 bg-white shadow-2xl">
-          <div className="border-b border-ink-300/60 bg-brand-800 px-4 py-3 text-white">
-            <div className="font-semibold">Campus assistant</div>
-            <div className="text-xs text-brand-100">
-              Answers come from official Center documents
+        <div className="fixed bottom-20 right-5 z-40 flex h-[70vh] max-h-[560px] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-[18px] border border-line bg-paper shadow-2xl">
+          <div className="flex items-center gap-3 border-b border-line bg-forest px-4 py-3 text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/15 font-mono text-[13px]">
+              AI
+            </span>
+            <div>
+              <div className="font-serif text-[17px] leading-none">SYDA Assistant</div>
+              <div className="mt-1 text-[11px] text-[#a9c7b2]">
+                Answers from official Center documents
+              </div>
             </div>
           </div>
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
             {messages.length === 0 && (
-              <div className="rounded-lg bg-ink-100 p-3 text-sm text-ink-700">
-                Ask me about programmes, admission requirements, examination rules
-                or fees. I answer only from the Center&apos;s published documents.
+              <div className="rounded-[14px] border border-line bg-cream p-3 text-sm leading-[1.55] text-muted">
+                Ask me about programmes, admission requirements, examination rules or fees. I answer
+                only from the Center&apos;s published documents.
               </div>
             )}
             {messages.map((m, i) => (
@@ -125,13 +137,13 @@ export function AssistantPanel() {
                 <div
                   className={
                     m.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-lg bg-brand-800 px-3 py-2 text-sm text-white"
-                      : "max-w-[85%] whitespace-pre-wrap rounded-lg bg-ink-100 px-3 py-2 text-sm text-ink-900"
+                      ? "max-w-[85%] whitespace-pre-wrap rounded-[16px] bg-forest px-[14px] py-[10px] text-sm leading-[1.55] text-white"
+                      : "max-w-[85%] whitespace-pre-wrap rounded-[16px] border border-line bg-cream px-[14px] py-[10px] text-sm leading-[1.55] text-ink"
                   }
                 >
                   {m.content || (busy && i === messages.length - 1 ? "…" : "")}
                   {m.citations && m.citations.length > 0 && (
-                    <div className="mt-2 border-t border-ink-300/60 pt-1.5 text-xs text-ink-500">
+                    <div className="mt-2 border-t border-line pt-1.5 text-xs text-faint">
                       Sources:{" "}
                       {[...new Map(m.citations.map((c) => [c.documentSlug, c])).values()]
                         .map((c) => c.documentTitle)
@@ -148,18 +160,18 @@ export function AssistantPanel() {
               e.preventDefault();
               void send();
             }}
-            className="flex gap-2 border-t border-ink-300/60 p-3"
+            className="flex gap-2 border-t border-line p-3"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask a question…"
-              className="min-w-0 flex-1 rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+              className="min-w-0 flex-1 rounded-full border border-line bg-cream px-4 py-2 text-sm outline-none transition-colors focus:border-forest"
             />
             <button
               type="submit"
               disabled={busy || !input.trim()}
-              className="rounded-md bg-brand-800 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-forest-deep disabled:opacity-50"
             >
               Send
             </button>

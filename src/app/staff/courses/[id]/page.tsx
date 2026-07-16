@@ -49,7 +49,7 @@ export default async function ClassListPage({ params }: { params: Promise<{ id: 
           </Link>
           <Link
             href={`/staff/courses/${offering.id}/grading`}
-            className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+            className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep"
           >
             Grading
           </Link>
@@ -62,7 +62,7 @@ export default async function ClassListPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Index No.</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Programme</th></tr>

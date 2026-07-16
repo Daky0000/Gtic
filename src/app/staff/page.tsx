@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
+import { PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Staff Portal" };
 
@@ -14,32 +15,68 @@ export default async function StaffHome() {
     db.documentRequest.count({ where: { status: { in: ["QUEUED", "PROCESSING"] } } }),
   ]);
 
+  const firstName = user.name.split(/\s+/)[0] || user.name;
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Staff dashboard</h1>
-      <p className="mt-2 text-ink-500">
-        Signed in as {user.email} · roles: {user.roles.join(", ") || "none"}
-      </p>
+    <div className="scr">
+      <PageHeader
+        title={<>Welcome, <em className="text-forest">{firstName}.</em></>}
+        lead={`Roles: ${user.roles.join(", ") || "none"} · ${user.email}`}
+      />
 
-      <div className="mt-4"><AnnouncementsBanner audience="STAFF" /></div>
+      <div className="mb-6">
+        <AnnouncementsBanner audience="STAFF" />
+      </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Link href="/staff/admissions" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Admissions review</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">{pendingAdmissions}</div>
-          <div className="mt-1 text-xs text-ink-500">applications awaiting review</div>
-        </Link>
-        <Link href="/staff/approvals" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Pending approvals</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">{pendingApprovals}</div>
-          <div className="mt-1 text-xs text-ink-500">grade sheets in the approval chain</div>
-        </Link>
-        <Link href="/staff/documents" className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400">
-          <div className="text-sm font-medium text-ink-500">Document requests</div>
-          <div className="mt-1 text-lg font-semibold text-ink-700">{pendingDocs}</div>
-          <div className="mt-1 text-xs text-ink-500">awaiting fulfilment</div>
-        </Link>
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          href="/staff/admissions"
+          label="Admissions review"
+          value={pendingAdmissions}
+          sub="applications awaiting review"
+          tint="#E7B54A"
+        />
+        <MetricCard
+          href="/staff/approvals"
+          label="Pending approvals"
+          value={pendingApprovals}
+          sub="grade sheets in the approval chain"
+          tint="#6FA9C4"
+        />
+        <MetricCard
+          href="/staff/documents"
+          label="Document requests"
+          value={pendingDocs}
+          sub="awaiting fulfilment"
+          tint="#8AA84B"
+        />
       </div>
     </div>
+  );
+}
+
+function MetricCard({
+  href,
+  label,
+  value,
+  sub,
+  tint,
+}: {
+  href: string;
+  label: string;
+  value: number;
+  sub: string;
+  tint: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl border border-line bg-paper p-5 transition-colors hover:border-forest"
+    >
+      <div className="mb-4 h-1.5 w-[30px] rounded-full" style={{ background: tint }} />
+      <div className="font-serif text-[34px] leading-none text-ink">{value}</div>
+      <div className="mt-2 text-[13px] text-ink">{label}</div>
+      <div className="mt-0.5 text-xs text-faint">{sub}</div>
+    </Link>
   );
 }

@@ -99,14 +99,14 @@ export default async function LetterPage({
           {!acceptanceInvoice ? (
             <form action={acceptOffer}>
               <input type="hidden" name="applicationId" value={app.id} />
-              <button type="submit" className="rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700">
+              <button type="submit" className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
                 Accept offer
               </button>
             </form>
           ) : acceptanceInvoice.status !== "PAID" ? (
             <form action={payAcceptanceFee}>
               <input type="hidden" name="applicationId" value={app.id} />
-              <button type="submit" className="rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700">
+              <button type="submit" className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
                 Pay acceptance fee to confirm
               </button>
             </form>

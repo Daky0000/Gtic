@@ -25,7 +25,7 @@ export default async function HrPage({
       <h1 className="text-2xl font-bold">HR</h1>
       <Flash error={error} />
 
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">My leave</h2>
         {myProfile && <p className="mt-1 text-sm text-ink-500">Balance: {myProfile.leaveBalance} day(s)</p>}
         <form action={applyForLeave} className="mt-3 grid gap-2 sm:grid-cols-4">
@@ -36,7 +36,7 @@ export default async function HrPage({
           </select>
           <input name="fromDate" type="date" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <input name="toDate" type="date" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
-          <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+          <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">Apply</button>
           <input name="reason" placeholder="Reason (optional)" className="rounded-md border border-ink-300 px-2 py-1.5 text-sm sm:col-span-4" />
         </form>
         <div className="mt-4 space-y-1 text-sm">
@@ -51,14 +51,14 @@ export default async function HrPage({
       </section>
 
       {canDecide && (
-        <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+        <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
           <h2 className="font-semibold text-brand-800">Pending leave approvals</h2>
           <div className="mt-3 space-y-2">
             {pending.map((r) => (
               <div key={r.id} className="flex items-center justify-between rounded-md border border-ink-200 p-3 text-sm">
                 <span>{r.staffUser.name} — {r.type} ({r.fromDate.toLocaleDateString()} – {r.toDate.toLocaleDateString()})</span>
                 <div className="flex gap-2">
-                  <form action={decideLeaveRequest}><input type="hidden" name="requestId" value={r.id} /><input type="hidden" name="decision" value="APPROVED" /><button type="submit" className="rounded bg-brand-800 px-2 py-1 text-xs text-white hover:bg-brand-700">Approve</button></form>
+                  <form action={decideLeaveRequest}><input type="hidden" name="requestId" value={r.id} /><input type="hidden" name="decision" value="APPROVED" /><button type="submit" className="rounded bg-brand-800 px-2 py-1 text-xs text-white hover:bg-forest-deep">Approve</button></form>
                   <form action={decideLeaveRequest}><input type="hidden" name="requestId" value={r.id} /><input type="hidden" name="decision" value="REJECTED" /><button type="submit" className="rounded border border-ink-300 px-2 py-1 text-xs text-ink-700 hover:bg-ink-100">Reject</button></form>
                 </div>
               </div>

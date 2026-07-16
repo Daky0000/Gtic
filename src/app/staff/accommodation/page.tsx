@@ -28,7 +28,7 @@ export default async function AccommodationManagementPage() {
           const totalBeds = h.rooms.reduce((s, r) => s + r.beds.length, 0);
           const occupied = bookings.filter((b) => b.bed.room.hostel.id === h.id).length;
           return (
-            <div key={h.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+            <div key={h.id} className="rounded-2xl border border-line bg-paper p-4">
               <div className="font-semibold">{h.name}</div>
               <div className="mt-1 text-sm text-ink-500">{occupied} / {totalBeds} beds occupied</div>
             </div>
@@ -42,7 +42,7 @@ export default async function AccommodationManagementPage() {
         </button>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Student</th><th className="px-4 py-2">Hostel / Bed</th><th className="px-4 py-2">Status</th><th className="px-4 py-2" /></tr>

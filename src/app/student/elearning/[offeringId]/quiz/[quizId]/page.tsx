@@ -41,7 +41,7 @@ export default async function TakeQuizPage({ params }: { params: Promise<{ offer
       <form action={submitQuizAttempt} className="mt-6 space-y-6">
         <input type="hidden" name="quizId" value={quiz.id} />
         {quiz.questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+          <div key={q.id} className="rounded-2xl border border-line bg-paper p-4">
             <div className="font-medium">{i + 1}. {q.prompt}</div>
             <div className="mt-2 space-y-1">
               {(q.options as string[]).map((o, oi) => (
@@ -53,7 +53,7 @@ export default async function TakeQuizPage({ params }: { params: Promise<{ offer
             </div>
           </div>
         ))}
-        <button type="submit" className="rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
           Submit quiz
         </button>
       </form>

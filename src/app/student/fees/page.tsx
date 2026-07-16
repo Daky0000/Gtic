@@ -33,7 +33,7 @@ export default async function FeesPage({
       {invoices.map((inv) => {
         const balance = inv.total - inv.paid;
         return (
-          <section key={inv.id} className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+          <section key={inv.id} className="mt-6 rounded-2xl border border-line bg-paper p-5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-brand-800">{inv.kind.replace("_", " ")}</div>
@@ -61,7 +61,7 @@ export default async function FeesPage({
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <form action={payTuition}>
                   <input type="hidden" name="invoiceId" value={inv.id} />
-                  <button type="submit" className="w-full rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                  <button type="submit" className="w-full rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
                     Pay {formatGHS(balance)} online
                   </button>
                 </form>

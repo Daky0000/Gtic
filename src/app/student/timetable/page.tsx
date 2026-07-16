@@ -28,7 +28,7 @@ export default async function StudentTimetablePage() {
       <h1 className="text-2xl font-bold">My timetable</h1>
       <p className="mt-1 text-sm text-ink-500">{semester?.label}</p>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Day</th><th className="px-4 py-2">Time</th><th className="px-4 py-2">Course</th><th className="px-4 py-2">Venue</th></tr>

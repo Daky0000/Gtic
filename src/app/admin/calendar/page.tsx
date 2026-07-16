@@ -41,7 +41,7 @@ export default async function CalendarAdminPage({
         <p className="mt-4 text-ink-500">No current academic year/semester configured.</p>
       ) : (
         <>
-          <div className="mt-4 rounded-lg border border-ink-300/60 bg-white p-5">
+          <div className="mt-4 rounded-2xl border border-line bg-paper p-5">
             <div className="font-semibold text-brand-800">{year.label}</div>
             <div className="text-sm text-ink-500">{semester.label}</div>
             <div className="mt-1 text-xs text-ink-500">
@@ -62,7 +62,7 @@ export default async function CalendarAdminPage({
                 <form
                   key={w.id}
                   action={updateWindowDates}
-                  className="flex flex-wrap items-end gap-3 rounded-lg border border-ink-300/60 bg-white p-4"
+                  className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-paper p-4"
                 >
                   <input type="hidden" name="windowId" value={w.id} />
                   <div className="min-w-32">
@@ -79,7 +79,7 @@ export default async function CalendarAdminPage({
                     <label className="block text-xs text-ink-500">Closes</label>
                     <input type="datetime-local" name="closesAt" defaultValue={toLocalInput(w.closesAt)} className="rounded-md border border-ink-300 px-2 py-1 text-sm" />
                   </div>
-                  <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+                  <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">
                     Save
                   </button>
                 </form>

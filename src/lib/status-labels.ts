@@ -13,17 +13,35 @@ export const APPLICATION_STATUS_LABEL: Record<string, string> = {
   ENROLLED: "Enrolled as a student",
 };
 
+// Chip tone (see components/ui StatusChip) for the SYDA-GTIC design system.
+export type StatusTone = "green" | "amber" | "sky" | "violet" | "neutral";
+export const APPLICATION_STATUS_TONE: Record<string, StatusTone> = {
+  DRAFT: "neutral",
+  SUBMITTED: "sky",
+  UNDER_REVIEW: "sky",
+  INFO_REQUESTED: "amber",
+  RECOMMENDED: "violet",
+  APPROVED: "violet",
+  WAITLISTED: "amber",
+  OFFER_ISSUED: "green",
+  ACCEPTED: "green",
+  DECLINED: "neutral",
+  REJECTED: "amber",
+  ENROLLED: "green",
+};
+
+// Warm design-system chip colours (see StatusChip tones in components/ui).
 export const APPLICATION_STATUS_COLOR: Record<string, string> = {
-  DRAFT: "bg-ink-100 text-ink-700",
-  SUBMITTED: "bg-blue-100 text-blue-800",
-  UNDER_REVIEW: "bg-blue-100 text-blue-800",
-  INFO_REQUESTED: "bg-amber-100 text-amber-800",
-  RECOMMENDED: "bg-purple-100 text-purple-800",
-  APPROVED: "bg-purple-100 text-purple-800",
-  WAITLISTED: "bg-amber-100 text-amber-800",
-  OFFER_ISSUED: "bg-brand-100 text-brand-800",
-  ACCEPTED: "bg-brand-100 text-brand-800",
-  DECLINED: "bg-ink-100 text-ink-700",
-  REJECTED: "bg-red-100 text-red-800",
-  ENROLLED: "bg-brand-100 text-brand-800",
+  DRAFT: "bg-line-soft text-muted",
+  SUBMITTED: "bg-[#deebf0] text-[#2e6f86]",
+  UNDER_REVIEW: "bg-[#deebf0] text-[#2e6f86]",
+  INFO_REQUESTED: "bg-[#f3e3d6] text-[#a85a2e]",
+  RECOMMENDED: "bg-[#e7e2f2] text-[#5b4a86]",
+  APPROVED: "bg-[#e7e2f2] text-[#5b4a86]",
+  WAITLISTED: "bg-[#f3e3d6] text-[#a85a2e]",
+  OFFER_ISSUED: "bg-[#e4eee6] text-forest",
+  ACCEPTED: "bg-[#e4eee6] text-forest",
+  DECLINED: "bg-line-soft text-muted",
+  REJECTED: "bg-[#f3e3d6] text-[#a85a2e]",
+  ENROLLED: "bg-[#e4eee6] text-forest",
 };

@@ -1,31 +1,188 @@
 @import "tailwindcss";
 
+/* ============================================================
+   SYDA-GTIC design system
+   Forest-green + cream editorial palette, from the portal redesign.
+   Brand/ink numeric scales are remapped onto the new palette so every
+   existing page picks up the identity; semantic tokens (forest, cream,
+   paper, gold, muted, faint, line…) are used directly on reskinned pages.
+   ============================================================ */
 @theme {
-  /* SYDA-GTIC brand tokens — green energy palette, overridden per institution via the white-label layer */
-  --color-brand-50: #f0fdf4;
-  --color-brand-100: #dcfce7;
-  --color-brand-200: #bbf7d0;
-  --color-brand-500: #22c55e;
-  --color-brand-600: #16a34a;
-  --color-brand-700: #15803d;
-  --color-brand-800: #166534;
-  --color-brand-900: #14532d;
+  /* --- semantic palette --- */
+  --color-cream: #f4f1e8;
+  --color-paper: #fcfbf6;
+  --color-ink: #191c18;
+  --color-muted: #5c625a;
+  --color-faint: #8a9086;
+  --color-forest: #1f4a34;
+  --color-forest-deep: #14311f;
+  --color-moss: #3b7a54;
+  --color-line: #e4dfd0;
+  --color-line-soft: #ede9dc;
+  --color-gold: #a97b32;
+  --color-gold-bright: #e7b54a;
+  --color-sky: #2e6f86;
 
-  --color-ink-900: #111827;
-  --color-ink-700: #374151;
-  --color-ink-500: #6b7280;
-  --color-ink-300: #d1d5db;
-  --color-ink-100: #f3f4f6;
-  --color-ink-50: #f9fafb;
+  /* --- brand scale → forest greens --- */
+  --color-brand-50: #eaf0ea;
+  --color-brand-100: #e4eee6;
+  --color-brand-200: #c9dbcb;
+  --color-brand-300: #a9c7b2;
+  --color-brand-400: #7fb894;
+  --color-brand-500: #3b7a54;
+  --color-brand-600: #2f6144;
+  --color-brand-700: #1f4a34;
+  --color-brand-800: #1a3e2b;
+  --color-brand-900: #14311f;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* --- ink scale → warm neutrals --- */
+  --color-ink-50: #f4f1e8;
+  --color-ink-100: #ede9dc;
+  --color-ink-200: #e4dfd0;
+  --color-ink-300: #d8d2c2;
+  --color-ink-400: #8a9086;
+  --color-ink-500: #5c625a;
+  --color-ink-600: #4a5047;
+  --color-ink-700: #3a4036;
+  --color-ink-800: #252a22;
+  --color-ink-900: #191c18;
+
+  /* --- type --- */
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-html,
-body {
-  height: 100%;
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Editorial serif headings by default — zero-specificity so any Tailwind
+     font-*/weight utility still wins on pages that opt out. */
+  :where(h1, h2, h3) {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: #c9dbcb;
+    color: var(--color-forest-deep);
+  }
+
+  ::placeholder {
+    color: var(--color-faint);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d8d2c2;
+    border-radius: 20px;
+    border: 3px solid var(--color-cream);
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes msgIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
-body {
-  @apply bg-ink-50 text-ink-900 antialiased;
+@layer components {
+  /* Uppercase mono eyebrow labels used throughout the design. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  /* Standard content card: warm paper on cream, soft line border. */
+  .card {
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+  }
+
+  /* Primary pill button. */
+  .btn-forest {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--color-forest);
+    color: #fff;
+    border-radius: 999px;
+    font-weight: 500;
+    transition: background 0.15s ease;
+  }
+  .btn-forest:hover {
+    background: var(--color-forest-deep);
+    color: #fff;
+  }
+
+  /* Secondary / outline pill button. */
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--color-line);
+    color: var(--color-forest);
+    border-radius: 999px;
+    font-weight: 500;
+    background: var(--color-paper);
+    transition: border-color 0.15s ease;
+  }
+  .btn-outline:hover {
+    border-color: var(--color-forest);
+  }
+
+  /* Form field. */
+  .field {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid var(--color-line);
+    border-radius: 11px;
+    background: var(--color-paper);
+    font-size: 15px;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .field:focus {
+    border-color: var(--color-forest);
+  }
+
+  .scr {
+    animation: fadeUp 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
 }

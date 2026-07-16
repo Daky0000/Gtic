@@ -7,35 +7,54 @@ import { startApplicationWithPayment, type SignupState } from "@/lib/actions/acc
 export default function SignupPage() {
   const [state, action, pending] = useActionState<SignupState, FormData>(startApplicationWithPayment, null);
 
-  const field =
-    "mt-1 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600";
-
   return (
-    <div className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
-      <h1 className="text-2xl font-bold">Start your application</h1>
-      <p className="mt-1 text-sm text-ink-500">
-        Pay the application voucher fee to create your account — we&apos;ll set up your login for you.
-        Already applying?{" "}
-        <Link href="/login" className="text-brand-800 underline">Sign in</Link>.
+    <div className="scr mx-auto max-w-[560px] px-7 py-16">
+      <div className="mb-3 eyebrow">Admissions · Year-round intake</div>
+      <h1 className="mb-3 font-serif text-[38px] font-normal">
+        Begin your <em className="text-forest">application.</em>
+      </h1>
+      <p className="mb-7 text-[15px] leading-[1.6] text-muted">
+        Pay the application voucher fee to create your account — we&apos;ll set up your login for
+        you. Already applying?{" "}
+        <Link href="/login" className="text-forest hover:text-moss">
+          Sign in
+        </Link>
+        .
       </p>
 
-      <form action={action} className="mt-8 space-y-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-ink-700">Full name</label>
-          <input id="name" name="name" required autoComplete="name" className={field} />
-        </div>
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-ink-700">Email</label>
-          <input id="email" name="email" type="email" required autoComplete="email" className={field} />
-          <p className="mt-1 text-xs text-ink-500">Your login details will be shown here once payment is confirmed.</p>
-        </div>
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-ink-700">Phone number</label>
-          <input id="phone" name="phone" type="tel" required autoComplete="tel" placeholder="0241234567" className={field} />
-        </div>
+      <form action={action} className="flex flex-col gap-[14px]">
+        <label className="text-[13px] text-muted">
+          Full name
+          <input name="name" required autoComplete="name" placeholder="Ama Boateng" className="field mt-[7px]" />
+        </label>
+        <label className="text-[13px] text-muted">
+          Email
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            className="field mt-[7px]"
+          />
+          <span className="mt-[6px] block text-xs text-faint">
+            Your login details will be shown here once payment is confirmed.
+          </span>
+        </label>
+        <label className="text-[13px] text-muted">
+          Phone number
+          <input
+            name="phone"
+            type="tel"
+            required
+            autoComplete="tel"
+            placeholder="+233 24 …"
+            className="field mt-[7px]"
+          />
+        </label>
 
         {state?.error && (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="text-[13px] text-[#b23a2e]">
             {state.error}
           </p>
         )}
@@ -43,13 +62,13 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-brand-800 px-4 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="mt-2 w-full rounded-xl bg-forest py-[15px] text-[15px] font-medium text-white transition-colors hover:bg-forest-deep disabled:opacity-60"
         >
           {pending ? "Setting up your account…" : "Pay voucher fee & continue"}
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-ink-500">
+      <p className="mt-6 text-center text-xs text-faint">
         Staff and trainee accounts are issued by the Center — this page is for new applicants only.
       </p>
     </div>

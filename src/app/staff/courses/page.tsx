@@ -23,7 +23,7 @@ export default async function MyCoursesPage() {
           <Link
             key={o.id}
             href={`/staff/courses/${o.id}`}
-            className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400"
+            className="rounded-2xl border border-line bg-paper p-5 hover:border-brand-400"
           >
             <div className="font-semibold text-brand-800">{o.course.code}</div>
             <div className="text-sm text-ink-700">{o.course.title}</div>

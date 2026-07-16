@@ -20,7 +20,7 @@ export default async function StudentProfilePage() {
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">My profile</h1>
 
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Identity (read-only)</h2>
         <p className="mt-1 text-xs text-ink-500">
           Changes to name, date of birth or programme require a documented request approved by the
@@ -36,7 +36,7 @@ export default async function StudentProfilePage() {
         </dl>
       </section>
 
-      <form action={updateStudentContact} className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <form action={updateStudentContact} className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Contact details</h2>
         <p className="mt-1 text-xs text-ink-500">You can update these yourself at any time.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -57,7 +57,7 @@ export default async function StudentProfilePage() {
             <input name="emergencyPhone" defaultValue={student.application?.emergencyPhone ?? ""} className={field} />
           </div>
         </div>
-        <button type="submit" className="mt-4 rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="mt-4 rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
           Save
         </button>
       </form>

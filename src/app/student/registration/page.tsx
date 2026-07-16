@@ -72,7 +72,7 @@ export default async function RegistrationPage({
 
       <form action={saveRegistration} className="mt-4 space-y-2">
         {offerings.map((o) => (
-          <label key={o.id} className="flex items-center justify-between rounded-md border border-ink-300/60 bg-white p-3 text-sm">
+          <label key={o.id} className="flex items-center justify-between rounded-md border border-line bg-paper p-3 text-sm">
             <span className="flex items-center gap-3">
               <input
                 type="checkbox" name="offeringId" value={o.id}
@@ -94,7 +94,7 @@ export default async function RegistrationPage({
           <p className="text-sm text-ink-500">No course offerings match your curriculum this semester yet.</p>
         )}
         {anyOpen && offerings.length > 0 && (
-          <button type="submit" className="mt-3 rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="mt-3 rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
             Save registration
           </button>
         )}

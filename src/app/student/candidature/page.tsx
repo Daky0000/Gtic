@@ -41,7 +41,7 @@ export default async function CandidaturePage({
 
       <div className="mt-6 space-y-3">
         {candidature.milestones.map((m) => (
-          <div key={m.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+          <div key={m.id} className="rounded-2xl border border-line bg-paper p-4">
             <div className="flex items-center justify-between">
               <span className="font-medium">{m.name}</span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -56,7 +56,7 @@ export default async function CandidaturePage({
             {(m.status === "PENDING" || m.status === "RETURNED") && (
               <form action={submitMilestone} className="mt-2">
                 <input type="hidden" name="milestoneId" value={m.id} />
-                <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+                <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">
                   Submit for review
                 </button>
               </form>

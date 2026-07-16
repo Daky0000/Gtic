@@ -4,12 +4,15 @@ export function Flash({ error, success }: { error?: string; success?: string }) 
   return (
     <div className="mt-4 space-y-2">
       {error && (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p
+          role="alert"
+          className="rounded-[11px] border border-[#e3b5ad] bg-[#faece9] px-[14px] py-[10px] text-sm text-[#b23a2e]"
+        >
           {error}
         </p>
       )}
       {success && (
-        <p className="rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+        <p className="rounded-[11px] border border-brand-200 bg-[#eaf0ea] px-[14px] py-[10px] text-sm text-forest">
           {success}
         </p>
       )}

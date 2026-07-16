@@ -30,7 +30,7 @@ export default async function GraduateStudiesPage({
       <Flash error={error} />
 
       {canCreate && (
-        <form action={createCandidature} className="mt-4 grid gap-2 rounded-lg border border-ink-300/60 bg-white p-4 sm:grid-cols-4">
+        <form action={createCandidature} className="mt-4 grid gap-2 rounded-2xl border border-line bg-paper p-4 sm:grid-cols-4">
           <select name="studentId" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm sm:col-span-2">
             {withoutCandidature.map((s) => <option key={s.id} value={s.id}>{s.user.name} ({s.programme.name})</option>)}
           </select>
@@ -38,7 +38,7 @@ export default async function GraduateStudiesPage({
             {staff.map((s) => <option key={s.userId} value={s.userId}>{s.user.name}</option>)}
           </select>
           <input name="topic" placeholder="Research topic" className="rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
-          <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 sm:col-span-4">
+          <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep sm:col-span-4">
             Start candidature
           </button>
         </form>
@@ -46,11 +46,11 @@ export default async function GraduateStudiesPage({
 
       <div className="mt-6 space-y-4">
         {candidatures.map((c) => (
-          <div key={c.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+          <div key={c.id} className="rounded-2xl border border-line bg-paper p-4">
             <div className="flex items-center justify-between">
               <div className="font-medium">{c.student.user.name}</div>
               {canGraduate && c.milestones.every((m) => m.status === "APPROVED") && (
-                <form action={graduateStudent}><input type="hidden" name="studentId" value={c.studentId} /><button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">Confer degree</button></form>
+                <form action={graduateStudent}><input type="hidden" name="studentId" value={c.studentId} /><button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">Confer degree</button></form>
               )}
             </div>
             {c.topic && <p className="text-xs text-ink-500">{c.topic}</p>}
@@ -70,7 +70,7 @@ export default async function GraduateStudiesPage({
                 <input type="hidden" name="milestoneId" value={m.id} />
                 <span className="text-xs">{m.name} awaiting your review:</span>
                 <input name="feedback" placeholder="Feedback" className="rounded border border-ink-300 px-2 py-1 text-xs" />
-                <button type="submit" name="decision" value="APPROVED" className="rounded bg-brand-800 px-2 py-1 text-xs text-white hover:bg-brand-700">Approve</button>
+                <button type="submit" name="decision" value="APPROVED" className="rounded bg-brand-800 px-2 py-1 text-xs text-white hover:bg-forest-deep">Approve</button>
                 <button type="submit" name="decision" value="RETURNED" className="rounded border border-ink-300 px-2 py-1 text-xs text-ink-700 hover:bg-ink-100">Return</button>
               </form>
             ))}

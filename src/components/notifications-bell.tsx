@@ -38,7 +38,7 @@ export function NotificationsBell({
         type="button"
         onClick={toggle}
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
-        className="relative rounded-md border border-ink-300/60 bg-white p-2 text-ink-600 hover:bg-ink-50"
+        className="relative rounded-full border border-line bg-paper p-2 text-muted transition-colors hover:border-forest hover:text-forest"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -54,27 +54,27 @@ export function NotificationsBell({
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-ink-300/60 bg-white shadow-lg"
+          className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-line bg-paper shadow-xl"
         >
-          <div className="border-b border-ink-200 px-4 py-2 text-sm font-semibold text-ink-700">
+          <div className="border-b border-line-soft px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
             Notifications
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-ink-500">Nothing here yet.</p>
+              <p className="px-4 py-6 text-center text-sm text-muted">Nothing here yet.</p>
             )}
             {notifications.map((n) => {
               const inner = (
-                <div className={`border-b border-ink-100 px-4 py-3 ${!n.readAt ? "bg-brand-50/60" : ""}`}>
-                  <div className="text-sm font-medium text-ink-800">{n.title}</div>
-                  <div className="mt-0.5 text-xs text-ink-600">{n.body}</div>
-                  <div className="mt-1 text-[10px] text-ink-400">
+                <div className={`border-b border-line-soft px-4 py-3 ${!n.readAt ? "bg-[#eaf0ea]/60" : ""}`}>
+                  <div className="text-sm font-medium text-ink">{n.title}</div>
+                  <div className="mt-0.5 text-xs text-muted">{n.body}</div>
+                  <div className="mt-1 font-mono text-[10px] text-faint">
                     {new Date(n.createdAt).toLocaleString()}
                   </div>
                 </div>
               );
               return n.href ? (
-                <Link key={n.id} href={n.href} onClick={() => setOpen(false)} className="block hover:bg-ink-50">
+                <Link key={n.id} href={n.href} onClick={() => setOpen(false)} className="block hover:bg-cream">
                   {inner}
                 </Link>
               ) : (

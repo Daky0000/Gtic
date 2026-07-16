@@ -15,7 +15,7 @@ export default async function AnnouncementsPage() {
       <h1 className="text-2xl font-bold">Announcements</h1>
 
       {canPublish && (
-        <form action={publishAnnouncement} className="mt-4 space-y-2 rounded-lg border border-ink-300/60 bg-white p-4">
+        <form action={publishAnnouncement} className="mt-4 space-y-2 rounded-2xl border border-line bg-paper p-4">
           <input name="title" placeholder="Title" required className="w-full rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <textarea name="body" placeholder="Message" required rows={3} className="w-full rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
           <select name="audience" className="rounded-md border border-ink-300 px-2 py-1.5 text-sm">
@@ -24,7 +24,7 @@ export default async function AnnouncementsPage() {
             <option value="STUDENTS">Students</option>
             <option value="STAFF">Staff</option>
           </select>
-          <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Publish
           </button>
         </form>
@@ -32,7 +32,7 @@ export default async function AnnouncementsPage() {
 
       <div className="mt-6 space-y-3">
         {announcements.map((a) => (
-          <div key={a.id} className="rounded-lg border border-ink-300/60 bg-white p-4 text-sm">
+          <div key={a.id} className="rounded-2xl border border-line bg-paper p-4 text-sm">
             <div className="flex justify-between">
               <span className="font-semibold text-brand-800">{a.title}</span>
               <span className="text-xs text-ink-500">{a.audience}</span>

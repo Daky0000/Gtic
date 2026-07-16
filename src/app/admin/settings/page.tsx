@@ -9,10 +9,10 @@ export const metadata = { title: "System Settings" };
 
 function StatusChip({ override, env }: { override: string | null; env: boolean }) {
   const [label, cls] = override
-    ? ["Configured via console", "bg-brand-100 text-brand-800"]
+    ? ["Configured via console", "bg-[#e4eee6] text-forest"]
     : env
-      ? ["From environment", "bg-blue-100 text-blue-800"]
-      : ["Not configured", "bg-ink-100 text-ink-600"];
+      ? ["From environment", "bg-[#deebf0] text-[#2e6f86]"]
+      : ["Not configured", "bg-line-soft text-muted"];
   return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
 }
 
@@ -46,7 +46,7 @@ export default async function SystemSettingsPage({
       <Flash error={error} success={saved ? "Settings saved." : undefined} />
 
       {/* Integrations */}
-      <form action={saveIntegrations} className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <form action={saveIntegrations} className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Integrations</h2>
 
         <div className="mt-4 space-y-5">
@@ -100,13 +100,13 @@ export default async function SystemSettingsPage({
           </div>
         </div>
 
-        <button type="submit" className="mt-5 rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="mt-5 rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
           Save integrations
         </button>
       </form>
 
       {/* Institution identity */}
-      <form action={saveInstitution} className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <form action={saveInstitution} className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Institution identity</h2>
         <p className="mt-1 text-xs text-ink-500">Shown on the public site, letters and issued documents.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -139,7 +139,7 @@ export default async function SystemSettingsPage({
             <input name="website" defaultValue={institution?.website ?? ""} className={field} />
           </div>
         </div>
-        <button type="submit" className="mt-5 rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="mt-5 rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
           Save institution
         </button>
       </form>

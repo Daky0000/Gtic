@@ -18,36 +18,46 @@ export default async function CheckStatusPage({
     : null;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-bold">Check application status</h1>
-      <p className="mt-1 text-sm text-ink-500">
+    <div className="scr mx-auto max-w-[520px] px-7 py-16">
+      <div className="mb-3 eyebrow">Applicant lookup</div>
+      <h1 className="mb-3 font-serif text-[38px] font-normal">
+        Check application <em className="text-forest">status.</em>
+      </h1>
+      <p className="mb-6 text-[15px] leading-[1.6] text-muted">
         Enter your application reference number. No login required.
       </p>
 
-      <form className="mt-6 flex gap-2">
+      <form className="flex gap-[10px]">
         <input
           name="ref"
           defaultValue={ref}
           placeholder="APP-2026202-123456"
-          className="flex-1 rounded-md border border-ink-300 px-3 py-2 text-sm"
+          className="field flex-1"
         />
-        <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button
+          type="submit"
+          className="rounded-xl bg-forest px-6 text-[14px] font-medium text-white transition-colors hover:bg-forest-deep"
+        >
           Check
         </button>
       </form>
 
       {ref && (
-        <div className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+        <div className="mt-6 card p-6">
           {!app ? (
-            <p className="text-sm text-red-700">No application found with that reference number.</p>
+            <p className="text-sm text-[#b23a2e]">No application found with that reference number.</p>
           ) : (
             <>
-              <div className="text-sm text-ink-500">Reference {app.refNo}</div>
-              <div className="mt-1 text-lg font-semibold">{APPLICATION_STATUS_LABEL[app.status]}</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
+                Reference {app.refNo}
+              </div>
+              <div className="mt-2 font-serif text-[24px] text-ink">
+                {APPLICATION_STATUS_LABEL[app.status]}
+              </div>
               {app.offer && (
                 <Link
                   href={`/verify/${app.offer.letterCode}`}
-                  className="mt-3 inline-block text-sm text-brand-800 underline"
+                  className="mt-3 inline-block text-sm text-forest hover:text-moss"
                 >
                   Verify admission letter →
                 </Link>
@@ -57,9 +67,9 @@ export default async function CheckStatusPage({
         </div>
       )}
 
-      <div className="mt-8 rounded-md bg-amber-50 p-4 text-xs text-amber-900">
-        Fraud warning: the Center never asks for payment to a private account, and every genuine
-        admission letter carries a code you can verify here.
+      <div className="mt-8 rounded-[14px] border border-gold/30 bg-[#f6efdf] p-4 text-xs leading-relaxed text-[#7a5a22]">
+        <strong>Fraud warning:</strong> the Center never asks for payment to a private account, and
+        every genuine admission letter carries a code you can verify here.
       </div>
     </div>
   );

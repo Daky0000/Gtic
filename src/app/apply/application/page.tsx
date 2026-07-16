@@ -29,16 +29,20 @@ export default async function ApplicationPage({
   });
   const results = (app.results as { subject: string; grade: string }[] | null) ?? [];
 
-  const field = "w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none";
-  const label = "block text-sm font-medium text-ink-700";
+  const field = "mt-1.5 w-full rounded-[11px] border border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-forest disabled:opacity-70";
+  const label = "block text-[13px] text-muted";
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold">My application</h1>
-      <p className="mt-1 text-sm text-ink-500">Reference {app.refNo}</p>
+    <div className="scr mx-auto max-w-3xl">
+      <h1 className="font-serif text-[30px] font-normal leading-[1.1]">
+        My <em className="text-forest">application.</em>
+      </h1>
+      <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
+        Reference {app.refNo}
+      </p>
       <Flash error={error} success={saved ? "Your application details were saved." : undefined} />
       {!editable && (
-        <p className="mt-3 rounded-md bg-ink-100 p-3 text-sm text-ink-700">
+        <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
           This application has been submitted and can no longer be edited here.
         </p>
       )}
@@ -46,7 +50,7 @@ export default async function ApplicationPage({
       <form action={saveApplicationDetails} className="mt-6 space-y-8">
         <input type="hidden" name="applicationId" value={app.id} />
 
-        <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+        <section className="rounded-2xl border border-line bg-paper p-5">
           <h2 className="font-semibold text-brand-800">Personal details</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
@@ -100,7 +104,7 @@ export default async function ApplicationPage({
           </div>
         </section>
 
-        <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+        <section className="rounded-2xl border border-line bg-paper p-5">
           <h2 className="font-semibold text-brand-800">Qualification</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
@@ -143,7 +147,7 @@ export default async function ApplicationPage({
           </div>
         </section>
 
-        <section className="rounded-lg border border-ink-300/60 bg-white p-5">
+        <section className="rounded-2xl border border-line bg-paper p-5">
           <h2 className="font-semibold text-brand-800">Programme choices</h2>
           <div className="mt-4 space-y-3">
             {[1, 2, 3].map((rank) => (
@@ -176,7 +180,7 @@ export default async function ApplicationPage({
         {editable && (
           <button
             type="submit"
-            className="rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700"
+            className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep"
           >
             Save
           </button>
@@ -194,7 +198,7 @@ export default async function ApplicationPage({
           </p>
           <button
             type="submit"
-            className="mt-3 rounded-md bg-brand-800 px-5 py-2.5 font-medium text-white hover:bg-brand-700"
+            className="mt-3 rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep"
           >
             Submit application
           </button>

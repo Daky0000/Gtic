@@ -47,12 +47,12 @@ export default async function DocumentRequestsPage({
         Use this for a paid, officially processed copy or attestation.
       </p>
 
-      <form action={requestDocument} className="mt-4 space-y-2 rounded-lg border border-ink-300/60 bg-white p-4">
+      <form action={requestDocument} className="mt-4 space-y-2 rounded-2xl border border-line bg-paper p-4">
         <select name="type" className="w-full rounded-md border border-ink-300 px-2 py-1.5 text-sm">
           {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
         <input name="note" placeholder="Note (e.g. addressed to which institution)" className="w-full rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
-        <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
           Request
         </button>
       </form>
@@ -62,7 +62,7 @@ export default async function DocumentRequestsPage({
           const invoice = r.invoiceId ? invoiceById.get(r.invoiceId) : undefined;
           const issued = r.issuedDocId ? issuedById.get(r.issuedDocId) : undefined;
           return (
-            <div key={r.id} className="rounded-lg border border-ink-300/60 bg-white p-4 text-sm">
+            <div key={r.id} className="rounded-2xl border border-line bg-paper p-4 text-sm">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{TYPE_LABEL[r.type]}</span>
                 <span className="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{STATUS_LABEL[r.status]}</span>
@@ -70,7 +70,7 @@ export default async function DocumentRequestsPage({
               {invoice && r.status === "PENDING_PAYMENT" && (
                 <form action={payDocumentFee} className="mt-2">
                   <input type="hidden" name="requestId" value={r.id} />
-                  <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+                  <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">
                     Pay {formatGHS(invoice.total)}
                   </button>
                 </form>

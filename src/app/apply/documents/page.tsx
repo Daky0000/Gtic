@@ -35,9 +35,11 @@ export default async function DocumentsPage({
   const editable = app.status === "DRAFT" || app.status === "INFO_REQUESTED";
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold">Documents</h1>
-      <p className="mt-1 text-sm text-ink-500">
+    <div className="scr mx-auto max-w-3xl">
+      <h1 className="font-serif text-[30px] font-normal leading-[1.1]">
+        Your <em className="text-forest">documents.</em>
+      </h1>
+      <p className="mt-1.5 text-sm leading-[1.6] text-muted">
         Upload your results slip, certificates and photo. The AI assistant can read your results slip and
         fill in your grades automatically — you always confirm what it found before it&apos;s applied.
       </p>
@@ -47,7 +49,7 @@ export default async function DocumentsPage({
         <form
           action={uploadApplicationDocument}
           encType="multipart/form-data"
-          className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-ink-300/60 bg-white p-5"
+          className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-paper p-5"
         >
           <input type="hidden" name="applicationId" value={app.id} />
           <div>
@@ -62,7 +64,7 @@ export default async function DocumentsPage({
             <label className="block text-sm font-medium text-ink-700">File</label>
             <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png" className="mt-1 text-sm" />
           </div>
-          <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Upload
           </button>
         </form>
@@ -75,7 +77,7 @@ export default async function DocumentsPage({
             | { subjects: { subject: string; grade: string }[]; notes: string | null }
             | null;
           return (
-            <div key={doc.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+            <div key={doc.id} className="rounded-2xl border border-line bg-paper p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="font-medium">{KIND_LABEL[doc.kind]}</div>
@@ -126,7 +128,7 @@ export default async function DocumentsPage({
                   {editable && (
                     <form action={applyExtractedResults} className="mt-3">
                       <input type="hidden" name="documentId" value={doc.id} />
-                      <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+                      <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">
                         Apply these results to my application
                       </button>
                     </form>

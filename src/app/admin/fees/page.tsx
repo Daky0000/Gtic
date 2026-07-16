@@ -33,7 +33,7 @@ export default async function FeesConsolePage({
   ]);
 
   const field = "rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none";
-  const saveBtn = "rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700";
+  const saveBtn = "rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -42,7 +42,7 @@ export default async function FeesConsolePage({
       <Flash error={error} success={saved ? "Fees updated." : undefined} />
 
       {/* Admission cycle fees */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Admission cycle fees</h2>
         {cycles.map((c) => (
           <form key={c.id} action={updateCycleFees} className="mt-3 flex flex-wrap items-end gap-3 border-t border-ink-100 pt-3">
@@ -66,7 +66,7 @@ export default async function FeesConsolePage({
       </section>
 
       {/* Document service fees */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Document service fees</h2>
         <form action={updateDocumentFees} className="mt-3 flex flex-wrap items-end gap-3">
           <label className="text-xs text-ink-600">
@@ -86,7 +86,7 @@ export default async function FeesConsolePage({
       </section>
 
       {/* Hostel fees */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Hostel fees (per year)</h2>
         {hostels.map((h) => (
           <form key={h.id} action={updateHostelFee} className="mt-3 flex flex-wrap items-end gap-3 border-t border-ink-100 pt-3">
@@ -100,7 +100,7 @@ export default async function FeesConsolePage({
       </section>
 
       {/* Tuition fee schedules */}
-      <section className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Tuition fee schedules</h2>
         <p className="mt-1 text-xs text-ink-500">
           Per academic year and programme level. Semester bills are generated from the items below.

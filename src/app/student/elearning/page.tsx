@@ -26,7 +26,7 @@ export default async function StudentElearningIndex() {
           <Link
             key={rc.id}
             href={`/student/elearning/${rc.offeringId}`}
-            className="rounded-lg border border-ink-300/60 bg-white p-5 hover:border-brand-400"
+            className="rounded-2xl border border-line bg-paper p-5 hover:border-brand-400"
           >
             <div className="font-semibold text-brand-800">{rc.offering.course.code}</div>
             <div className="text-sm text-ink-700">{rc.offering.course.title}</div>

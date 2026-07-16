@@ -60,7 +60,7 @@ export default async function GradingPage({
       <form action={saveGradeEntries} className="mt-4">
         <input type="hidden" name="gradeSheetId" value={sheet.id} />
         <input type="hidden" name="offeringId" value={offeringId} />
-        <div className="overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-line bg-paper">
           <table className="w-full text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase text-ink-500">
               <tr><th className="px-4 py-2">Student</th><th className="px-4 py-2">CA</th><th className="px-4 py-2">Exam</th><th className="px-4 py-2">Total</th></tr>
@@ -97,7 +97,7 @@ export default async function GradingPage({
           </table>
         </div>
         {editable && (
-          <button type="submit" className="mt-3 rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="mt-3 rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Save scores
           </button>
         )}

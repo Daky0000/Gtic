@@ -31,7 +31,7 @@ export default async function QuizBuilderPage({ params }: { params: Promise<{ id
 
       <div className="mt-6 space-y-3">
         {quiz.questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-ink-300/60 bg-white p-4 text-sm">
+          <div key={q.id} className="rounded-2xl border border-line bg-paper p-4 text-sm">
             <div className="font-medium">{i + 1}. {q.prompt}</div>
             <ol className="mt-2 list-[upper-alpha] space-y-1 pl-5">
               {(q.options as string[]).map((o, oi) => (
@@ -53,7 +53,7 @@ export default async function QuizBuilderPage({ params }: { params: Promise<{ id
             <span className="ml-2 text-xs text-ink-500">You review and can edit before publishing.</span>
           </form>
 
-          <form action={addQuizQuestionManual} className="mt-4 space-y-2 rounded-lg border border-ink-300/60 bg-white p-4">
+          <form action={addQuizQuestionManual} className="mt-4 space-y-2 rounded-2xl border border-line bg-paper p-4">
             <input type="hidden" name="quizId" value={quiz.id} />
             <h3 className="text-sm font-semibold text-ink-700">Add a question manually</h3>
             <input name="prompt" placeholder="Question" required className="w-full rounded-md border border-ink-300 px-2 py-1.5 text-sm" />
@@ -68,12 +68,12 @@ export default async function QuizBuilderPage({ params }: { params: Promise<{ id
               <option value="2">Option 3 is correct</option>
               <option value="3">Option 4 is correct</option>
             </select>
-            <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">Add question</button>
+            <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">Add question</button>
           </form>
 
           <form action={publishQuiz} className="mt-4">
             <input type="hidden" name="quizId" value={quiz.id} />
-            <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
               Publish quiz
             </button>
           </form>

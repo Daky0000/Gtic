@@ -34,7 +34,7 @@ export default async function TimetablePage({
 
       <form
         action={addTeachingSession}
-        className="mt-4 grid gap-2 rounded-lg border border-ink-300/60 bg-white p-4 sm:grid-cols-5"
+        className="mt-4 grid gap-2 rounded-2xl border border-line bg-paper p-4 sm:grid-cols-5"
       >
         <select name="offeringId" required className="rounded-md border border-ink-300 px-2 py-1.5 text-sm sm:col-span-2">
           {offerings.map((o) => <option key={o.id} value={o.id}>{o.course.code}</option>)}
@@ -49,12 +49,12 @@ export default async function TimetablePage({
           <input name="startTime" type="time" required className="w-full rounded-md border border-ink-300 px-1 py-1.5 text-sm" />
           <input name="endTime" type="time" required className="w-full rounded-md border border-ink-300 px-1 py-1.5 text-sm" />
         </div>
-        <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 sm:col-span-5">
+        <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep sm:col-span-5">
           Add session
         </button>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Day</th><th className="px-4 py-2">Time</th><th className="px-4 py-2">Course</th><th className="px-4 py-2">Venue</th></tr>

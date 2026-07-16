@@ -35,7 +35,7 @@ export default async function AuditLogPage({
         </button>
       </form>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr>

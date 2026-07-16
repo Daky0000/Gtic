@@ -34,7 +34,7 @@ export default async function EnrollmentPage({
         over automatically.
       </p>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr>
@@ -53,7 +53,7 @@ export default async function EnrollmentPage({
                 <td className="px-4 py-2 text-right">
                   <form action={enrollAcceptedApplicant}>
                     <input type="hidden" name="applicationId" value={app.id} />
-                    <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+                    <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">
                       Enroll as student
                     </button>
                   </form>
@@ -68,7 +68,7 @@ export default async function EnrollmentPage({
       </div>
 
       <h2 className="mt-8 font-semibold text-ink-700">Recently enrolled</h2>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Index No.</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Programme</th></tr>

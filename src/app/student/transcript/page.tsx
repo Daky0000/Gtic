@@ -37,7 +37,7 @@ export default async function TranscriptPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My transcript</h1>
         <form action={generateTranscript}>
-          <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Generate verifiable transcript
           </button>
         </form>

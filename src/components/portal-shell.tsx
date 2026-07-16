@@ -4,11 +4,13 @@ import { accessiblePortals, PORTAL_HOME, type CurrentUser } from "@/lib/rbac";
 import { SignOutButton } from "@/components/sign-out-button";
 import { AssistantPanel } from "@/components/chat/assistant-panel";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { SidebarNav } from "@/components/sidebar-nav";
+import { OpenAssistantButton } from "@/components/open-assistant-button";
 
 const PORTAL_LABEL: Record<string, string> = {
   apply: "Applicant",
   student: "Student",
-  staff: "Staff",
+  staff: "Instructor",
   admin: "Admin",
 };
 
@@ -19,9 +21,20 @@ export type NavItem = {
   comingSoon?: boolean;
 };
 
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U"
+  );
+}
+
 export async function PortalShell({
   portalName,
-  accent = "brand",
   nav,
   user,
   children,
@@ -41,7 +54,7 @@ export async function PortalShell({
     }),
     db.notification.count({ where: { userId: user.id, readAt: null } }),
   ]);
-  const brandName = institution?.shortName ?? "SYDA-GTIC";
+  const shortName = institution?.shortName ?? "SYDA·GTIC";
   const bellItems = recent.map((n) => ({
     id: n.id,
     title: n.title,
@@ -50,87 +63,102 @@ export async function PortalShell({
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
   }));
+  const userInitial = initials(user.name);
+  const portals = accessiblePortals(user.roles);
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-ink-300/60 bg-white md:flex">
-        <div className="border-b border-ink-300/60 px-5 py-4">
-          <Link href="/" className="block">
-            <span className="text-lg font-bold text-brand-800">{brandName}</span>
+    <div className="flex min-h-screen bg-cream text-ink">
+      {/* ===== Sidebar ===== */}
+      <aside className="sticky top-0 hidden h-screen w-[250px] shrink-0 flex-col border-r border-line bg-paper md:flex">
+        <div className="border-b border-line-soft px-[22px] pb-[18px] pt-[22px]">
+          <Link href="/" className="flex items-center gap-[10px]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-forest font-mono text-[12px] text-white">
+              S
+            </span>
+            <span className="font-mono text-[12px] uppercase tracking-[0.1em]">
+              SYDA<span className="text-faint">·</span>GTIC
+            </span>
           </Link>
-          <span className="mt-0.5 block text-xs font-medium uppercase tracking-wide text-ink-500">
+          <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.1em] text-moss">
             {portalName}
-          </span>
+          </div>
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {nav.map((item) =>
-            item.comingSoon ? (
-              <span
-                key={item.label}
-                className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-ink-300"
-                title="Coming in a later phase"
-              >
-                {item.label}
-                <span className="text-[10px] uppercase">soon</span>
-              </span>
-            ) : (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-800"
-              >
-                {item.label}
-              </Link>
-            )
+
+        <div className="flex-1 overflow-y-auto p-3">
+          <SidebarNav nav={nav} />
+          <div className="mt-4 border-t border-line-soft pt-4">
+            <OpenAssistantButton />
+          </div>
+        </div>
+
+        <div className="border-t border-line-soft p-3">
+          {portals.length > 1 && (
+            <>
+              <div className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                Switch portal
+              </div>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {portals.map((p) => (
+                  <Link
+                    key={p}
+                    href={PORTAL_HOME[p]}
+                    className="rounded-full border border-line bg-paper px-[11px] py-1.5 text-[12px] text-muted transition-colors hover:border-forest hover:text-forest"
+                  >
+                    {PORTAL_LABEL[p] ?? p}
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
-        </nav>
-        <div className="border-t border-ink-300/60 p-3 text-xs text-ink-500">
-          Signed in as
-          <div className="truncate font-medium text-ink-700">{user.email}</div>
+          <div className="flex items-center gap-[10px] px-1.5 py-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-moss text-[13px] font-semibold text-white">
+              {userInitial}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] text-ink">{user.name}</div>
+              <SignOutButton />
+            </div>
+          </div>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ===== Main ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-ink-300/60 bg-white px-4 py-3 md:px-6">
+        <header className="sticky top-0 z-20 flex items-center gap-[18px] border-b border-line bg-cream/85 px-4 py-4 backdrop-blur-md md:px-8">
           <div className="md:hidden">
-            <span className="font-bold text-brand-800">{brandName}</span>
-            <span className="ml-2 text-xs uppercase text-ink-500">{portalName}</span>
+            <span className="font-mono text-[12px] uppercase tracking-[0.1em] text-forest">
+              {shortName}
+            </span>
           </div>
-          <div className="hidden text-sm text-ink-500 md:block">{portalName}</div>
-          <div className="flex items-center gap-3">
-            <PortalSwitcher roles={user.roles} />
+          <div className="hidden font-serif text-[22px] text-ink md:block">{portalName}</div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-[14px]">
+            {portals.length > 1 && (
+              <div className="hidden gap-1 rounded-full border border-line bg-paper p-1 lg:flex">
+                {portals.map((p) => (
+                  <Link
+                    key={p}
+                    href={PORTAL_HOME[p]}
+                    className="rounded-full px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-cream hover:text-forest"
+                  >
+                    {PORTAL_LABEL[p] ?? p}
+                  </Link>
+                ))}
+              </div>
+            )}
             <NotificationsBell notifications={bellItems} unreadCount={unreadCount} />
-            <span className="hidden text-sm text-ink-700 sm:block">{user.name}</span>
-            <SignOutButton />
+            <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-moss text-[13px] font-semibold text-white">
+              {userInitial}
+            </span>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-8">
+          <div className="mx-auto w-full max-w-[1080px]">{children}</div>
+        </main>
       </div>
 
       {/* Floating AI assistant, available in every portal */}
       <AssistantPanel />
-    </div>
-  );
-}
-
-/** Shown only to accounts holding roles across several portals (e.g. the
- * all-roles testing super user) — lets them jump between portals directly. */
-function PortalSwitcher({ roles }: { roles: string[] }) {
-  const portals = accessiblePortals(roles);
-  if (portals.length <= 1) return null;
-  return (
-    <div className="hidden gap-1 rounded-md border border-ink-300/60 bg-ink-50 p-1 lg:flex">
-      {portals.map((p) => (
-        <Link
-          key={p}
-          href={PORTAL_HOME[p]}
-          className="rounded px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-white hover:text-brand-800"
-        >
-          {PORTAL_LABEL[p]}
-        </Link>
-      ))}
     </div>
   );
 }

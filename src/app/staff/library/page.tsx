@@ -27,7 +27,7 @@ export default async function LibraryPage({
       <Flash error={error} />
 
       <h2 className="mt-6 font-semibold text-ink-700">Catalogue</h2>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Title</th><th className="px-4 py-2">Author</th><th className="px-4 py-2">Available</th><th className="px-4 py-2" /></tr>
@@ -43,7 +43,7 @@ export default async function LibraryPage({
                     <form action={borrowItem} className="flex gap-2">
                       <input type="hidden" name="itemId" value={i.id} />
                       <input name="email" type="email" placeholder="Borrower email" required className="rounded-md border border-ink-300 px-2 py-1 text-xs" />
-                      <button type="submit" className="rounded-md bg-brand-800 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700">Borrow</button>
+                      <button type="submit" className="rounded-full bg-forest px-2 py-1 text-xs font-medium text-white hover:bg-forest-deep">Borrow</button>
                     </form>
                   )}
                 </td>
@@ -54,7 +54,7 @@ export default async function LibraryPage({
       </div>
 
       <h2 className="mt-8 font-semibold text-ink-700">Current loans</h2>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-ink-300/60 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-line bg-paper">
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase text-ink-500">
             <tr><th className="px-4 py-2">Item</th><th className="px-4 py-2">Borrower</th><th className="px-4 py-2">Due</th><th className="px-4 py-2" /></tr>

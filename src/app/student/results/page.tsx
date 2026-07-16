@@ -40,7 +40,7 @@ export default async function ResultsPage() {
         <p className="mt-6 text-sm text-ink-500">No results have been published yet.</p>
       ) : (
         results.map((r) => (
-          <div key={r.id} className="mt-6 rounded-lg border border-ink-300/60 bg-white p-5">
+          <div key={r.id} className="mt-6 rounded-2xl border border-line bg-paper p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-brand-800">{r.semester.label}</h2>
               <span className="text-sm text-ink-500">Semester average: {r.semesterAverage.toFixed(2)}</span>

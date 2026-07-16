@@ -32,13 +32,13 @@ export default async function ReportsPage() {
       <h1 className="text-2xl font-bold">Reports &amp; analytics</h1>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-ink-300/60 bg-white p-4"><div className="text-xs text-ink-500">Students (active/total)</div><div className="text-lg font-bold">{activeStudents} / {totalStudents}</div></div>
-        <div className="rounded-lg border border-ink-300/60 bg-white p-4"><div className="text-xs text-ink-500">Applications (open cycle)</div><div className="text-lg font-bold">{applications}</div></div>
-        <div className="rounded-lg border border-ink-300/60 bg-white p-4"><div className="text-xs text-ink-500">Fees collected</div><div className="text-lg font-bold">{formatGHS(collected)} / {formatGHS(billed)}</div></div>
-        <div className="rounded-lg border border-ink-300/60 bg-white p-4"><div className="text-xs text-ink-500">Pass rate</div><div className="text-lg font-bold">{gradeEntries.length > 0 ? Math.round((passed / gradeEntries.length) * 100) : 0}%</div></div>
+        <div className="rounded-2xl border border-line bg-paper p-4"><div className="text-xs text-ink-500">Students (active/total)</div><div className="text-lg font-bold">{activeStudents} / {totalStudents}</div></div>
+        <div className="rounded-2xl border border-line bg-paper p-4"><div className="text-xs text-ink-500">Applications (open cycle)</div><div className="text-lg font-bold">{applications}</div></div>
+        <div className="rounded-2xl border border-line bg-paper p-4"><div className="text-xs text-ink-500">Fees collected</div><div className="text-lg font-bold">{formatGHS(collected)} / {formatGHS(billed)}</div></div>
+        <div className="rounded-2xl border border-line bg-paper p-4"><div className="text-xs text-ink-500">Pass rate</div><div className="text-lg font-bold">{gradeEntries.length > 0 ? Math.round((passed / gradeEntries.length) * 100) : 0}%</div></div>
       </div>
 
-      <section className="mt-8 rounded-lg border border-ink-300/60 bg-white p-5">
+      <section className="mt-8 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Ask the AI analytics assistant</h2>
         <p className="mt-1 text-xs text-ink-500">
           Answers are computed live from safe, read-only queries — never guessed. Try &ldquo;How many
@@ -46,7 +46,7 @@ export default async function ReportsPage() {
         </p>
         <form action={askAnalyticsQuestionAction} className="mt-3 flex gap-2">
           <input name="question" placeholder="Ask a question…" required className="flex-1 rounded-md border border-ink-300 px-3 py-2 text-sm" />
-          <button type="submit" className="rounded-md bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Ask</button>
+          <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">Ask</button>
         </form>
 
         <div className="mt-4 space-y-2">

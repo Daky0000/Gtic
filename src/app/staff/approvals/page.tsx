@@ -44,7 +44,7 @@ export default async function ApprovalsPage({
           const stage = STAGE_FOR_STATUS[sheet.status];
           const isFinal = sheet.status === "VALIDATED";
           return (
-            <div key={sheet.id} className="rounded-lg border border-ink-300/60 bg-white p-4">
+            <div key={sheet.id} className="rounded-2xl border border-line bg-paper p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-semibold">{sheet.offering.course.code} — {sheet.offering.course.title}</div>
@@ -56,14 +56,14 @@ export default async function ApprovalsPage({
                 {isFinal ? (
                   <form action={publishGradeSheet}>
                     <input type="hidden" name="gradeSheetId" value={sheet.id} />
-                    <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+                    <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">
                       Publish results
                     </button>
                   </form>
                 ) : (
                   <form action={approveGradeSheet}>
                     <input type="hidden" name="gradeSheetId" value={sheet.id} />
-                    <button type="submit" className="rounded-md bg-brand-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+                    <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep">
                       Approve
                     </button>
                   </form>
