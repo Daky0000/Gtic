@@ -11,10 +11,10 @@ const RESULT_ROWS = 9;
 export default async function ApplicationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; paid?: string }>;
 }) {
   const user = await requirePortal("apply");
-  const { error, saved } = await searchParams;
+  const { error, saved, paid } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -40,7 +40,16 @@ export default async function ApplicationPage({
       <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
         Reference {app.refNo}
       </p>
-      <Flash error={error} success={saved ? "Your application details were saved." : undefined} />
+      <Flash
+        error={error}
+        success={
+          saved
+            ? "Your application details were saved."
+            : paid
+              ? "Voucher payment confirmed — welcome! Fill in your application form below."
+              : undefined
+        }
+      />
       {!editable && (
         <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
           This application has been submitted and can no longer be edited here.

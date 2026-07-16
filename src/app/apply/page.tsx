@@ -4,11 +4,9 @@ import { db } from "@/lib/db";
 import {
   getOrCreateDraftApplication, isApplicationFeeCleared, withdrawApplication,
 } from "@/lib/actions/admissions";
-import { readTempPasswordCookie } from "@/lib/actions/account";
 import { APPLICATION_STATUS_LABEL, APPLICATION_STATUS_TONE } from "@/lib/status-labels";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
 import { Flash } from "@/components/flash";
-import { CopyButton } from "@/components/copy-button";
 import { PageHeader, Card, CardLabel, StatusChip, ButtonLink } from "@/components/ui";
 
 export const metadata = { title: "Applicant Portal" };
@@ -21,7 +19,6 @@ export default async function ApplyHome({
   const user = await requirePortal("apply");
   const { error, withdrawn } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
-  const tempCredentials = await readTempPasswordCookie();
 
   const checklist = app ? await buildChecklist(app.id, user.id, app.cycleId) : null;
   const firstName = user.name.split(/\s+/)[0] || user.name;
@@ -36,29 +33,6 @@ export default async function ApplyHome({
         error={error}
         success={withdrawn ? "Your application was withdrawn back to draft — you can edit and resubmit it." : undefined}
       />
-
-      {tempCredentials && tempCredentials.email === user.email && (
-        <div className="mb-5 rounded-2xl border-2 border-brand-300 bg-[#eaf0ea] p-5">
-          <div className="font-serif text-[20px] text-forest-deep">
-            Your account is ready — save these details
-          </div>
-          <p className="mt-1 text-xs text-forest">
-            Your payment created this login. It&apos;s shown once here and won&apos;t be shown again —
-            write it down or copy it now.
-          </p>
-          <dl className="mt-3 space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <dt className="w-20 text-moss">Email</dt>
-              <dd className="font-mono text-ink">{tempCredentials.email}</dd>
-            </div>
-            <div className="flex items-center gap-2">
-              <dt className="w-20 text-moss">Password</dt>
-              <dd className="font-mono font-semibold text-ink">{tempCredentials.password}</dd>
-              <CopyButton value={tempCredentials.password} />
-            </div>
-          </dl>
-        </div>
-      )}
 
       <div className="mb-5">
         <AnnouncementsBanner audience="APPLICANTS" />

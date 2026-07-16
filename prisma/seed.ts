@@ -547,18 +547,21 @@ async function main() {
   console.log("  ✓ academic calendar (2026, Biogas & Biomass cohort in session)");
 
   // 8. Admission cycle for the next upcoming cohort, quotas and a voucher
-  // batch. Fee amounts are placeholders — none are published on the
-  // Center's site; adjust them any time from Admin > Fees.
+  // batch. The application voucher is GHS 50; the acceptance fee is a
+  // placeholder — adjust either any time from Admin > Fees.
   const admittedProgrammes = ["WENG", "EV"];
   let cycle = await db.admissionCycle.findFirst({ where: { name: "September–November 2026 Admissions" } });
-  if (!cycle) {
+  if (cycle) {
+    // Re-seeding an existing database: bring the fee in line with GHS 50.
+    cycle = await db.admissionCycle.update({ where: { id: cycle.id }, data: { applicationFee: 5000 } });
+  } else {
     cycle = await db.admissionCycle.create({
       data: {
         name: "September–November 2026 Admissions",
         academicYearId: year.id,
         opensAt: new Date("2026-07-01"),
         closesAt: new Date("2026-08-25"),
-        applicationFee: 10000, // GHS 100 (placeholder)
+        applicationFee: 5000, // GHS 50 application voucher
         acceptanceFee: 20000, // GHS 200 (placeholder)
         status: "OPEN",
       },

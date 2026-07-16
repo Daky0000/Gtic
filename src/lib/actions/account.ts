@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
@@ -8,22 +7,18 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { ROLES } from "@/lib/rbac";
-import { generatedPassword } from "@/lib/codes";
 import { beginInvoicePayment } from "@/lib/payments";
+import { currentOrBootstrapCycle } from "@/lib/admission-cycle";
 import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
 
 export type SignupState = { error: string } | null;
 
-/** Shown once on /apply right after payment — see readTempPasswordCookie() below.
- * Not exported: "use server" modules may only export async functions. */
-const TEMP_PASSWORD_COOKIE = "cc_temp_pw";
-const TEMP_PASSWORD_TTL_SECONDS = 5 * 60;
-
 /**
- * Voucher-pay-first registration (replaces manual signup): the applicant
- * never chooses a password. Paying the application fee (voucher) IS the
- * registration step — the system creates the account from their name/email/
- * phone, generates a random password, and reveals it once after payment.
+ * Applicant self-registration. The applicant chooses their own password
+ * (they are signed in immediately — no one-time reveal to lose), then goes
+ * straight to Paystack hosted checkout to buy the application voucher (the
+ * open cycle's applicationFee — GHS 50 by default). After checkout the
+ * callback drops them on /apply/application to fill in the form.
  */
 export async function startApplicationWithPayment(
   _prev: SignupState,
@@ -32,12 +27,16 @@ export async function startApplicationWithPayment(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
 
   if (name.length < 2) return { error: "Enter your full name." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
   if (!/^[+\d][\d\s-]{6,19}$/.test(phone)) return { error: "Enter a valid phone number." };
+  if (password.length < 8) return { error: "Choose a password of at least 8 characters." };
+  if (password !== confirm) return { error: "The two passwords do not match." };
 
-  const cycle = await db.admissionCycle.findFirst({ where: { status: "OPEN" }, orderBy: { opensAt: "desc" } });
+  const cycle = await currentOrBootstrapCycle();
   if (!cycle) {
     return { error: "Applications are not open right now. Please check back later." };
   }
@@ -47,9 +46,10 @@ export async function startApplicationWithPayment(
     return { error: "An account with that email already exists. Sign in instead." };
   }
 
-  const password = generatedPassword();
   let userId: string;
   try {
+    // autoSignIn (better-auth default) sets the session cookie here, so the
+    // applicant is already logged in when they return from Paystack.
     const res = await auth.api.signUpEmail({ body: { name, email, password } });
     userId = res.user.id;
   } catch (e) {
@@ -72,7 +72,7 @@ export async function startApplicationWithPayment(
     await notify(
       userId,
       "Welcome to SYDA-GTIC",
-      "Your account and application were created when you paid the application voucher fee.",
+      "Your account was created. Pay the application voucher fee, then complete your application form.",
       "/apply"
     );
   } catch (e) {
@@ -103,36 +103,20 @@ export async function startApplicationWithPayment(
     });
   }
 
-  // The generated password survives the Paystack hosted-checkout round trip
-  // (or the instant mock redirect) in a short-lived cookie, then expires on
-  // its own — a deliberately narrow, one-time reveal window.
-  (await cookies()).set(TEMP_PASSWORD_COOKIE, `${email}:${password}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: TEMP_PASSWORD_TTL_SECONDS,
-    path: "/",
-  });
-
   let result;
   try {
-    result = await beginInvoicePayment({ invoiceId: invoice.id, userEmail: email, returnTo: "/apply" });
+    result = await beginInvoicePayment({ invoiceId: invoice.id, userEmail: email, returnTo: "/apply/application" });
   } catch (e) {
     console.error("[signup] payment initiation failed", e);
-    redirect("/apply"); // account + application already exist; they can pay from there
+    redirect("/apply"); // account + application already exist; they can pay from /apply/payments
   }
   if (result.kind === "failed") {
     // Same reasoning: don't lose the account over a payment-gateway hiccup.
     redirect("/apply");
   }
-  redirect(result.kind === "redirect" ? result.url : "/apply");
-}
-
-/** Read-once helper for the /apply welcome banner. */
-export async function readTempPasswordCookie(): Promise<{ email: string; password: string } | null> {
-  const raw = (await cookies()).get(TEMP_PASSWORD_COOKIE)?.value;
-  if (!raw) return null;
-  const idx = raw.indexOf(":");
-  if (idx < 0) return null;
-  return { email: raw.slice(0, idx), password: raw.slice(idx + 1) };
+  if (result.kind === "settled") {
+    // Mock channel (no Paystack key configured) settles instantly.
+    redirect("/apply/application?paid=1");
+  }
+  redirect(result.url);
 }

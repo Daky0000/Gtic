@@ -1,6 +1,5 @@
 // Human-facing identifiers: application refs, verification codes, invoice/index numbers.
 // Formats are simple and readable — swap for institution-configured formats later (SYS-15/REG-15).
-import { randomInt } from "node:crypto";
 
 function randomDigits(n: number): string {
   let s = "";
@@ -48,14 +47,4 @@ export function voucherPin(): string {
 
 export function staffNo(): string {
   return `STF${randomDigits(5)}`;
-}
-
-// System-generated temporary passwords (voucher-pay-first signup): must use a
-// CSPRNG, unlike the display codes above which are shown publicly and don't
-// gate access to anything.
-const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; // no O/0/I/l/1
-export function generatedPassword(length = 12): string {
-  let s = "";
-  for (let i = 0; i < length; i++) s += PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)];
-  return s;
 }
