@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "admin:create": "tsx prisma/create-admin.ts",
     "db:studio": "prisma studio",
-    "docs:plan": "node docs/generate-plan-docx.mjs"
+    "docs:plan": "node docs/generate-plan-docx.mjs",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -23,9 +24,11 @@
     "better-auth": "^1.6.23",
     "docx": "^9.7.1",
     "next": "^15.5.20",
+    "prisma": "^6.19.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "server-only": "^0.0.1",
+    "tsx": "^4.23.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -33,9 +36,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "prisma": "^6.19.3",
     "tailwindcss": "^4.3.2",
-    "tsx": "^4.23.1",
     "typescript": "^5.9.3"
   }
 }
