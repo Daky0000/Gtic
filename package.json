@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "admin:create": "tsx prisma/create-admin.ts",
     "db:studio": "prisma studio",
     "docs:plan": "node docs/generate-plan-docx.mjs"
   },
