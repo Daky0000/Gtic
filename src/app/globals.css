@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* CampusCore brand tokens — overridden per institution via the white-label layer */
+  /* SYDA-GTIC brand tokens — green energy palette, overridden per institution via the white-label layer */
   --color-brand-50: #f0fdf4;
   --color-brand-100: #dcfce7;
   --color-brand-200: #bbf7d0;

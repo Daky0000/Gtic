@@ -34,6 +34,8 @@ export default async function LetterPage({
   const acceptanceInvoice = await db.invoice.findFirst({
     where: { userId: user.id, kind: "ACCEPTANCE", meta: { path: ["applicationId"], equals: app.id } },
   });
+  const institution = await db.institution.findFirst();
+  const institutionName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
 
   const expired = !offer.acceptedAt && !!offer.expiresAt && offer.expiresAt.getTime() < Date.now();
 
@@ -49,8 +51,8 @@ export default async function LetterPage({
       <div className="rounded-lg border-2 border-brand-800 bg-white p-8 print:border-none">
         <div className="flex items-center justify-between border-b border-ink-300/60 pb-4">
           <div>
-            <div className="text-lg font-bold text-brand-800">CampusCore Demo University</div>
-            <div className="text-xs text-ink-500">Office of the Registrar</div>
+            <div className="text-lg font-bold text-brand-800">{institutionName}</div>
+            <div className="text-xs text-ink-500">Admissions &amp; Training Office</div>
           </div>
           <div className="text-right text-xs text-ink-500">
             <div>Ref: {app.refNo}</div>
@@ -62,9 +64,9 @@ export default async function LetterPage({
         <p className="mt-4 text-sm leading-relaxed text-ink-700">
           Dear {[app.firstName, app.surname].filter(Boolean).join(" ") || user.name},
           <br /><br />
-          I am pleased to inform you that you have been offered admission to study{" "}
-          <strong>{offer.programme.name}</strong> at CampusCore Demo University, subject to the terms and
-          conditions of the university.
+          I am pleased to inform you that you have been offered a place on our{" "}
+          <strong>{offer.programme.name}</strong> training cohort at {institutionName}, subject to the terms
+          and conditions of the Center.
           <br /><br />
           Please accept this offer and pay the acceptance fee by the deadline shown below to secure your place.
         </p>
@@ -88,7 +90,7 @@ export default async function LetterPage({
       </div>
 
       <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
-        Beware of fake admission letters. This university never asks for payment to a private individual&apos;s
+        Beware of fake admission letters. The Center never asks for payment to a private individual&apos;s
         account. Always confirm a letter using the public verification code above.
       </div>
 

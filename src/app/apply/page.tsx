@@ -144,7 +144,7 @@ export default async function ApplyHome({
       )}
 
       <div className="mt-6 rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-        Tip: ask the assistant (bottom-right) &ldquo;What are the entry requirements for BSc Computer
+        Tip: ask the assistant (bottom-right) &ldquo;What are the entry requirements for Solar Energy
         Engineering?&rdquo;
       </div>
     </div>

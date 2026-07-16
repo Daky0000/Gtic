@@ -50,7 +50,7 @@ export default function SignupPage() {
       </form>
 
       <p className="mt-6 text-xs text-ink-500">
-        Staff and student accounts are issued by the university — this page is for new applicants only.
+        Staff and trainee accounts are issued by the Center — this page is for new applicants only.
       </p>
     </div>
   );

@@ -71,7 +71,7 @@ export async function startApplicationWithPayment(
   try {
     await notify(
       userId,
-      "Welcome to CampusCore",
+      "Welcome to SYDA-GTIC",
       "Your account and application were created when you paid the application voucher fee.",
       "/apply"
     );

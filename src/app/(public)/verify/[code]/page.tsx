@@ -25,7 +25,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
           <div className="text-lg font-bold text-red-800">Not verified</div>
           <p className="mt-2 text-sm text-red-700">
             No genuine document matches this code. Do not trust or act on a document carrying this code —
-            report it to the university.
+            report it to the Center.
           </p>
         </div>
       ) : (

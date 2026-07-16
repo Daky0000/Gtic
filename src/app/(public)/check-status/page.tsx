@@ -58,7 +58,7 @@ export default async function CheckStatusPage({
       )}
 
       <div className="mt-8 rounded-md bg-amber-50 p-4 text-xs text-amber-900">
-        Fraud warning: the university never asks for payment to a private account, and every genuine
+        Fraud warning: the Center never asks for payment to a private account, and every genuine
         admission letter carries a code you can verify here.
       </div>
     </div>

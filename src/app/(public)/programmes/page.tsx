@@ -20,8 +20,8 @@ export default async function ProgrammesPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-bold">Programmes</h1>
       <p className="mt-2 text-ink-500">
-        Browse programmes by school. Online applications open with the admissions
-        portal (Phase 1).
+        Hands-on, intensive training cohorts in renewable energy and electric mobility.
+        Apply online any time — intakes run year-round.
       </p>
 
       <div className="mt-8 space-y-8">
@@ -38,7 +38,7 @@ export default async function ProgrammesPage() {
                     <div className="font-medium">{prog.name}</div>
                     <div className="mt-1 text-sm text-ink-500">
                       {dept.name} · {prog.level.toLowerCase()} ·{" "}
-                      {prog.durationSemesters / 2} years
+                      {prog.durationSemesters * 3} month{prog.durationSemesters * 3 === 1 ? "" : "s"}
                     </div>
                     {prog.entryRequirements && (
                       <p className="mt-2 text-sm text-ink-700">

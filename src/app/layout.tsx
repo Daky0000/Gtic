@@ -3,10 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "CampusCore",
-    template: "%s · CampusCore",
+    default: "SYDA-GTIC",
+    template: "%s · SYDA-GTIC",
   },
-  description: "AI-cored University Management System",
+  description: "SYDA — Green Energy & Innovation Center: renewable energy training portal",
 };
 
 export default function RootLayout({

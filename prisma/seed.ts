@@ -1,5 +1,6 @@
-// CampusCore Phase 0 seed — demo institution, roles/permissions, one demo user
-// per role, UENR-like academic structure, and a published knowledge base.
+// SYDA-GTIC seed — real institution identity, roles/permissions, one demo
+// user per role, the 5 real flagship training programmes, and a knowledge
+// base matching the Center's actual admissions/handbook content.
 // Idempotent: safe to run repeatedly.
 import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
@@ -27,21 +28,21 @@ const DEMO_PASSWORD = "Password123!";
 
 const ROLES: [code: string, name: string][] = [
   ["applicant", "Prospective Applicant"],
-  ["student", "Student"],
-  ["lecturer", "Lecturer"],
+  ["student", "Trainee"],
+  ["lecturer", "Instructor"],
   ["hod", "Head of Department"],
   ["dean", "Dean of School"],
   ["admissions_officer", "Admissions Officer"],
   ["registrar", "Registrar / Academic Affairs"],
-  ["exams_officer", "Examinations Officer"],
+  ["exams_officer", "Assessments Officer"],
   ["finance_officer", "Finance Officer"],
   ["accommodation_manager", "Accommodation Manager"],
   ["librarian", "Librarian"],
   ["hr_officer", "HR Officer"],
   ["grad_school_officer", "Graduate School Officer"],
-  ["counsellor", "Counsellor / Student Affairs"],
+  ["counsellor", "Counsellor / Trainee Affairs"],
   ["qa_officer", "Quality Assurance Officer"],
-  ["management", "University Management"],
+  ["management", "Center Management"],
   ["alumni", "Alumnus/Alumna"],
   ["system_admin", "System Administrator"],
   ["developer", "Developer / Super Administrator"],
@@ -63,132 +64,56 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   management: ["audit.view"],
 };
 
-// ── UENR-inspired demo academic structure ──
-type Prog = { code: string; name: string; level?: "UNDERGRADUATE" | "POSTGRADUATE"; years?: number; req?: string };
+// ── SYDA-GTIC's real academic structure: one School of Renewable Energy,
+// five departments, each running one 3-month intensive diploma programme. ──
+type Prog = { code: string; name: string; req?: string };
 const STRUCTURE: { code: string; name: string; departments: { code: string; name: string; programmes: Prog[] }[] }[] = [
   {
-    code: "ENG", name: "School of Engineering",
+    code: "SORE", name: "School of Renewable Energy",
     departments: [
       {
-        code: "CEE", name: "Department of Computer and Electrical Engineering",
+        code: "DSE", name: "Department of Solar Energy",
         programmes: [
-          { code: "BSC-CPE", name: "BSc Computer Engineering", req: "WASSCE credits (A1–C6) in English, Core Mathematics and Integrated Science, plus Physics, Chemistry and Elective Mathematics. Competitive aggregate 36 or better." },
-          { code: "BSC-EEE", name: "BSc Electrical and Electronic Engineering", req: "WASSCE credits (A1–C6) in English, Core Mathematics and Integrated Science, plus Physics, Chemistry and Elective Mathematics." },
+          {
+            code: "SENG", name: "Solar Energy Engineering",
+            req: "Open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking hands-on solar PV skills. No fixed grade cut-offs are published — contact the admissions & training team to confirm your fit for this cohort.",
+          },
         ],
       },
       {
-        code: "CVE", name: "Department of Civil and Environmental Engineering",
+        code: "DBE", name: "Department of Biogas & Biomass Engineering",
         programmes: [
-          { code: "BSC-CIV", name: "BSc Civil Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
+          {
+            code: "BENG", name: "Biogas & Biomass Engineering",
+            req: "Open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking hands-on biogas plant and biomass skills. Contact the admissions & training team to confirm your fit for this cohort.",
+          },
         ],
       },
       {
-        code: "MEC", name: "Department of Mechanical Engineering",
+        code: "DWE", name: "Department of Wind Energy",
         programmes: [
-          { code: "BSC-MEC", name: "BSc Mechanical Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SOE", name: "School of Energy",
-    departments: [
-      {
-        code: "REE", name: "Department of Renewable Energy Engineering",
-        programmes: [
-          { code: "BSC-REE", name: "BSc Renewable Energy Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
-          { code: "BSC-PET", name: "BSc Petroleum and Natural Gas Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SOS", name: "School of Sciences",
-    departments: [
-      {
-        code: "MAT", name: "Department of Mathematics and Statistics",
-        programmes: [
-          { code: "BSC-MTH", name: "BSc Mathematics", req: "WASSCE credits in core subjects plus Elective Mathematics and one of Physics, Chemistry, Economics." },
-          { code: "BSC-STA", name: "BSc Statistics", req: "WASSCE credits in core subjects plus Elective Mathematics." },
+          {
+            code: "WENG", name: "Wind Energy Engineering",
+            req: "Open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking hands-on wind turbine and site-assessment skills. Contact the admissions & training team to confirm your fit for this cohort.",
+          },
         ],
       },
       {
-        code: "CHS", name: "Department of Chemical Sciences",
+        code: "DEV", name: "Department of Electric Vehicles",
         programmes: [
-          { code: "BSC-CHE", name: "BSc Chemistry", req: "WASSCE credits in core subjects plus Chemistry, Physics and Elective Mathematics or Biology." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SNR", name: "School of Natural Resources",
-    departments: [
-      {
-        code: "FRS", name: "Department of Forest Science",
-        programmes: [
-          { code: "BSC-NRM", name: "BSc Natural Resources Management", req: "WASSCE credits in core subjects plus two of Biology, Chemistry, Physics, Geography, Economics." },
+          {
+            code: "EV", name: "Electric Vehicles",
+            req: "Open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking hands-on EV powertrain and battery systems skills. Contact the admissions & training team to confirm your fit for this cohort.",
+          },
         ],
       },
       {
-        code: "FWR", name: "Department of Fisheries and Water Resources",
+        code: "DESS", name: "Department of Energy Storage Systems",
         programmes: [
-          { code: "BSC-FAS", name: "BSc Fisheries and Aquatic Sciences", req: "WASSCE credits in core subjects plus Biology and one other science elective." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SAT", name: "School of Agriculture and Technology",
-    departments: [
-      {
-        code: "AGR", name: "Department of Agriculture",
-        programmes: [
-          { code: "BSC-AGR", name: "BSc Agriculture", req: "WASSCE credits in core subjects plus two science electives (General Agriculture accepted)." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SGS", name: "School of Geosciences",
-    departments: [
-      {
-        code: "GEO", name: "Department of Geological Engineering",
-        programmes: [
-          { code: "BSC-GLE", name: "BSc Geological Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SASS", name: "School of Arts and Social Sciences",
-    departments: [
-      {
-        code: "SSC", name: "Department of Social Sciences",
-        programmes: [
-          { code: "BSC-REC", name: "BSc Resource Economics", req: "WASSCE credits in core subjects plus Economics and one of Elective Mathematics, Geography, Business Management." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SMBE", name: "School of Mines and Built Environment",
-    departments: [
-      {
-        code: "MIN", name: "Department of Mining Engineering",
-        programmes: [
-          { code: "BSC-MIN", name: "BSc Mining Engineering", req: "WASSCE credits in core subjects plus Physics, Chemistry and Elective Mathematics." },
-        ],
-      },
-    ],
-  },
-  {
-    code: "SGSD", name: "School of Graduate Studies",
-    departments: [
-      {
-        code: "GRD", name: "Graduate Programmes Office",
-        programmes: [
-          { code: "MSC-REN", name: "MSc Renewable Energy Technologies", level: "POSTGRADUATE", years: 1, req: "A good first degree (Second Class Lower or better) in engineering or the physical sciences." },
-          { code: "MPH-ENV", name: "MPhil Environmental Science", level: "POSTGRADUATE", years: 2, req: "A good first degree in a relevant science discipline; research proposal required." },
+          {
+            code: "ESS", name: "Energy Storage Systems",
+            req: "Open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking hands-on battery sizing and storage-system skills. Contact the admissions & training team to confirm your fit for this cohort.",
+          },
         ],
       },
     ],
@@ -198,97 +123,259 @@ const STRUCTURE: { code: string; name: string; departments: { code: string; name
 // ── Knowledge base documents (published to the AI assistant) ──
 const KNOWLEDGE_DOCS = [
   {
-    slug: "student-handbook",
-    title: "Student Handbook (Demo Extract)",
+    slug: "trainee-handbook",
+    title: "Trainee Handbook",
     category: "handbook",
     text: `
-# About the University
-CampusCore Demo University is a public university focused on energy, natural resources and applied sciences. It operates nine schools across three campuses. This handbook summarises the rules every student agrees to at enrollment.
+# About SYDA-GTIC
+SYDA — Green Energy & Innovation Center (SYDA-GTIC) is a TVET/NVTI-accredited practical training center in Sunyani, Bono Region, Ghana, founded in 2019. Our mission is to train the African youth in practical renewable technologies for efficient deployment across residential, commercial and industrial environments. Our core values are Excellence, Transparency, Innovation and Integrity.
 
-# Registration
-Every student must register their courses online each semester within the registration window published in the academic calendar. Late registration attracts a penalty fee and requires approval. A student who does not register by the end of the add/drop window is deemed to have deferred the semester. The normal load is between 15 and 21 credit hours per semester; registering above or below this range requires the approval of the Head of Department.
-
-# Grading System
-The university uses the Cumulative Weighted Average (CWA) system. Each course score out of 100 is weighted by its credit hours. Class boundaries are: First Class — CWA of 70.00 and above; Second Class Upper — 60.00 to 69.99; Second Class Lower — 50.00 to 59.99; Pass — 40.00 to 49.99. A course mark below 40 is a fail and the course must be retaken or resat.
-
-# Academic Standing
-A student whose CWA falls below 40 at the end of an academic year is placed on academic probation for the following year. A student on probation whose CWA remains below 40 after the probation year may be withdrawn from the university. Students in good standing are those with a CWA of 40 or above.
+# Cohorts and Registration
+Training runs in 3-month intensive cohorts: January–March (Solar Energy Engineering, Energy Storage Systems), May–July (Biogas & Biomass Engineering), and September–November (Wind Energy Engineering, Electric Vehicles). Two-week short courses (solar water pumping, solar water irrigation, solar water heating, kiln charcoal production) run in the gap months. Intake is year-round — an applicant can register any time and is placed into the next available cohort for their chosen programme.
 
 # Fees and Payment
-Fees for each academic year are published before the year begins. A student must pay at least seventy percent (70%) of the semester bill before they can register courses. The remaining balance must be settled before end-of-semester examinations. Payment can be made online by card or mobile money, or at designated banks with a pay-in slip.
+Each cohort has a published application (voucher) fee and a training fee covering tuition, workshop materials/PPE and certification. The application fee is paid online (card or mobile money) or by redeeming a pre-purchased application voucher. The training fee must be settled before the first day of the cohort. Payment can also be made at GCB Bank, Sunyani Branch, quoting your reference number.
 
 # Accommodation
-University hostel places are limited and are allocated through the online booking system on a first-come basis within each eligibility window. A booked bed is forfeited if the hostel fee is not paid within five (5) working days of booking.
+The Center does not provide residential accommodation. Trainees are responsible for arranging their own accommodation in Sunyani for the duration of their cohort; the admissions team can suggest nearby options on request.
+
+# Practical Training and Safety
+Because programmes are hands-on (workshop, plant, field and garage practicums), trainees must follow all safety instructions and wear the personal protective equipment (PPE) provided at all times in workshops, labs and field sites. Unsafe conduct around live electrical, biogas or battery equipment is grounds for suspension from practical sessions.
 
 # Conduct
-Students are expected to conduct themselves with honesty and respect. Examination malpractice, plagiarism, harassment and vandalism are disciplinary offences handled under the university's disciplinary procedures and may result in suspension or dismissal.
+Trainees are expected to conduct themselves with honesty and respect. Assessment malpractice, damage to training equipment, harassment and unsafe conduct are disciplinary offences handled under the Center's disciplinary procedures and may result in suspension or dismissal from the cohort.
 `,
   },
   {
-    slug: "exam-regulations",
-    title: "Examination Regulations (Demo Extract)",
+    slug: "assessment-regulations",
+    title: "Assessment & Certification Regulations",
     category: "exam-regulations",
     text: `
-# Eligibility to Sit Examinations
-A student may sit an end-of-semester examination only if they are duly registered for the course and have attended at least seventy percent (70%) of lectures. Students with outstanding fees beyond the approved threshold may be barred from the examination hall.
+# Eligibility for Final Assessment
+A trainee may sit the final assessment for a module only if they are registered for it and have attended the required minimum of practical sessions. Trainees with outstanding training fees beyond the approved threshold may be barred from final assessment.
 
-# Conduct in the Examination Hall
-Candidates must present a valid student identity card. No unauthorised materials, phones or smart devices are permitted at the seat. Candidates arriving more than thirty minutes after the start of a paper are not admitted. Leaving the hall within the first thirty minutes is not permitted.
+# Assessment Format
+Each module is assessed through continuous (practical/coursework) assessment and a final theory-and-practical assessment. Both are recorded and combined into a module score.
 
-# Examination Malpractice
-Malpractice includes possession of unauthorised material, copying, impersonation, and communication with other candidates. Alleged malpractice is recorded by the invigilator and referred to the Examinations Malpractice Committee. Sanctions range from cancellation of the paper to dismissal from the university, depending on the gravity of the offence. Affected results are withheld until the case is determined.
+# Malpractice
+Malpractice includes copying, impersonation, and unauthorised communication during an assessment. Alleged malpractice is recorded by the assessor and referred to the Assessments Office. Sanctions range from cancellation of the module result to dismissal from the cohort, depending on the gravity of the offence.
 
-# Resit and Supplementary Examinations
-A student who fails a course (mark below 40) may register to resit the examination at the next available opportunity, subject to payment of the resit fee. The maximum mark obtainable in a resit examination is capped at fifty (50). A student may not graduate with an unresolved failed core course.
+# Resit
+A trainee who fails a module may register to resit it at the next available opportunity, on payment of the resit fee. A trainee may not receive their Certificate of Completion with an unresolved failed core module.
 
-# Remarking and Review of Results
-A student who is dissatisfied with a published result may apply for a formal remark within fourteen (14) days of publication, on payment of the remark fee. The script is remarked by an independent second examiner. If the remark changes the grade, the new grade stands and the fee is refunded. Frivolous applications are not refunded.
-
-# Publication of Results
-Results are published to student portals after approval by the Head of Department, the Dean, the Examinations Office and final sign-off by the Registrar. Provisional results circulated by any other channel have no official standing.
+# Certification
+On successful completion of all modules in a cohort, SYDA-GTIC issues a Certificate/Diploma of Completion as a downloadable PDF carrying a unique verification code that anyone can check on the Center's public verification page. Results are published after approval by the Head of Department and final sign-off by the Registrar; provisional results shared through any other channel have no official standing.
 `,
   },
   {
     slug: "admissions-guide",
-    title: "Admissions Guide (Demo Extract)",
+    title: "Admissions Guide",
     category: "admissions",
     text: `
 # Who Can Apply
-Admission is open to WASSCE holders, mature applicants (25 years and above with relevant work experience), international applicants with equivalent qualifications, and graduate applicants for postgraduate programmes.
-
-# General Entry Requirements (Undergraduate)
-Applicants must hold WASSCE credits (grades A1 to C6) in three core subjects — English Language, Core Mathematics and Integrated Science — plus three elective subjects relevant to the chosen programme. Engineering programmes require Physics, Chemistry and Elective Mathematics as electives. A competitive aggregate of 36 or better is expected; some programmes publish lower cut-offs.
+Admission is open to Senior High School graduates, technical/vocational certificate holders, and working professionals seeking practical upskilling in renewable energy or electric mobility. SYDA-GTIC does not publish fixed WASSCE grade cut-offs — the admissions & training team assesses each applicant's fit for their chosen programme individually and responds within two working days of enquiry.
 
 # How to Apply
-Applications are submitted online through the admissions portal. An applicant creates an account, pays the application fee online (card or mobile money) or redeems a pre-purchased application voucher, completes the application form, uploads results slips and documents, and submits before the deadline. The portal shows the live status of the application at every stage.
+Applications are submitted online. An applicant pays the application (voucher) fee by card or mobile money, or redeems a pre-purchased application voucher; the system then creates their account automatically and shows them their login details once. The applicant then completes their application form and chosen programme, uploads supporting documents, and is placed into the next available cohort.
 
 # Admission Letters and Fraud Warning
-Successful applicants receive an official admission letter as a downloadable PDF carrying a unique verification code. Anyone can confirm a letter is genuine using the public verification page. The university does not sell admission and never asks for payment to private accounts. Any letter that fails verification is fake and should be reported.
+Successful applicants receive an official admission letter as a downloadable PDF carrying a unique verification code. Anyone can confirm a letter is genuine using the public verification page. The Center does not sell admission and never asks for payment to private accounts. Any letter that fails verification is fake and should be reported.
 
 # Accepting an Offer
-An admitted applicant accepts the offer online and pays the acceptance fee within the stated deadline. Acceptance converts the applicant account into a student account; enrollment instructions, medical forms and the hostel booking window follow by email and SMS.
+An admitted applicant accepts the offer online and pays the training fee within the stated deadline. Acceptance converts the applicant account into a trainee account for their cohort.
+
+# Contact
+SYDA Center, Sunyani, Bono Region, Ghana. Email hello@syda-geic.org or admissions@syda-geic.org. Office hours: Monday–Friday 8:00–17:00, Saturday 9:00–13:00.
 `,
   },
 ];
 
-async function main() {
-  console.log("Seeding CampusCore…");
+// ── One-time migration off the old fictional-university demo content.
+// Every delete is defensive: if real data (an actual applicant/student
+// record, a booking, a live timetable session) still references an old row,
+// that row is left in place and a warning is logged rather than forcing the
+// delete through. Safe to run against a database that already has real
+// production data mixed in with the old demo seed.
+const OLD_PROGRAMME_CODES = [
+  "BSC-CPE", "BSC-EEE", "BSC-CIV", "BSC-MEC", "BSC-REE", "BSC-PET", "BSC-MTH", "BSC-STA",
+  "BSC-CHE", "BSC-NRM", "BSC-FAS", "BSC-AGR", "BSC-GLE", "BSC-REC", "BSC-MIN", "MSC-REN", "MPH-ENV",
+];
+const OLD_DEPARTMENT_CODES = ["CEE", "CVE", "MEC", "REE", "MAT", "CHS", "FRS", "FWR", "AGR", "GEO", "SSC", "MIN", "GRD"];
+const OLD_SCHOOL_CODES = ["ENG", "SOE", "SOS", "SNR", "SAT", "SGS", "SASS", "SMBE", "SGSD"];
+const OLD_COURSE_CODES = ["CPE 101", "MATH 101", "PHY 101", "ENG 101", "CPE 102", "MATH 102"];
+const OLD_HOSTEL_NAMES = ["Unity Hall", "Hall of Grace", "International House"];
+const OLD_VENUE_NAMES = ["Lecture Theatre A", "Lecture Theatre B", "Engineering Lab 1"];
+const OLD_LIBRARY_TITLES = [
+  "Introduction to Algorithms", "Fundamentals of Electric Circuits",
+  "Calculus: Early Transcendentals", "University Physics",
+  "Renewable Energy: Power for a Sustainable Future",
+];
+const OLD_CYCLE_NAME = "2026/2027 Undergraduate Admissions";
+const OLD_ACADEMIC_YEAR_LABEL = "2026/2027";
 
-  // 1. Institution
+async function cleanupLegacyDemoData() {
+  for (const code of OLD_COURSE_CODES) {
+    const course = await db.course.findUnique({ where: { code } });
+    if (!course) continue;
+    try {
+      await db.prerequisite.deleteMany({ where: { OR: [{ courseId: course.id }, { requiresId: course.id }] } });
+      await db.curriculumCourse.deleteMany({ where: { courseId: course.id } });
+      const offerings = await db.courseOffering.findMany({ where: { courseId: course.id } });
+      for (const o of offerings) {
+        const liveUse = await db.registrationCourse.count({ where: { offeringId: o.id } });
+        if (liveUse > 0) {
+          console.warn(`  ! keeping legacy course ${code} — a real registration references its offering`);
+          continue;
+        }
+        await db.offeringLecturer.deleteMany({ where: { offeringId: o.id } });
+        await db.material.deleteMany({ where: { offeringId: o.id } });
+        await db.courseOffering.delete({ where: { id: o.id } });
+      }
+      const remainingOfferings = await db.courseOffering.count({ where: { courseId: course.id } });
+      if (remainingOfferings === 0) await db.course.delete({ where: { id: course.id } });
+    } catch (e) {
+      console.warn(`  ! could not remove legacy course ${code}:`, (e as Error).message);
+    }
+  }
+
+  const oldProgrammes = await db.programme.findMany({ where: { code: { in: OLD_PROGRAMME_CODES } } });
+  for (const p of oldProgrammes) {
+    try {
+      const [liveStudents, liveChoices, liveOffers] = await Promise.all([
+        db.student.count({ where: { programmeId: p.id } }),
+        db.applicationChoice.count({ where: { programmeId: p.id } }),
+        db.offer.count({ where: { programmeId: p.id } }),
+      ]);
+      if (liveStudents > 0 || liveChoices > 0 || liveOffers > 0) {
+        console.warn(`  ! keeping legacy programme ${p.code} — real records still reference it`);
+        continue;
+      }
+      await db.cycleProgramme.deleteMany({ where: { programmeId: p.id } });
+      await db.curriculumCourse.deleteMany({ where: { curriculum: { programmeId: p.id } } });
+      await db.curriculumVersion.deleteMany({ where: { programmeId: p.id } });
+      await db.programme.delete({ where: { id: p.id } });
+    } catch (e) {
+      console.warn(`  ! could not remove legacy programme ${p.code}:`, (e as Error).message);
+    }
+  }
+
+  for (const code of OLD_DEPARTMENT_CODES) {
+    const dept = await db.department.findUnique({ where: { code } });
+    if (!dept) continue;
+    try {
+      const [remainingProgrammes, remainingCourses] = await Promise.all([
+        db.programme.count({ where: { departmentId: dept.id } }),
+        db.course.count({ where: { departmentId: dept.id } }),
+      ]);
+      if (remainingProgrammes > 0 || remainingCourses > 0) continue;
+      await db.staffProfile.updateMany({ where: { departmentCode: code }, data: { departmentCode: "DBE" } });
+      await db.department.delete({ where: { id: dept.id } });
+    } catch (e) {
+      console.warn(`  ! could not remove legacy department ${code}:`, (e as Error).message);
+    }
+  }
+
+  for (const code of OLD_SCHOOL_CODES) {
+    const school = await db.school.findUnique({ where: { code } });
+    if (!school) continue;
+    try {
+      const remainingDepts = await db.department.count({ where: { schoolId: school.id } });
+      if (remainingDepts > 0) continue;
+      await db.school.delete({ where: { id: school.id } });
+    } catch (e) {
+      console.warn(`  ! could not remove legacy school ${code}:`, (e as Error).message);
+    }
+  }
+
+  // Old admission cycle: Application rows are NEVER touched here — if a real
+  // applicant applied under the old cycle, their application, choices and
+  // documents are left fully intact and the cycle itself is kept.
+  const oldCycle = await db.admissionCycle.findFirst({ where: { name: OLD_CYCLE_NAME } });
+  if (oldCycle) {
+    const liveApplications = await db.application.count({ where: { cycleId: oldCycle.id } });
+    if (liveApplications === 0) {
+      await db.voucher.deleteMany({ where: { cycleId: oldCycle.id } });
+      await db.cycleProgramme.deleteMany({ where: { cycleId: oldCycle.id } });
+      await db.admissionCycle.delete({ where: { id: oldCycle.id } });
+    } else {
+      console.warn(`  ! keeping legacy admission cycle — ${liveApplications} real application(s) reference it`);
+    }
+  }
+
+  for (const name of OLD_HOSTEL_NAMES) {
+    const hostel = await db.hostel.findUnique({ where: { name } });
+    if (!hostel) continue;
+    try {
+      const liveBookings = await db.booking.count({ where: { bed: { room: { hostelId: hostel.id } } } });
+      if (liveBookings > 0) {
+        console.warn(`  ! keeping legacy hostel ${name} — real bookings reference it`);
+        continue;
+      }
+      await db.hostel.delete({ where: { id: hostel.id } }); // cascades rooms/beds
+    } catch (e) {
+      console.warn(`  ! could not remove legacy hostel ${name}:`, (e as Error).message);
+    }
+  }
+
+  for (const name of OLD_VENUE_NAMES) {
+    const venue = await db.venue.findUnique({ where: { name } });
+    if (!venue) continue;
+    try {
+      const liveSessions = await db.timetableSession.count({ where: { venueId: venue.id } });
+      if (liveSessions > 0) continue;
+      await db.venue.delete({ where: { id: venue.id } });
+    } catch (e) {
+      console.warn(`  ! could not remove legacy venue ${name}:`, (e as Error).message);
+    }
+  }
+
+  await db.libraryItem.deleteMany({
+    where: { title: { in: OLD_LIBRARY_TITLES }, loans: { none: {} } },
+  });
+
+  const oldYear = await db.academicYear.findUnique({ where: { label: OLD_ACADEMIC_YEAR_LABEL } });
+  if (oldYear) {
+    try {
+      const [liveStudentsInYear, liveCyclesInYear, liveSchedules] = await Promise.all([
+        db.student.count({ where: { entryYearId: oldYear.id } }),
+        db.admissionCycle.count({ where: { academicYearId: oldYear.id } }),
+        db.feeSchedule.count({ where: { academicYearId: oldYear.id } }),
+      ]);
+      if (liveStudentsInYear === 0 && liveCyclesInYear === 0 && liveSchedules === 0) {
+        await db.semester.deleteMany({ where: { academicYearId: oldYear.id } });
+        await db.academicYear.delete({ where: { id: oldYear.id } });
+      }
+    } catch (e) {
+      console.warn(`  ! could not remove legacy academic year:`, (e as Error).message);
+    }
+  }
+}
+
+async function main() {
+  console.log("Seeding SYDA-GTIC…");
+
+  // 0. Migrate off the old fictional-university demo content, if present.
+  await cleanupLegacyDemoData();
+  console.log("  ✓ legacy demo content migrated (see any warnings above)");
+
+  // 1. Institution — create, or rebrand an existing row (e.g. from an older
+  // seed run) to the real institution identity.
+  const institutionData = {
+    name: "SYDA — Green Energy & Innovation Center",
+    shortName: "SYDA-GTIC",
+    motto: "Training the engineers who power Africa's renewable future",
+    address: "SYDA Center, Sunyani, Bono Region, Ghana",
+    contactEmail: "hello@syda-geic.org",
+    contactPhone: "+233 00 000 0000",
+    website: "https://gticglobal.com",
+  };
   const inst = await db.institution.findFirst();
   if (!inst) {
-    await db.institution.create({
-      data: {
-        name: "CampusCore Demo University",
-        shortName: "CDU",
-        motto: "Powering the future through knowledge and innovation",
-        address: "P.O. Box 214, Sunyani, Bono Region, Ghana (demo)",
-        contactEmail: "info@demo.campuscore.test",
-        contactPhone: "+233 00 000 0000",
-        website: "https://demo.campuscore.test",
-      },
-    });
+    await db.institution.create({ data: institutionData });
     console.log("  ✓ institution");
+  } else if (inst.shortName !== institutionData.shortName) {
+    await db.institution.update({ where: { id: inst.id }, data: institutionData });
+    console.log("  ✓ institution rebranded to SYDA-GTIC");
   }
 
   // 2. Roles + permissions
@@ -353,7 +440,8 @@ async function main() {
   }
   console.log(`  ✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles`);
 
-  // 4. Academic structure
+  // 4. Academic structure — 1 diploma-level, 1-semester (3-month) programme
+  // per department, matching the Center's real flagship cohorts.
   for (const s of STRUCTURE) {
     const school = await db.school.upsert({
       where: { code: s.code },
@@ -373,8 +461,8 @@ async function main() {
           create: {
             code: p.code,
             name: p.name,
-            level: p.level ?? "UNDERGRADUATE",
-            durationSemesters: (p.years ?? 4) * 2,
+            level: "DIPLOMA",
+            durationSemesters: 1,
             departmentId: dept.id,
             entryRequirements: p.req ?? null,
           },
@@ -382,7 +470,7 @@ async function main() {
       }
     }
   }
-  console.log(`  ✓ academic structure (${STRUCTURE.length} schools)`);
+  console.log(`  ✓ academic structure (School of Renewable Energy, 5 departments/programmes)`);
 
   // 5. Knowledge base — create/update, chunk, publish.
   for (const docDef of KNOWLEDGE_DOCS) {
@@ -416,40 +504,39 @@ async function main() {
   });
   console.log("  ✓ AI feature config (assistant)");
 
-  // 7. Academic calendar — current year/semester with open windows so every
-  // date-gated flow (registration, hostel booking) can be exercised now.
-  const now = new Date();
-  const inDays = (n: number) => new Date(now.getTime() + n * 86_400_000);
-
+  // 7. Academic calendar — real 2026 cohort dates. The May–Jul Biogas &
+  // Biomass cohort is the one "in session" (registration/add-drop already
+  // closed, an assessment window open) so staff/trainee features are
+  // demonstrable now; separately, admissions are open for the *next*
+  // upcoming cohort (step 8) — the two need not be the same intake.
   const year = await db.academicYear.upsert({
-    where: { label: "2026/2027" },
+    where: { label: "2026" },
     update: { isCurrent: true },
     create: {
-      label: "2026/2027",
-      startsOn: inDays(-60),
-      endsOn: inDays(240),
+      label: "2026",
+      startsOn: new Date("2026-01-01"),
+      endsOn: new Date("2026-12-31"),
       isCurrent: true,
     },
   });
 
   const semester1 = await db.semester.upsert({
-    where: { academicYearId_number: { academicYearId: year.id, number: 1 } },
+    where: { academicYearId_number: { academicYearId: year.id, number: 2 } },
     update: { isCurrent: true },
     create: {
       academicYearId: year.id,
-      number: 1,
-      label: "2026/2027 Semester 1",
-      startsOn: inDays(-30),
-      endsOn: inDays(90),
+      number: 2,
+      label: "May–Jul 2026 — Biogas & Biomass Engineering Cohort",
+      startsOn: new Date("2026-05-01"),
+      endsOn: new Date("2026-07-31"),
       isCurrent: true,
     },
   });
 
   for (const w of [
-    { type: "REGISTRATION" as const, opensAt: inDays(-14), closesAt: inDays(14) },
-    { type: "ADD_DROP" as const, opensAt: inDays(-14), closesAt: inDays(21) },
-    { type: "HOSTEL_BOOKING" as const, opensAt: inDays(-7), closesAt: inDays(30) },
-    { type: "EVALUATION" as const, opensAt: inDays(60), closesAt: inDays(75) },
+    { type: "REGISTRATION" as const, opensAt: new Date("2026-04-20"), closesAt: new Date("2026-05-10") },
+    { type: "ADD_DROP" as const, opensAt: new Date("2026-04-20"), closesAt: new Date("2026-05-17") },
+    { type: "EVALUATION" as const, opensAt: new Date("2026-07-10"), closesAt: new Date("2026-07-31") },
   ]) {
     await db.window.upsert({
       where: { semesterId_type: { semesterId: semester1.id, type: w.type } },
@@ -457,60 +544,68 @@ async function main() {
       create: { semesterId: semester1.id, ...w },
     });
   }
-  console.log("  ✓ academic calendar (2026/2027, Semester 1, open windows)");
+  console.log("  ✓ academic calendar (2026, Biogas & Biomass cohort in session)");
 
-  // 8. Admission cycle, quotas and a voucher batch
-  const flagshipProgrammes = ["BSC-CPE", "BSC-EEE", "BSC-MTH", "BSC-AGR"];
-  let cycle = await db.admissionCycle.findFirst({ where: { name: "2026/2027 Undergraduate Admissions" } });
+  // 8. Admission cycle for the next upcoming cohort, quotas and a voucher
+  // batch. Fee amounts are placeholders — none are published on the
+  // Center's site; adjust them any time from Admin > Fees.
+  const admittedProgrammes = ["WENG", "EV"];
+  let cycle = await db.admissionCycle.findFirst({ where: { name: "September–November 2026 Admissions" } });
   if (!cycle) {
     cycle = await db.admissionCycle.create({
       data: {
-        name: "2026/2027 Undergraduate Admissions",
+        name: "September–November 2026 Admissions",
         academicYearId: year.id,
-        opensAt: inDays(-20),
-        closesAt: inDays(45),
-        applicationFee: 20000, // GHS 200
-        acceptanceFee: 50000, // GHS 500
+        opensAt: new Date("2026-07-01"),
+        closesAt: new Date("2026-08-25"),
+        applicationFee: 10000, // GHS 100 (placeholder)
+        acceptanceFee: 20000, // GHS 200 (placeholder)
         status: "OPEN",
       },
     });
-    for (const code of flagshipProgrammes) {
+    for (const code of admittedProgrammes) {
       const programme = await db.programme.findUniqueOrThrow({ where: { code } });
       await db.cycleProgramme.create({
-        data: { cycleId: cycle.id, programmeId: programme.id, quota: 60 },
+        data: { cycleId: cycle.id, programmeId: programme.id, quota: 25 },
       });
     }
   }
   const existingVouchers = await db.voucher.count({ where: { cycleId: cycle.id } });
   const demoVoucher = { serial: "VDEMO001", pin: "12345678" };
   if (existingVouchers === 0) {
-    await db.voucher.create({ data: { cycleId: cycle.id, ...demoVoucher, status: "GENERATED" } });
+    // The fixed demo serial may already exist on a preserved legacy cycle
+    // (e.g. one kept because real applications still reference it) — in
+    // that case just skip it rather than collide on the unique constraint.
+    const serialTaken = await db.voucher.findUnique({ where: { serial: demoVoucher.serial } });
+    if (!serialTaken) {
+      await db.voucher.create({ data: { cycleId: cycle.id, ...demoVoucher, status: "GENERATED" } });
+    }
     for (let i = 0; i < 4; i++) {
       await db.voucher.create({
         data: { cycleId: cycle.id, serial: voucherSerial(), pin: voucherPin(), status: "GENERATED" },
       });
     }
   }
-  console.log(`  ✓ admission cycle open (demo voucher ${demoVoucher.serial} / PIN ${demoVoucher.pin})`);
+  console.log(`  ✓ admission cycle open for Wind Energy Engineering & Electric Vehicles (demo voucher ${demoVoucher.serial} / PIN ${demoVoucher.pin} — if available)`);
 
-  // 9. Courses + prerequisites + curriculum (BSc Computer Engineering, Year 1)
-  const cee = await db.department.findUniqueOrThrow({ where: { code: "CEE" } });
-  const bscCpe = await db.programme.findUniqueOrThrow({ where: { code: "BSC-CPE" } });
+  // 9. Courses + prerequisites + curriculum for the in-session cohort
+  // (Biogas & Biomass Engineering).
+  const dbeDept = await db.department.findUniqueOrThrow({ where: { code: "DBE" } });
+  const beng = await db.programme.findUniqueOrThrow({ where: { code: "BENG" } });
 
   const courseDefs = [
-    { code: "CPE 101", title: "Introduction to Computer Engineering", credits: 3, sem: 1 },
-    { code: "MATH 101", title: "Calculus I", credits: 3, sem: 1 },
-    { code: "PHY 101", title: "Physics I", credits: 3, sem: 1 },
-    { code: "ENG 101", title: "Communication Skills I", credits: 2, sem: 1 },
-    { code: "CPE 102", title: "Programming Fundamentals", credits: 3, sem: 2, requires: "CPE 101" },
-    { code: "MATH 102", title: "Calculus II", credits: 3, sem: 2, requires: "MATH 101" },
+    { code: "BENG 101", title: "Fundamentals of Anaerobic Digestion", credits: 3, sem: 1 },
+    { code: "BENG 102", title: "Feedstock Management & Pre-treatment", credits: 3, sem: 1 },
+    { code: "BENG 103", title: "Biogas Safety, Operations & Maintenance", credits: 2, sem: 1 },
+    { code: "BENG 104", title: "Biogas Plant Design & Sizing", credits: 3, sem: 1, requires: "BENG 101" },
+    { code: "BENG 105", title: "CHP Integration & Plant Practicum", credits: 4, sem: 1, requires: "BENG 104" },
   ];
   const courseIds: Record<string, string> = {};
   for (const c of courseDefs) {
     const course = await db.course.upsert({
       where: { code: c.code },
-      update: { title: c.title, credits: c.credits, departmentId: cee.id },
-      create: { code: c.code, title: c.title, credits: c.credits, departmentId: cee.id },
+      update: { title: c.title, credits: c.credits, departmentId: dbeDept.id },
+      create: { code: c.code, title: c.title, credits: c.credits, departmentId: dbeDept.id },
     });
     courseIds[c.code] = course.id;
   }
@@ -525,9 +620,9 @@ async function main() {
   }
 
   const curriculum = await db.curriculumVersion.upsert({
-    where: { programmeId_name: { programmeId: bscCpe.id, name: "2026 entry" } },
-    update: { minCredits: 9, maxCredits: 15 },
-    create: { programmeId: bscCpe.id, name: "2026 entry", minCredits: 9, maxCredits: 15 },
+    where: { programmeId_name: { programmeId: beng.id, name: "2026 cohort" } },
+    update: { minCredits: 10, maxCredits: 15 },
+    create: { programmeId: beng.id, name: "2026 cohort", minCredits: 10, maxCredits: 15 },
   });
   for (const c of courseDefs) {
     await db.curriculumCourse.upsert({
@@ -536,35 +631,34 @@ async function main() {
       create: { curriculumId: curriculum.id, courseId: courseIds[c.code], semesterNumber: c.sem, type: "CORE" },
     });
   }
-  console.log(`  ✓ ${courseDefs.length} courses + curriculum "2026 entry" for BSc Computer Engineering`);
+  console.log(`  ✓ ${courseDefs.length} modules + curriculum "2026 cohort" for Biogas & Biomass Engineering`);
 
   // 10. Fee schedule for the academic year
   const feeSchedule = await db.feeSchedule.upsert({
-    where: { academicYearId_level: { academicYearId: year.id, level: "UNDERGRADUATE" } },
+    where: { academicYearId_level: { academicYearId: year.id, level: "DIPLOMA" } },
     update: {},
-    create: { academicYearId: year.id, level: "UNDERGRADUATE", name: "2026/2027 Undergraduate Fees" },
+    create: { academicYearId: year.id, level: "DIPLOMA", name: "2026 Training Cohort Fees" },
   });
   const feeItemCount = await db.feeItem.count({ where: { scheduleId: feeSchedule.id } });
   if (feeItemCount === 0) {
     await db.feeItem.createMany({
       data: [
-        { scheduleId: feeSchedule.id, name: "Tuition", amount: 350_000 },
-        { scheduleId: feeSchedule.id, name: "Academic Facility User Fee", amount: 20_000 },
-        { scheduleId: feeSchedule.id, name: "SRC Dues", amount: 5_000 },
-        { scheduleId: feeSchedule.id, name: "ICT Fee", amount: 10_000 },
+        { scheduleId: feeSchedule.id, name: "Training Fee", amount: 250_000 }, // GHS 2,500 (placeholder)
+        { scheduleId: feeSchedule.id, name: "Workshop Materials & PPE Fee", amount: 30_000 }, // GHS 300 (placeholder)
+        { scheduleId: feeSchedule.id, name: "Certification & Assessment Fee", amount: 20_000 }, // GHS 200 (placeholder)
       ],
     });
   }
-  console.log("  ✓ 2026/2027 undergraduate fee schedule (GHS 3,850.00 per semester)");
+  console.log("  ✓ 2026 training cohort fee schedule (GHS 3,000.00 per cohort — placeholder, adjust in Admin > Fees)");
 
-  // 11. Course offerings for the current semester, with lecturers assigned
+  // 11. Course offerings for the in-session cohort, with instructors assigned
   const lecturerUser = await db.user.findUniqueOrThrow({ where: { email: "lecturer@demo.campuscore.test" } });
   const offeringIds: Record<string, string> = {};
   for (const c of courseDefs.filter((c) => c.sem === 1)) {
     const offering = await db.courseOffering.upsert({
       where: { courseId_semesterId: { courseId: courseIds[c.code], semesterId: semester1.id } },
       update: {},
-      create: { courseId: courseIds[c.code], semesterId: semester1.id, capacity: 80 },
+      create: { courseId: courseIds[c.code], semesterId: semester1.id, capacity: 25 },
     });
     offeringIds[c.code] = offering.id;
     for (const staffUserId of [lecturerUser.id, superUser.id]) {
@@ -575,9 +669,11 @@ async function main() {
       });
     }
   }
-  console.log(`  ✓ ${Object.keys(offeringIds).length} course offerings for Semester 1, lecturers assigned`);
+  console.log(`  ✓ ${Object.keys(offeringIds).length} module offerings for the current cohort, instructors assigned`);
 
-  // 12. Enroll the demo student and the super user as real students
+  // 12. Enroll the demo trainee and the super user as real trainees — or
+  // migrate them onto the new programme if they were seeded under the old
+  // demo structure (this is seeded demo data, safe to move).
   for (const email of ["student@demo.campuscore.test", SUPER_USER_EMAIL]) {
     const u = await db.user.findUniqueOrThrow({ where: { email } });
     const already = await db.student.findUnique({ where: { userId: u.id } });
@@ -586,67 +682,46 @@ async function main() {
         data: {
           userId: u.id,
           indexNo: indexNumber(year.label),
-          programmeId: bscCpe.id,
+          programmeId: beng.id,
           curriculumVersionId: curriculum.id,
           entryYearId: year.id,
           status: "ACTIVE",
         },
       });
+    } else if (already.programmeId !== beng.id) {
+      await db.student.update({
+        where: { id: already.id },
+        data: { programmeId: beng.id, curriculumVersionId: curriculum.id, entryYearId: year.id },
+      });
     }
   }
-  console.log("  ✓ demo student + super user enrolled as students of BSc Computer Engineering");
+  console.log("  ✓ demo trainee + super user enrolled in Biogas & Biomass Engineering");
 
-  // 13. Venues
+  // 13. Venues — named for each programme's real hands-on training format
   for (const v of [
-    { name: "Lecture Theatre A", capacity: 200 },
-    { name: "Lecture Theatre B", capacity: 150 },
-    { name: "Engineering Lab 1", capacity: 40 },
+    { name: "Solar PV Workshop", capacity: 25 },
+    { name: "Biogas Plant & Lab", capacity: 25 },
+    { name: "Wind Turbine Test Field", capacity: 20 },
+    { name: "EV Garage & Powertrain Bay", capacity: 15 },
+    { name: "Battery & Energy Storage Lab", capacity: 20 },
   ]) {
     await db.venue.upsert({ where: { name: v.name }, update: {}, create: v });
   }
   console.log("  ✓ venues");
 
-  // 14. Hostels, rooms and beds
-  const hostelDefs: { name: string; gender: "MALE" | "FEMALE" | "MIXED"; feePerYear: number; rooms: number; bedsPerRoom: number }[] = [
-    { name: "Unity Hall", gender: "MALE", feePerYear: 250_000, rooms: 2, bedsPerRoom: 2 },
-    { name: "Hall of Grace", gender: "FEMALE", feePerYear: 250_000, rooms: 2, bedsPerRoom: 2 },
-    { name: "International House", gender: "MIXED", feePerYear: 300_000, rooms: 2, bedsPerRoom: 2 },
-  ];
-  for (const h of hostelDefs) {
-    const hostel = await db.hostel.upsert({
-      where: { name: h.name },
-      update: { gender: h.gender, feePerYear: h.feePerYear },
-      create: { name: h.name, gender: h.gender, feePerYear: h.feePerYear },
-    });
-    for (let r = 1; r <= h.rooms; r++) {
-      const label = `R${r}`;
-      const room = await db.room.upsert({
-        where: { hostelId_label: { hostelId: hostel.id, label } },
-        update: {},
-        create: { hostelId: hostel.id, label, capacity: h.bedsPerRoom },
-      });
-      for (let b = 1; b <= h.bedsPerRoom; b++) {
-        const bedLabel = `B${b}`;
-        await db.bed.upsert({
-          where: { roomId_label: { roomId: room.id, label: bedLabel } },
-          update: {},
-          create: { roomId: room.id, label: bedLabel },
-        });
-      }
-    }
-  }
-  console.log(`  ✓ ${hostelDefs.length} hostels with rooms and beds`);
+  // 14. Accommodation is not provided by the Center (not part of its
+  // published offering) — the module stays available but unseeded.
 
-  // 15. Library items
+  // 15. Library items — real, relevant renewable-energy reference texts
   const bookCount = await db.libraryItem.count();
   if (bookCount === 0) {
     await db.libraryItem.createMany({
       data: [
-        { title: "Introduction to Algorithms", author: "Cormen, Leiserson, Rivest, Stein", copiesTotal: 3, copiesAvailable: 3 },
-        { title: "Fundamentals of Electric Circuits", author: "Sadiku & Alexander", copiesTotal: 4, copiesAvailable: 4 },
-        { title: "Calculus: Early Transcendentals", author: "James Stewart", copiesTotal: 5, copiesAvailable: 5 },
-        { title: "University Physics", author: "Young & Freedman", copiesTotal: 3, copiesAvailable: 3 },
-        { title: "Renewable Energy: Power for a Sustainable Future", author: "Godfrey Boyle", copiesTotal: 2, copiesAvailable: 2 },
+        { title: "Solar Engineering of Thermal Processes", author: "Duffie & Beckman", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "The Biogas Handbook: Science, Production and Applications", author: "Wellinger, Murphy & Baxter (eds.)", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "Wind Energy Explained: Theory, Design and Application", author: "Manwell, McGowan & Rogers", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "Electric Vehicle Technology Explained", author: "Larminie & Lowry", copiesTotal: 3, copiesAvailable: 3 },
+        { title: "Battery Management Systems for Large Lithium-Ion Battery Packs", author: "Andrea", copiesTotal: 2, copiesAvailable: 2 },
       ],
     });
   }
@@ -659,14 +734,14 @@ async function main() {
     const existing = await db.staffProfile.findUnique({ where: { userId: u.id } });
     if (!existing) {
       await db.staffProfile.create({
-        data: { userId: u.id, staffNo: staffNo(), position: u.name.replace("Demo ", ""), departmentCode: "CEE", hiredOn: inDays(-900) },
+        data: { userId: u.id, staffNo: staffNo(), position: u.name.replace("Demo ", ""), departmentCode: "DBE", hiredOn: new Date("2023-01-01") },
       });
     }
   }
   const superStaff = await db.staffProfile.findUnique({ where: { userId: superUser.id } });
   if (!superStaff) {
     await db.staffProfile.create({
-      data: { userId: superUser.id, staffNo: staffNo(), position: "Super Admin", departmentCode: "CEE", hiredOn: inDays(-900) },
+      data: { userId: superUser.id, staffNo: staffNo(), position: "Super Admin", departmentCode: "DBE", hiredOn: new Date("2023-01-01") },
     });
   }
   console.log("  ✓ staff HR profiles");
@@ -676,8 +751,8 @@ async function main() {
   if (announcementCount === 0) {
     await db.announcement.create({
       data: {
-        title: "Welcome to the 2026/2027 Academic Year",
-        body: "Registration for Semester 1 is now open. Please check the academic calendar for key dates and ensure your fees are paid before the registration deadline.",
+        title: "Applications open — September–November 2026 cohort",
+        body: "Wind Energy Engineering and Electric Vehicles applications are now open for the September–November 2026 cohort. Pay your application voucher fee online to register — spaces are limited.",
         audience: "ALL",
       },
     });

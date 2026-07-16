@@ -32,7 +32,8 @@ export async function PortalShell({
   user: CurrentUser;
   children: React.ReactNode;
 }) {
-  const [recent, unreadCount] = await Promise.all([
+  const [institution, recent, unreadCount] = await Promise.all([
+    db.institution.findFirst(),
     db.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -40,6 +41,7 @@ export async function PortalShell({
     }),
     db.notification.count({ where: { userId: user.id, readAt: null } }),
   ]);
+  const brandName = institution?.shortName ?? "SYDA-GTIC";
   const bellItems = recent.map((n) => ({
     id: n.id,
     title: n.title,
@@ -55,7 +57,7 @@ export async function PortalShell({
       <aside className="hidden w-60 shrink-0 flex-col border-r border-ink-300/60 bg-white md:flex">
         <div className="border-b border-ink-300/60 px-5 py-4">
           <Link href="/" className="block">
-            <span className="text-lg font-bold text-brand-800">CampusCore</span>
+            <span className="text-lg font-bold text-brand-800">{brandName}</span>
           </Link>
           <span className="mt-0.5 block text-xs font-medium uppercase tracking-wide text-ink-500">
             {portalName}
@@ -93,7 +95,7 @@ export async function PortalShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-ink-300/60 bg-white px-4 py-3 md:px-6">
           <div className="md:hidden">
-            <span className="font-bold text-brand-800">CampusCore</span>
+            <span className="font-bold text-brand-800">{brandName}</span>
             <span className="ml-2 text-xs uppercase text-ink-500">{portalName}</span>
           </div>
           <div className="hidden text-sm text-ink-500 md:block">{portalName}</div>

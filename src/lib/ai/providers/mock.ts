@@ -26,12 +26,12 @@ export const mockProvider: AIProvider = {
           .split("\n\n")[0]
           ?.slice(0, 400) ?? "";
       answer =
-        `(mock AI) Based on the university's official documents, here is what applies to ` +
+        `(mock AI) Based on the Center's official documents, here is what applies to ` +
         `your question "${question.slice(0, 120)}":\n\n${firstPassage}\n\n` +
         `Source: ${firstSource}. In production this answer is written by Claude from the same retrieved passages.`;
     } else {
       answer =
-        `(mock AI) I could not find anything about this in the university's published ` +
+        `(mock AI) I could not find anything about this in the Center's published ` +
         `documents, so I won't guess. Please contact the relevant office directly — ` +
         `or ask me something covered by the student handbook or examination regulations.`;
     }

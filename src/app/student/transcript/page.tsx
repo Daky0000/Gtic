@@ -29,6 +29,8 @@ export default async function TranscriptPage() {
     orderBy: { createdAt: "desc" },
   });
   const latestResult = results.at(-1);
+  const institution = await db.institution.findFirst();
+  const institutionName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -50,8 +52,8 @@ export default async function TranscriptPage() {
 
       <div className="mt-6 rounded-lg border-2 border-brand-800 bg-white p-8 print:border-none">
         <div className="border-b border-ink-300/60 pb-3">
-          <div className="text-lg font-bold text-brand-800">CampusCore Demo University</div>
-          <div className="text-xs text-ink-500">Official Academic Transcript</div>
+          <div className="text-lg font-bold text-brand-800">{institutionName}</div>
+          <div className="text-xs text-ink-500">Official Training Transcript</div>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
           <div><dt className="text-ink-500">Name</dt><dd className="font-medium">{user.name}</dd></div>

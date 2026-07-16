@@ -109,7 +109,7 @@ export function AssistantPanel() {
           <div className="border-b border-ink-300/60 bg-brand-800 px-4 py-3 text-white">
             <div className="font-semibold">Campus assistant</div>
             <div className="text-xs text-brand-100">
-              Answers come from official university documents
+              Answers come from official Center documents
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export function AssistantPanel() {
             {messages.length === 0 && (
               <div className="rounded-lg bg-ink-100 p-3 text-sm text-ink-700">
                 Ask me about programmes, admission requirements, examination rules
-                or fees. I answer only from the university&apos;s published documents.
+                or fees. I answer only from the Center&apos;s published documents.
               </div>
             )}
             {messages.map((m, i) => (

@@ -12,16 +12,16 @@ async function buildAssistantSystem(
   question: string
 ): Promise<{ system: SystemBlock[]; citations: Citation[] }> {
   const institution = await db.institution.findFirst();
-  const name = institution?.name ?? "the university";
+  const name = institution?.name ?? "the Center";
 
   // Stable, cacheable prefix — must not contain per-request content.
   const stable: SystemBlock = {
     cache: true,
     text: [
-      `You are the official AI assistant of ${name}, embedded in the CampusCore portal.`,
+      `You are the official AI assistant of ${name}, embedded in the trainee/applicant portal.`,
       ``,
       `Rules you must always follow:`,
-      `1. Answer ONLY from the KNOWLEDGE CONTEXT block provided in this conversation. If the context does not contain the answer, say you cannot find it in the university's official documents and point the user to the relevant office. Never invent policies, dates, fees or requirements.`,
+      `1. Answer ONLY from the KNOWLEDGE CONTEXT block provided in this conversation. If the context does not contain the answer, say you cannot find it in the Center's official documents and point the user to the relevant office. Never invent policies, dates, fees or requirements.`,
       `2. When you use a passage, cite it inline as [source: <slug>] using the slug shown with the passage.`,
       `3. Be concise, warm and practical. Use plain English.`,
       `4. You have no access to personal records yet (results, fees, registrations arrive in later phases) — if asked, say so and name the office that can help.`,
@@ -39,7 +39,7 @@ async function buildAssistantSystem(
   const context: SystemBlock = {
     text:
       chunks.length > 0
-        ? "KNOWLEDGE CONTEXT — passages from official university documents:\n\n" +
+        ? "KNOWLEDGE CONTEXT — passages from official Center documents:\n\n" +
           chunks
             .map((c) => `[source: ${c.documentSlug}] ${c.heading ? `(${c.heading}) ` : ""}\n${c.content}`)
             .join("\n\n---\n\n")

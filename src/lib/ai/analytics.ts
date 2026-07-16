@@ -125,7 +125,7 @@ export async function askAnalyticsQuestion(opts: {
         thinking: { type: "adaptive" },
         output_config: { effort: cfg.effort },
         system:
-          "You are a management analytics assistant for a university. Answer only using the provided " +
+          "You are a management analytics assistant for a renewable energy training center. Answer only using the provided " +
           "tools — never guess or estimate a figure yourself. Be concise and cite the numbers you found.",
         tools: TOOL_DEFS,
         messages,
