@@ -22,10 +22,10 @@ const auth = betterAuth({
 });
 
 const EMAIL = process.env.ADMIN_EMAIL ?? "super@demo.campuscore.test";
-const PASSWORD = process.env.ADMIN_PASSWORD;
+const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const NAME = process.env.ADMIN_NAME ?? "Super Admin";
 
-if (!PASSWORD || PASSWORD.length < 8) {
+if (PASSWORD.length < 8) {
   console.error(
     "ADMIN_PASSWORD env var is required (min 8 chars).\n" +
       'Example:  DATABASE_URL="<prod url>" ADMIN_PASSWORD="<choose one>" npm run admin:create',
