@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 
+// Dynamic (not ISR): avoids requiring a database connection at build time —
+// same reasoning as the homepage/programmes pages. Without this, routes
+// under this layout that don't independently force dynamic rendering
+// (e.g. /login, /check-status) get statically prerendered at build time,
+// which fails when the database isn't reachable from the build environment
+// (as on Railway, where postgres.railway.internal is a runtime-only address).
+export const dynamic = "force-dynamic";
+
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const institution = await db.institution.findFirst();
   const shortName = institution?.shortName ?? "SYDA-GTIC";
