@@ -14,20 +14,19 @@ export function demoEmailForRole(roleCode: string): string {
   return `${roleCode.replace(/_/g, ".")}@${DEMO_EMAIL_DOMAIN}`;
 }
 
-/** Each testing account gets its own default password, derived from the role
- * (e.g. exams_officer → "ExamsOfficer@Gtic2026"). These are TESTING
- * credentials — rotate them via DEMO_PASSWORD / ADMIN_PASSWORD (or in-app)
- * before any real data enters the system. */
-export function demoPasswordForRole(roleCode: string): string {
-  const pascal = roleCode
-    .split("_")
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join("");
-  return `${pascal}@Gtic2026`;
+/** One simple shared password for every testing account (per project decision
+ * 2026-07-17: simpler beats per-role). These are TESTING credentials — rotate
+ * them via DEMO_PASSWORD / ADMIN_PASSWORD (or in-app) before any real data
+ * enters the system. Must stay ≥ 8 chars: seed.ts creates users through the
+ * better-auth signup API, which enforces the minimum length. */
+export const DEMO_SHARED_PASSWORD = "gtic1234";
+
+export function demoPasswordForRole(_roleCode: string): string {
+  return DEMO_SHARED_PASSWORD;
 }
 
 /** Default password for the all-roles super user. */
-export const SUPER_USER_PASSWORD = "Super@Gtic2026";
+export const SUPER_USER_PASSWORD = DEMO_SHARED_PASSWORD;
 
 export const ROLES: [code: string, name: string][] = [
   ["applicant", "Prospective Applicant"],

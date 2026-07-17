@@ -73,7 +73,7 @@ export async function bootstrapAccounts(
     );
     await ensureRole(user.id, roleIds.get(code)!);
   }
-  log(`✓ ${ROLES.length} testing users (${sharedOverride ? "shared password from DEMO_PASSWORD" : "per-role default passwords"})`);
+  log(`✓ ${ROLES.length} testing users (${sharedOverride ? "shared password from DEMO_PASSWORD" : "shared default password"})`);
 
   // 3. Super user holding every role.
   const superUser = await upsertAccount(SUPER_USER_EMAIL, "Super Admin", superPassword);

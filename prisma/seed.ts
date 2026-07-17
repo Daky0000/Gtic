@@ -381,7 +381,7 @@ async function main() {
       await db.roleAssignment.create({ data: { userId: user.id, roleId: role.id } });
     }
   }
-  console.log(`  ✓ ${ROLES.length} demo users (per-role passwords, e.g. ${demoEmailForRole("registrar")} / ${demoPasswordForRole("registrar")})`);
+  console.log(`  ✓ ${ROLES.length} demo users (shared password, e.g. ${demoEmailForRole("registrar")} / ${demoPasswordForRole("registrar")})`);
 
   // 3b. Super user — holds every role, for testing the whole system before
   // roles are divided across real staff.

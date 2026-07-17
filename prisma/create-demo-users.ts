@@ -5,8 +5,8 @@
 // accounts. Idempotent and safe against a live production database.
 //
 // Passwords: every run RESETS the testing accounts' passwords so the
-// documented credentials always work. Each account has its own per-role
-// default (see demoPasswordForRole in rbac-catalog.ts); env overrides:
+// documented credentials always work. All accounts share one simple default
+// (DEMO_SHARED_PASSWORD in rbac-catalog.ts); env overrides:
 //   DEMO_PASSWORD   one shared password for ALL per-role testing users
 //   ADMIN_PASSWORD  password for the super user
 import { PrismaClient } from "@prisma/client";
