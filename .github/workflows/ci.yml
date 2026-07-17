@@ -116,7 +116,7 @@ jobs:
       - name: Boot the image and log in through it
         run: |
           docker run -d --name app --network host \
-            -e DATABASE_URL -e BETTER_AUTH_SECRET \
+            -e DATABASE_URL -e BETTER_AUTH_SECRET -e ADMIN_PASSWORD -e DEMO_PASSWORD \
             -e BETTER_AUTH_URL=http://localhost:3000 \
             -e NEXT_PUBLIC_APP_URL=http://localhost:3000 \
             campuscore:ci

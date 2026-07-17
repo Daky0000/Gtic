@@ -42,4 +42,8 @@ COPY --from=builder /app/package.json ./package.json
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
-CMD ["node", "server.js"]
+# Migrations + account bootstrap run at container start, not in a platform
+# pre-deploy hook: Railway ignored railway.json's preDeployCommand (it built
+# the Dockerfile while config-as-code said NIXPACKS), so anything that MUST
+# run in production has to live inside the image. Both steps are idempotent.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/create-demo-users.ts && exec node server.js"]
