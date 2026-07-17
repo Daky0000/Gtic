@@ -1,24 +1,18 @@
-// Deploy-time account bootstrap — idempotent and safe against a live
-// production database. It syncs the role/permission catalog, then creates
-// (or heals) the standard testing accounts: one user per role plus the
-// all-roles super user. Unlike the full demo seed, it touches NOTHING else —
-// no programmes, cycles, students or records of any kind.
+// Standalone runner for the account bootstrap — used by `npm run start` (in
+// production before the server boots), by `npm run users:demo` manually, and
+// by CI. The logic lives in bootstrap-accounts.ts, shared with the in-app
+// startup hook (src/instrumentation.ts) so every path creates the same
+// accounts. Idempotent and safe against a live production database.
 //
 // Passwords: every run RESETS the testing accounts' passwords so the
 // documented credentials always work. Each account has its own per-role
 // default (see demoPasswordForRole in rbac-catalog.ts); env overrides:
 //   DEMO_PASSWORD   one shared password for ALL per-role testing users
 //   ADMIN_PASSWORD  password for the super user
-//
-// Runs automatically as part of the Railway pre-deploy command; run manually
-// with `npm run users:demo`.
 import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import {
-  ROLES, PERMISSIONS, ROLE_PERMISSIONS,
-  SUPER_USER_EMAIL, SUPER_USER_PASSWORD, demoEmailForRole, demoPasswordForRole,
-} from "./rbac-catalog";
+import { bootstrapAccounts } from "./bootstrap-accounts";
 
 const db = new PrismaClient();
 
@@ -29,75 +23,9 @@ const auth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8 },
 });
 
-const SHARED_OVERRIDE = process.env.DEMO_PASSWORD || null;
-const SUPER_PASSWORD = process.env.ADMIN_PASSWORD || SUPER_USER_PASSWORD;
-
-/** Create the user + credential if missing, otherwise reset the password. */
-async function upsertAccount(email: string, name: string, password: string) {
-  const hash = await (await auth.$context).password.hash(password);
-  let user = await db.user.findUnique({ where: { email } });
-  if (!user) {
-    user = await db.user.create({ data: { name, email, emailVerified: true } });
-    await db.account.create({
-      data: { accountId: user.id, providerId: "credential", userId: user.id, password: hash },
-    });
-  } else {
-    await db.user.update({ where: { id: user.id }, data: { emailVerified: true } });
-    const cred = await db.account.findFirst({ where: { userId: user.id, providerId: "credential" } });
-    if (cred) {
-      await db.account.update({ where: { id: cred.id }, data: { password: hash } });
-    } else {
-      await db.account.create({
-        data: { accountId: user.id, providerId: "credential", userId: user.id, password: hash },
-      });
-    }
-  }
-  return user;
-}
-
-async function ensureRole(userId: string, roleId: string) {
-  const existing = await db.roleAssignment.findFirst({ where: { userId, roleId } });
-  if (!existing) await db.roleAssignment.create({ data: { userId, roleId } });
-}
-
 async function main() {
-  // 1. Role + permission catalog (idempotent upserts).
-  const roleIds = new Map<string, string>();
-  for (const [code, name] of ROLES) {
-    const role = await db.role.upsert({ where: { code }, update: { name }, create: { code, name } });
-    roleIds.set(code, role.id);
-  }
-  for (const [code, name, module] of PERMISSIONS) {
-    await db.permission.upsert({ where: { code }, update: { name, module }, create: { code, name, module } });
-  }
-  for (const [roleCode, permCodes] of Object.entries(ROLE_PERMISSIONS)) {
-    for (const permCode of permCodes) {
-      const perm = await db.permission.findUniqueOrThrow({ where: { code: permCode } });
-      const roleId = roleIds.get(roleCode)!;
-      await db.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId, permissionId: perm.id } },
-        update: {},
-        create: { roleId, permissionId: perm.id },
-      });
-    }
-  }
-  console.log(`✓ ${ROLES.length} roles, ${PERMISSIONS.length} permissions`);
-
-  // 2. One testing user per role, each with its own per-role password.
-  for (const [code, name] of ROLES) {
-    const user = await upsertAccount(
-      demoEmailForRole(code),
-      `Demo ${name}`,
-      SHARED_OVERRIDE ?? demoPasswordForRole(code)
-    );
-    await ensureRole(user.id, roleIds.get(code)!);
-  }
-  console.log(`✓ ${ROLES.length} testing users (${SHARED_OVERRIDE ? "shared password from DEMO_PASSWORD" : "per-role default passwords"})`);
-
-  // 3. Super user holding every role.
-  const superUser = await upsertAccount(SUPER_USER_EMAIL, "Super Admin", SUPER_PASSWORD);
-  for (const [code] of ROLES) await ensureRole(superUser.id, roleIds.get(code)!);
-  console.log(`✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles (password ${process.env.ADMIN_PASSWORD ? "from ADMIN_PASSWORD" : "per-role default"})`);
+  const ctx = await auth.$context;
+  await bootstrapAccounts(db, (pw) => ctx.password.hash(pw));
 }
 
 main()
