@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "admin:create": "tsx prisma/create-admin.ts",
+    "users:demo": "tsx prisma/create-demo-users.ts",
     "db:studio": "prisma studio",
     "docs:plan": "node docs/generate-plan-docx.mjs",
     "postinstall": "prisma generate"

@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "preDeployCommand": "npx prisma migrate deploy && (npx tsx prisma/create-admin.ts || echo 'admin bootstrap skipped (set ADMIN_PASSWORD to enable)')",
+    "preDeployCommand": "npx prisma migrate deploy && npx tsx prisma/create-demo-users.ts",
     "startCommand": "npm run start",
     "restartPolicyType": "ON_FAILURE"
   }

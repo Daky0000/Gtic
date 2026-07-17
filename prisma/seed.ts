@@ -13,9 +13,12 @@ import {
 
 const db = new PrismaClient();
 
-// One account holding EVERY role — for exercising the whole system during
-// testing before roles are divided across real staff (per project decision).
-const SUPER_USER_EMAIL = "super@demo.campuscore.test";
+// Roles, permissions and demo-account conventions live in rbac-catalog.ts,
+// shared with the production account bootstrap (create-demo-users.ts).
+import {
+  ROLES, PERMISSIONS, ROLE_PERMISSIONS,
+  SUPER_USER_EMAIL, DEFAULT_DEMO_PASSWORD, demoEmailForRole,
+} from "./rbac-catalog";
 
 // Local better-auth instance (no Next.js plugins) so seeded passwords use the
 // exact same hashing as the running app.
@@ -24,45 +27,7 @@ const seedAuth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8 },
 });
 
-const DEMO_PASSWORD = "Password123!";
-
-const ROLES: [code: string, name: string][] = [
-  ["applicant", "Prospective Applicant"],
-  ["student", "Trainee"],
-  ["lecturer", "Instructor"],
-  ["hod", "Head of Department"],
-  ["dean", "Dean of School"],
-  ["admissions_officer", "Admissions Officer"],
-  ["registrar", "Registrar / Academic Affairs"],
-  ["exams_officer", "Assessments Officer"],
-  ["finance_officer", "Finance Officer"],
-  ["accommodation_manager", "Accommodation Manager"],
-  ["librarian", "Librarian"],
-  ["hr_officer", "HR Officer"],
-  ["grad_school_officer", "Graduate School Officer"],
-  ["counsellor", "Counsellor / Trainee Affairs"],
-  ["qa_officer", "Quality Assurance Officer"],
-  ["management", "Center Management"],
-  ["alumni", "Alumnus/Alumna"],
-  ["system_admin", "System Administrator"],
-  ["developer", "Developer / Super Administrator"],
-];
-
-const PERMISSIONS: [code: string, name: string, module: string][] = [
-  ["admin.access", "Access the administration portal", "system"],
-  ["users.manage", "Manage users and role assignments", "system"],
-  ["institution.configure", "Configure institution identity and settings", "system"],
-  ["knowledge.manage", "Manage the AI knowledge base", "ai"],
-  ["ai.configure", "Configure AI features and budgets", "ai"],
-  ["audit.view", "View the audit log", "system"],
-];
-
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  developer: PERMISSIONS.map(([code]) => code),
-  system_admin: PERMISSIONS.map(([code]) => code),
-  registrar: ["knowledge.manage", "audit.view"],
-  management: ["audit.view"],
-};
+const DEMO_PASSWORD = DEFAULT_DEMO_PASSWORD;
 
 // ── SYDA-GTIC's real academic structure: one School of Renewable Energy,
 // five departments, each running one 3-month intensive diploma programme. ──
@@ -400,7 +365,7 @@ async function main() {
 
   // 3. Demo users — one per role, password identical for all demo accounts.
   for (const [code, name] of ROLES) {
-    const email = `${code.replace(/_/g, ".")}@demo.campuscore.test`;
+    const email = demoEmailForRole(code);
     let user = await db.user.findUnique({ where: { email } });
     if (!user) {
       await seedAuth.api.signUpEmail({
