@@ -5,9 +5,10 @@
 // no programmes, cycles, students or records of any kind.
 //
 // Passwords: every run RESETS the testing accounts' passwords so the
-// documented credentials always work.
-//   DEMO_PASSWORD   password for the per-role testing users (default below)
-//   ADMIN_PASSWORD  password for the super user (falls back to DEMO_PASSWORD)
+// documented credentials always work. Each account has its own per-role
+// default (see demoPasswordForRole in rbac-catalog.ts); env overrides:
+//   DEMO_PASSWORD   one shared password for ALL per-role testing users
+//   ADMIN_PASSWORD  password for the super user
 //
 // Runs automatically as part of the Railway pre-deploy command; run manually
 // with `npm run users:demo`.
@@ -16,7 +17,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import {
   ROLES, PERMISSIONS, ROLE_PERMISSIONS,
-  SUPER_USER_EMAIL, DEFAULT_DEMO_PASSWORD, demoEmailForRole,
+  SUPER_USER_EMAIL, SUPER_USER_PASSWORD, demoEmailForRole, demoPasswordForRole,
 } from "./rbac-catalog";
 
 const db = new PrismaClient();
@@ -28,8 +29,8 @@ const auth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8 },
 });
 
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || DEFAULT_DEMO_PASSWORD;
-const SUPER_PASSWORD = process.env.ADMIN_PASSWORD || DEMO_PASSWORD;
+const SHARED_OVERRIDE = process.env.DEMO_PASSWORD || null;
+const SUPER_PASSWORD = process.env.ADMIN_PASSWORD || SUPER_USER_PASSWORD;
 
 /** Create the user + credential if missing, otherwise reset the password. */
 async function upsertAccount(email: string, name: string, password: string) {
@@ -82,17 +83,21 @@ async function main() {
   }
   console.log(`✓ ${ROLES.length} roles, ${PERMISSIONS.length} permissions`);
 
-  // 2. One testing user per role.
+  // 2. One testing user per role, each with its own per-role password.
   for (const [code, name] of ROLES) {
-    const user = await upsertAccount(demoEmailForRole(code), `Demo ${name}`, DEMO_PASSWORD);
+    const user = await upsertAccount(
+      demoEmailForRole(code),
+      `Demo ${name}`,
+      SHARED_OVERRIDE ?? demoPasswordForRole(code)
+    );
     await ensureRole(user.id, roleIds.get(code)!);
   }
-  console.log(`✓ ${ROLES.length} testing users (one per role, password ${process.env.DEMO_PASSWORD ? "from DEMO_PASSWORD" : `"${DEFAULT_DEMO_PASSWORD}"`})`);
+  console.log(`✓ ${ROLES.length} testing users (${SHARED_OVERRIDE ? "shared password from DEMO_PASSWORD" : "per-role default passwords"})`);
 
   // 3. Super user holding every role.
   const superUser = await upsertAccount(SUPER_USER_EMAIL, "Super Admin", SUPER_PASSWORD);
   for (const [code] of ROLES) await ensureRole(superUser.id, roleIds.get(code)!);
-  console.log(`✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles (password ${process.env.ADMIN_PASSWORD ? "from ADMIN_PASSWORD" : "same as testing users"})`);
+  console.log(`✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles (password ${process.env.ADMIN_PASSWORD ? "from ADMIN_PASSWORD" : "per-role default"})`);
 }
 
 main()

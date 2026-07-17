@@ -17,7 +17,7 @@ const db = new PrismaClient();
 // shared with the production account bootstrap (create-demo-users.ts).
 import {
   ROLES, PERMISSIONS, ROLE_PERMISSIONS,
-  SUPER_USER_EMAIL, DEFAULT_DEMO_PASSWORD, demoEmailForRole,
+  SUPER_USER_EMAIL, SUPER_USER_PASSWORD, demoEmailForRole, demoPasswordForRole,
 } from "./rbac-catalog";
 
 // Local better-auth instance (no Next.js plugins) so seeded passwords use the
@@ -27,7 +27,6 @@ const seedAuth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8 },
 });
 
-const DEMO_PASSWORD = DEFAULT_DEMO_PASSWORD;
 
 // ── SYDA-GTIC's real academic structure: one School of Renewable Energy,
 // five departments, each running one 3-month intensive diploma programme. ──
@@ -369,7 +368,7 @@ async function main() {
     let user = await db.user.findUnique({ where: { email } });
     if (!user) {
       await seedAuth.api.signUpEmail({
-        body: { email, password: DEMO_PASSWORD, name: `Demo ${name}` },
+        body: { email, password: demoPasswordForRole(code), name: `Demo ${name}` },
       });
       user = await db.user.findUniqueOrThrow({ where: { email } });
       await db.user.update({ where: { id: user.id }, data: { emailVerified: true } });
@@ -382,14 +381,14 @@ async function main() {
       await db.roleAssignment.create({ data: { userId: user.id, roleId: role.id } });
     }
   }
-  console.log(`  ✓ ${ROLES.length} demo users (password: ${DEMO_PASSWORD})`);
+  console.log(`  ✓ ${ROLES.length} demo users (per-role passwords, e.g. ${demoEmailForRole("registrar")} / ${demoPasswordForRole("registrar")})`);
 
   // 3b. Super user — holds every role, for testing the whole system before
   // roles are divided across real staff.
   let superUser = await db.user.findUnique({ where: { email: SUPER_USER_EMAIL } });
   if (!superUser) {
     await seedAuth.api.signUpEmail({
-      body: { email: SUPER_USER_EMAIL, password: DEMO_PASSWORD, name: "Super Admin" },
+      body: { email: SUPER_USER_EMAIL, password: SUPER_USER_PASSWORD, name: "Super Admin" },
     });
     superUser = await db.user.findUniqueOrThrow({ where: { email: SUPER_USER_EMAIL } });
     await db.user.update({ where: { id: superUser.id }, data: { emailVerified: true } });
@@ -728,7 +727,7 @@ async function main() {
   console.log("  ✓ welcome announcement");
 
   console.log("Seed complete.");
-  console.log(`\nSuper user login: ${SUPER_USER_EMAIL} / ${DEMO_PASSWORD}`);
+  console.log(`\nSuper user login: ${SUPER_USER_EMAIL} / ${SUPER_USER_PASSWORD}`);
 }
 
 main()

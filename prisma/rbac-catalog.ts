@@ -14,9 +14,20 @@ export function demoEmailForRole(roleCode: string): string {
   return `${roleCode.replace(/_/g, ".")}@${DEMO_EMAIL_DOMAIN}`;
 }
 
-/** Shared password for testing accounts. Overridable per deployment via the
- * DEMO_PASSWORD env var (and ADMIN_PASSWORD for the super user). */
-export const DEFAULT_DEMO_PASSWORD = "Password123!";
+/** Each testing account gets its own default password, derived from the role
+ * (e.g. exams_officer → "ExamsOfficer@Gtic2026"). These are TESTING
+ * credentials — rotate them via DEMO_PASSWORD / ADMIN_PASSWORD (or in-app)
+ * before any real data enters the system. */
+export function demoPasswordForRole(roleCode: string): string {
+  const pascal = roleCode
+    .split("_")
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join("");
+  return `${pascal}@Gtic2026`;
+}
+
+/** Default password for the all-roles super user. */
+export const SUPER_USER_PASSWORD = "Super@Gtic2026";
 
 export const ROLES: [code: string, name: string][] = [
   ["applicant", "Prospective Applicant"],
