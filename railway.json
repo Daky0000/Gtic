@@ -6,6 +6,8 @@
   "deploy": {
     "preDeployCommand": "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/create-demo-users.ts",
     "startCommand": "node server.js",
+    "healthcheckPath": "/login",
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }
