@@ -1,0 +1,12 @@
+# Railway builds with Nixpacks (see railway.json). npm's optional-dependency
+# handling (npm/cli#4828) keeps skipping the Linux-glibc native bindings that
+# Tailwind v4 needs, even though they are pinned in package.json and present
+# in the lockfile. A direct `npm i <pkg>@<exact version>` is not an optional
+# dependency and cannot be skipped, so the bindings are guaranteed present
+# before `next build` runs. --no-save keeps package.json/lockfile untouched.
+[phases.install]
+cmds = [
+  "npm ci",
+  "npm i --no-save @tailwindcss/oxide-linux-x64-gnu@4.3.2 lightningcss-linux-x64-gnu@1.32.0",
+  "node -e \"require('@tailwindcss/oxide'); require('lightningcss'); console.log('native bindings OK')\"",
+]
