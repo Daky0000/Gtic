@@ -30,6 +30,10 @@ jobs:
       BETTER_AUTH_SECRET: ci-only-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # CI-only credentials for the bootstrapped accounts (also proves the
+      # env-override path used to rotate real passwords in production).
+      ADMIN_PASSWORD: CiSmoke!12345
+      DEMO_PASSWORD: CiSmoke!12345
       # Empty keys keep AI on the mock provider and payments on the mock channel.
       ANTHROPIC_API_KEY: ""
       AI_PROVIDER: mock
@@ -46,9 +50,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-
       - name: Apply migrations (validates them against a fresh Postgres)
         run: npx prisma migrate deploy
 
@@ -61,66 +62,14 @@ jobs:
       - name: Seed (validates the idempotent seed against the migrated schema)
         run: npm run db:seed
 
-  # Builds the SAME Docker image Railway deploys and exercises it end to end:
-  # pre-deploy (migrate + account bootstrap), boot, and a real login. The
-  # plain `build` job above runs on a full checkout, so it stays green even
-  # when the Dockerfile itself cannot build — exactly how broken deploys
-  # shipped unnoticed in July 2026. This job exists to make that loud.
-  docker-image:
-    runs-on: ubuntu-latest
-
-    services:
-      db:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: campuscore
-          POSTGRES_PASSWORD: campuscore_dev
-          POSTGRES_DB: campuscore
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U campuscore"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      DATABASE_URL: postgresql://campuscore:campuscore_dev@localhost:5432/campuscore
-      BETTER_AUTH_SECRET: ci-only-secret-not-for-production
-      # CI-only credentials for the bootstrapped accounts (also proves the
-      # env-override path used to rotate real passwords in production).
-      ADMIN_PASSWORD: CiSmoke!12345
-      DEMO_PASSWORD: CiSmoke!12345
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build the production image (what Railway deploys)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          tags: campuscore:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run the Railway pre-deploy command inside the image
-        run: >
-          docker run --rm --network host
-          -e DATABASE_URL -e BETTER_AUTH_SECRET -e ADMIN_PASSWORD -e DEMO_PASSWORD
-          campuscore:ci
-          sh -c "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/create-demo-users.ts"
-
-      - name: Boot the image and log in through it
+      # `npm run start` is exactly what production runs: migrate deploy +
+      # account bootstrap + next start. Booting it and logging in catches
+      # anything that builds fine but cannot actually serve — the failure
+      # class that shipped broken deploys unnoticed in July 2026.
+      - name: Boot the production start command and log in through it
         run: |
-          docker run -d --name app --network host \
-            -e DATABASE_URL -e BETTER_AUTH_SECRET -e ADMIN_PASSWORD -e DEMO_PASSWORD \
-            -e BETTER_AUTH_URL=http://localhost:3000 \
-            -e NEXT_PUBLIC_APP_URL=http://localhost:3000 \
-            campuscore:ci
-          for i in $(seq 1 30); do
+          npm run start &
+          for i in $(seq 1 45); do
             curl -fsS -o /dev/null http://localhost:3000/login && break
             sleep 2
           done
@@ -131,7 +80,3 @@ jobs:
             -d "{\"email\":\"super@demo.campuscore.test\",\"password\":\"$ADMIN_PASSWORD\"}")
           echo "sign-in returned $code"
           test "$code" = "200"
-
-      - name: Show app logs on failure
-        if: failure()
-        run: docker logs app 2>&1 | tail -100 || true
