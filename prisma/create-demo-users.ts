@@ -4,11 +4,11 @@
 // startup hook (src/instrumentation.ts) so every path creates the same
 // accounts. Idempotent and safe against a live production database.
 //
-// Passwords: every run RESETS the testing accounts' passwords so the
-// documented credentials always work. All accounts share one simple default
-// (DEMO_SHARED_PASSWORD in rbac-catalog.ts); env overrides:
-//   DEMO_PASSWORD   one shared password for ALL per-role testing users
-//   ADMIN_PASSWORD  password for the super user
+// Accounts: creates ONLY the all-roles developer user (per project decision
+// 2026-07-17), after a one-time marker-gated wipe of all pre-existing users.
+// Every run RESETS the developer password so the documented credential always
+// works; default is DEMO_SHARED_PASSWORD in rbac-catalog.ts, overridable via
+// ADMIN_PASSWORD (or DEMO_PASSWORD).
 import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";

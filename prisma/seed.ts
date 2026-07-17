@@ -17,7 +17,7 @@ const db = new PrismaClient();
 // shared with the production account bootstrap (create-demo-users.ts).
 import {
   ROLES, PERMISSIONS, ROLE_PERMISSIONS,
-  SUPER_USER_EMAIL, SUPER_USER_PASSWORD, demoEmailForRole, demoPasswordForRole,
+  DEVELOPER_EMAIL, DEVELOPER_PASSWORD, demoEmailForRole, demoPasswordForRole,
 } from "./rbac-catalog";
 
 // Local better-auth instance (no Next.js plugins) so seeded passwords use the
@@ -383,14 +383,14 @@ async function main() {
   }
   console.log(`  ✓ ${ROLES.length} demo users (shared password, e.g. ${demoEmailForRole("registrar")} / ${demoPasswordForRole("registrar")})`);
 
-  // 3b. Super user — holds every role, for testing the whole system before
+  // 3b. Developer user — holds every role, for testing the whole system before
   // roles are divided across real staff.
-  let superUser = await db.user.findUnique({ where: { email: SUPER_USER_EMAIL } });
+  let superUser = await db.user.findUnique({ where: { email: DEVELOPER_EMAIL } });
   if (!superUser) {
     await seedAuth.api.signUpEmail({
-      body: { email: SUPER_USER_EMAIL, password: SUPER_USER_PASSWORD, name: "Super Admin" },
+      body: { email: DEVELOPER_EMAIL, password: DEVELOPER_PASSWORD, name: "Developer" },
     });
-    superUser = await db.user.findUniqueOrThrow({ where: { email: SUPER_USER_EMAIL } });
+    superUser = await db.user.findUniqueOrThrow({ where: { email: DEVELOPER_EMAIL } });
     await db.user.update({ where: { id: superUser.id }, data: { emailVerified: true } });
   }
   for (const [code] of ROLES) {
@@ -402,7 +402,7 @@ async function main() {
       await db.roleAssignment.create({ data: { userId: superUser.id, roleId: role.id } });
     }
   }
-  console.log(`  ✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles`);
+  console.log(`  ✓ developer user ${DEVELOPER_EMAIL} holds all ${ROLES.length} roles`);
 
   // 4. Academic structure — 1 diploma-level, 1-semester (3-month) programme
   // per department, matching the Center's real flagship cohorts.
@@ -641,7 +641,7 @@ async function main() {
   // 12. Enroll the demo trainee and the super user as real trainees — or
   // migrate them onto the new programme if they were seeded under the old
   // demo structure (this is seeded demo data, safe to move).
-  for (const email of ["student@demo.campuscore.test", SUPER_USER_EMAIL]) {
+  for (const email of ["student@demo.campuscore.test", DEVELOPER_EMAIL]) {
     const u = await db.user.findUniqueOrThrow({ where: { email } });
     const already = await db.student.findUnique({ where: { userId: u.id } });
     if (!already) {
@@ -708,7 +708,7 @@ async function main() {
   const superStaff = await db.staffProfile.findUnique({ where: { userId: superUser.id } });
   if (!superStaff) {
     await db.staffProfile.create({
-      data: { userId: superUser.id, staffNo: staffNo(), position: "Super Admin", departmentCode: "DBE", hiredOn: new Date("2023-01-01") },
+      data: { userId: superUser.id, staffNo: staffNo(), position: "Developer", departmentCode: "DBE", hiredOn: new Date("2023-01-01") },
     });
   }
   console.log("  ✓ staff HR profiles");
@@ -727,7 +727,7 @@ async function main() {
   console.log("  ✓ welcome announcement");
 
   console.log("Seed complete.");
-  console.log(`\nSuper user login: ${SUPER_USER_EMAIL} / ${SUPER_USER_PASSWORD}`);
+  console.log(`\nDeveloper login: ${DEVELOPER_EMAIL} / ${DEVELOPER_PASSWORD}`);
 }
 
 main()

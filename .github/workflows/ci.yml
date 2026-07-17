@@ -77,6 +77,6 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' \
             -X POST http://localhost:3000/api/auth/sign-in/email \
             -H 'Content-Type: application/json' -H 'Origin: http://localhost:3000' \
-            -d "{\"email\":\"super@demo.campuscore.test\",\"password\":\"$ADMIN_PASSWORD\"}")
+            -d "{\"email\":\"developer@demo.campuscore.test\",\"password\":\"$ADMIN_PASSWORD\"}")
           echo "sign-in returned $code"
           test "$code" = "200"

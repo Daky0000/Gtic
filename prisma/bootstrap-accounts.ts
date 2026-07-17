@@ -4,16 +4,22 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   ROLES, PERMISSIONS, ROLE_PERMISSIONS,
-  SUPER_USER_EMAIL, SUPER_USER_PASSWORD, demoEmailForRole, demoPasswordForRole,
+  DEVELOPER_EMAIL, DEVELOPER_PASSWORD,
 } from "./rbac-catalog";
+
+// One-shot marker (per project decision 2026-07-17): the first boot after this
+// ships wipes ALL existing users — the old per-role demo accounts plus any
+// test signups — so only the developer account remains. Marker-gated so later
+// deploys never touch real users again.
+const USERS_RESET_MARKER = "bootstrap.usersResetToDeveloperOnly.v1";
 
 export async function bootstrapAccounts(
   db: PrismaClient,
   hash: (password: string) => Promise<string>,
   log: (msg: string) => void = console.log
 ) {
-  const sharedOverride = process.env.DEMO_PASSWORD || null;
-  const superPassword = process.env.ADMIN_PASSWORD || SUPER_USER_PASSWORD;
+  const developerPassword =
+    process.env.ADMIN_PASSWORD || process.env.DEMO_PASSWORD || DEVELOPER_PASSWORD;
 
   async function upsertAccount(email: string, name: string, password: string) {
     const passwordHash = await hash(password);
@@ -64,19 +70,22 @@ export async function bootstrapAccounts(
   }
   log(`✓ ${ROLES.length} roles, ${PERMISSIONS.length} permissions`);
 
-  // 2. One testing user per role.
-  for (const [code, name] of ROLES) {
-    const user = await upsertAccount(
-      demoEmailForRole(code),
-      `Demo ${name}`,
-      sharedOverride ?? demoPasswordForRole(code)
-    );
-    await ensureRole(user.id, roleIds.get(code)!);
+  // 2. One-time wipe of every pre-existing user (and their owned data, via
+  // FK cascade) so only the developer account below remains. TRUNCATE CASCADE
+  // clears user-owned tables transitively but leaves institutional catalogs
+  // (roles, programmes, courses, settings) untouched.
+  const alreadyReset = await db.systemSetting.findUnique({ where: { key: USERS_RESET_MARKER } });
+  if (!alreadyReset) {
+    const before = await db.user.count();
+    await db.$executeRawUnsafe(`TRUNCATE TABLE "user" CASCADE`);
+    await db.systemSetting.create({
+      data: { key: USERS_RESET_MARKER, value: new Date().toISOString() },
+    });
+    log(`✓ one-time reset: removed ${before} existing users (marker ${USERS_RESET_MARKER})`);
   }
-  log(`✓ ${ROLES.length} testing users (${sharedOverride ? "shared password from DEMO_PASSWORD" : "shared default password"})`);
 
-  // 3. Super user holding every role.
-  const superUser = await upsertAccount(SUPER_USER_EMAIL, "Super Admin", superPassword);
-  for (const [code] of ROLES) await ensureRole(superUser.id, roleIds.get(code)!);
-  log(`✓ super user ${SUPER_USER_EMAIL} holds all ${ROLES.length} roles`);
+  // 3. The single developer user, holding every role so all portals open.
+  const developer = await upsertAccount(DEVELOPER_EMAIL, "Developer", developerPassword);
+  for (const [code] of ROLES) await ensureRole(developer.id, roleIds.get(code)!);
+  log(`✓ developer user ${DEVELOPER_EMAIL} holds all ${ROLES.length} roles`);
 }

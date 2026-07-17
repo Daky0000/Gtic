@@ -21,7 +21,7 @@ const auth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8 },
 });
 
-const EMAIL = process.env.ADMIN_EMAIL ?? "super@demo.campuscore.test";
+const EMAIL = process.env.ADMIN_EMAIL ?? "developer@demo.campuscore.test";
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const NAME = process.env.ADMIN_NAME ?? "Super Admin";
 

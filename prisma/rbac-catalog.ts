@@ -3,9 +3,10 @@
 // production account bootstrap (create-demo-users.ts) so the two can never
 // drift apart.
 
-/** One account holding EVERY role — for exercising the whole system during
- * testing before roles are divided across real staff (per project decision). */
-export const SUPER_USER_EMAIL = "super@demo.campuscore.test";
+/** The single bootstrapped account: a developer user holding EVERY role, for
+ * exercising all portals during testing before roles are divided across real
+ * staff (per project decision 2026-07-17 — no more per-role demo users). */
+export const DEVELOPER_EMAIL = "developer@demo.campuscore.test";
 
 /** All demo/testing accounts live on this domain, one per role. */
 export const DEMO_EMAIL_DOMAIN = "demo.campuscore.test";
@@ -25,8 +26,8 @@ export function demoPasswordForRole(_roleCode: string): string {
   return DEMO_SHARED_PASSWORD;
 }
 
-/** Default password for the all-roles super user. */
-export const SUPER_USER_PASSWORD = DEMO_SHARED_PASSWORD;
+/** Default password for the all-roles developer user. */
+export const DEVELOPER_PASSWORD = DEMO_SHARED_PASSWORD;
 
 export const ROLES: [code: string, name: string][] = [
   ["applicant", "Prospective Applicant"],
