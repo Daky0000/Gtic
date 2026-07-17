@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { hasRole, requirePortal, ROLES } from "@/lib/rbac";
+import { Flash } from "@/components/flash";
 import { PageHeader, Stat } from "@/components/ui";
 
 export const metadata = { title: "Administration" };
 
 const TINTS = ["#8AA84B", "#E7B54A", "#6FA9C4", "#7E6BB0"];
 
-export default async function AdminHome() {
+export default async function AdminHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("admin");
   const isConsole = hasRole(user, ROLES.SYSTEM_ADMIN);
+  const { error } = await searchParams;
 
   const [users, roles, docs, aiCalls] = await Promise.all([
     db.user.count(),
@@ -31,6 +37,8 @@ export default async function AdminHome() {
         title={<>Administration <em className="text-forest">overview.</em></>}
         lead="SYDA — Green Energy & Innovation Center · system at a glance."
       />
+
+      <Flash error={error} />
 
       <div className="grid gap-[14px] sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(([title, value, note], i) => (

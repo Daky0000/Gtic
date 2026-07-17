@@ -3,12 +3,18 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
+import { Flash } from "@/components/flash";
 import { PageHeader, Card } from "@/components/ui";
 
 export const metadata = { title: "Student Portal" };
 
-export default async function StudentHome() {
+export default async function StudentHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("student");
+  const { error } = await searchParams;
   const student = await db.student.findUnique({
     where: { userId: user.id },
     include: { programme: true, curriculumVersion: true },
@@ -32,6 +38,8 @@ export default async function StudentHome() {
         title={<>Good morning, <em className="text-forest">{firstName}.</em></>}
         lead={student ? `${student.programme.name} · ${student.status.toLowerCase()}` : "Your student dashboard."}
       />
+
+      <Flash error={error} />
 
       <div className="mb-6">
         <AnnouncementsBanner audience="STUDENTS" />

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, ROLES } from "@/lib/rbac";
-import { saveUpload } from "@/lib/storage";
+import { saveUpload, uploadRejection } from "@/lib/storage";
 import { draftQuizQuestions, suggestSubmissionScore } from "@/lib/ai/tasks";
 import type { MaterialKind } from "@prisma/client";
 
@@ -33,7 +33,9 @@ export async function addMaterial(formData: FormData) {
 
   if (kind === "FILE") {
     const file = formData.get("file") as File | null;
-    if (!file || file.size === 0) throw new Error("Choose a file to upload.");
+    if (!file) throw new Error("Choose a file to upload.");
+    const rejection = uploadRejection(file);
+    if (rejection) throw new Error(rejection);
     const saved = await saveUpload(file, `materials/${offeringId}`);
     await db.material.create({ data: { offeringId, title, kind, week, filePath: saved.filePath, createdById: user.id } });
   } else {

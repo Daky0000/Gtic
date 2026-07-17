@@ -6,9 +6,9 @@
 //
 // Accounts: creates ONLY the all-roles developer user (per project decision
 // 2026-07-17), after a one-time marker-gated wipe of all pre-existing users.
-// Every run RESETS the developer password so the documented credential always
-// works; default is DEMO_SHARED_PASSWORD in rbac-catalog.ts, overridable via
-// ADMIN_PASSWORD (or DEMO_PASSWORD).
+// The catalog default password is used only when the account is first created;
+// an existing credential is reset only when ADMIN_PASSWORD (or DEMO_PASSWORD)
+// is explicitly set, so in-app password changes survive deploys.
 import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";

@@ -2,12 +2,18 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
+import { Flash } from "@/components/flash";
 import { PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Staff Portal" };
 
-export default async function StaffHome() {
+export default async function StaffHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const user = await requirePortal("staff");
+  const { error } = await searchParams;
 
   const [pendingAdmissions, pendingApprovals, pendingDocs] = await Promise.all([
     db.application.count({ where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } } }),
@@ -23,6 +29,8 @@ export default async function StaffHome() {
         title={<>Welcome, <em className="text-forest">{firstName}.</em></>}
         lead={`Roles: ${user.roles.join(", ") || "none"} · ${user.email}`}
       />
+
+      <Flash error={error} />
 
       <div className="mb-6">
         <AnnouncementsBanner audience="STAFF" />

@@ -13,7 +13,7 @@ import { getCurrentUser, homePortalFor, PORTAL_HOME, ROLES } from "@/lib/rbac";
  * privilege applicant role and send them to /apply.
  */
 export default async function DashboardDispatch() {
-  let user = await getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   if (user.roles.length === 0) {

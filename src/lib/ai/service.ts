@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { retrieveChunks } from "./knowledge";
-import { budgetExceeded, getFeatureConfig, logAICall, resolveProvider, type FeatureConfig } from "./config";
+import { budgetExceeded, getFeatureConfig, logAICall, resolveProvider, userDailyLimitExceeded, type FeatureConfig } from "./config";
 import type { ChatMessage, Citation, SystemBlock } from "./types";
 import type { CurrentUser } from "@/lib/rbac";
 
@@ -91,6 +91,15 @@ export async function assistantChat(opts: {
         }
         if (await budgetExceeded(cfg)) {
           emit({ type: "error", message: "The AI assistant has reached its usage budget for this month." });
+          await logAICall({
+            userId: opts.user.id, feature: FEATURE, provider: providerName, model: cfg.model,
+            latencyMs: Date.now() - startedAt, outcome: "BUDGET_BLOCKED",
+          });
+          controller.close();
+          return;
+        }
+        if (await userDailyLimitExceeded(opts.user.id, FEATURE)) {
+          emit({ type: "error", message: "You have reached today's assistant limit. Please try again tomorrow." });
           await logAICall({
             userId: opts.user.id, feature: FEATURE, provider: providerName, model: cfg.model,
             latencyMs: Date.now() - startedAt, outcome: "BUDGET_BLOCKED",

@@ -80,15 +80,24 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
   };
 }
 
-/** Webhook authenticity: x-paystack-signature is HMAC-SHA512 of the raw body. */
-export async function isValidPaystackSignature(
+/** Pure signature check (unit-tested): x-paystack-signature is HMAC-SHA512
+ * of the raw body, compared in constant time. */
+export function paystackSignatureMatches(
   rawBody: string,
-  signature: string | null
-): Promise<boolean> {
-  const key = await getSecretKey();
+  signature: string | null,
+  key: string | null
+): boolean {
   if (!signature || !key) return false;
   const expected = createHmac("sha512", key).update(rawBody).digest("hex");
   const a = Buffer.from(expected, "utf8");
   const b = Buffer.from(signature, "utf8");
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Webhook authenticity against the configured secret key. */
+export async function isValidPaystackSignature(
+  rawBody: string,
+  signature: string | null
+): Promise<boolean> {
+  return paystackSignatureMatches(rawBody, signature, await getSecretKey());
 }

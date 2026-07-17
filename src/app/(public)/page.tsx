@@ -40,7 +40,6 @@ export default async function HomePage() {
     }),
   ]);
 
-  const name = institution?.name ?? "SYDA — Green Energy & Innovation Center";
   const motto = institution?.motto ?? "Training the engineers who power Africa's renewable future.";
   const years = new Date().getFullYear() - FOUNDED_YEAR;
 

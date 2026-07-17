@@ -63,6 +63,12 @@ export function LoginForm() {
           />
         </label>
 
+        <p className="-mt-2 text-right text-[13px]">
+          <Link href="/forgot-password" className="text-forest hover:text-moss">
+            Forgot password?
+          </Link>
+        </p>
+
         {error && (
           <p role="alert" className="text-[13px] text-[#b23a2e]">
             {error}

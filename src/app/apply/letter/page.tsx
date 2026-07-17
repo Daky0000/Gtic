@@ -37,6 +37,8 @@ export default async function LetterPage({
   const institution = await db.institution.findFirst();
   const institutionName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
 
+  // Server component rendered per-request, so reading the clock is sound here.
+  // eslint-disable-next-line react-hooks/purity
   const expired = !offer.acceptedAt && !!offer.expiresAt && offer.expiresAt.getTime() < Date.now();
 
   return (

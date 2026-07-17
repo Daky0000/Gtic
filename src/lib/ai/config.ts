@@ -83,6 +83,24 @@ export async function budgetExceeded(cfg: FeatureConfig): Promise<boolean> {
   return used >= cfg.monthlyTokenBudget;
 }
 
+/** Per-user daily call cap: the monthly budget is shared by everyone, so
+ * without this any single signed-in user could drain it (or just run up the
+ * Anthropic bill) by hammering the endpoint. */
+export const USER_DAILY_CALL_LIMIT = 50;
+
+export async function userDailyLimitExceeded(
+  userId: string,
+  feature: string,
+  limit: number = USER_DAILY_CALL_LIMIT
+): Promise<boolean> {
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const calls = await db.aIAuditLog.count({
+    where: { userId, feature, outcome: "OK", createdAt: { gte: dayStart } },
+  });
+  return calls >= limit;
+}
+
 export async function logAICall(entry: {
   userId?: string | null;
   feature: string;

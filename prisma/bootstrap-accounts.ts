@@ -18,27 +18,30 @@ export async function bootstrapAccounts(
   hash: (password: string) => Promise<string>,
   log: (msg: string) => void = console.log
 ) {
-  const developerPassword =
-    process.env.ADMIN_PASSWORD || process.env.DEMO_PASSWORD || DEVELOPER_PASSWORD;
+  // The catalog default is only ever used to CREATE the account. An existing
+  // credential is left untouched unless ADMIN_PASSWORD / DEMO_PASSWORD is set,
+  // so a password changed in-app (or a rotated env var) survives every deploy
+  // and the publicly-known default can never be silently re-applied.
+  const explicitPassword = process.env.ADMIN_PASSWORD || process.env.DEMO_PASSWORD || null;
+  const developerPassword = explicitPassword ?? DEVELOPER_PASSWORD;
 
   async function upsertAccount(email: string, name: string, password: string) {
-    const passwordHash = await hash(password);
     let user = await db.user.findUnique({ where: { email } });
     if (!user) {
       user = await db.user.create({ data: { name, email, emailVerified: true } });
       await db.account.create({
-        data: { accountId: user.id, providerId: "credential", userId: user.id, password: passwordHash },
+        data: { accountId: user.id, providerId: "credential", userId: user.id, password: await hash(password) },
       });
-    } else {
-      await db.user.update({ where: { id: user.id }, data: { emailVerified: true } });
-      const cred = await db.account.findFirst({ where: { userId: user.id, providerId: "credential" } });
-      if (cred) {
-        await db.account.update({ where: { id: cred.id }, data: { password: passwordHash } });
-      } else {
-        await db.account.create({
-          data: { accountId: user.id, providerId: "credential", userId: user.id, password: passwordHash },
-        });
-      }
+      return user;
+    }
+    await db.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+    const cred = await db.account.findFirst({ where: { userId: user.id, providerId: "credential" } });
+    if (!cred) {
+      await db.account.create({
+        data: { accountId: user.id, providerId: "credential", userId: user.id, password: await hash(password) },
+      });
+    } else if (explicitPassword) {
+      await db.account.update({ where: { id: cred.id }, data: { password: await hash(explicitPassword) } });
     }
     return user;
   }

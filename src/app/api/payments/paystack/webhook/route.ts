@@ -25,6 +25,15 @@ export async function POST(req: NextRequest) {
   if (event.event === "charge.success" && event.data?.reference) {
     const payment = await db.payment.findUnique({ where: { reference: event.data.reference } });
     if (payment && payment.channel === "PAYSTACK" && (event.data.amount ?? 0) >= payment.amount) {
+      // A payment superseded as FAILED (stale checkout tab) can still be
+      // charged by Paystack; the signature-verified charge is ground truth,
+      // so revive it before confirming rather than dropping the money.
+      if (payment.status === "FAILED") {
+        await db.payment.updateMany({
+          where: { id: payment.id, status: "FAILED" },
+          data: { status: "PENDING" },
+        });
+      }
       await confirmPayment(payment.id);
     }
   }

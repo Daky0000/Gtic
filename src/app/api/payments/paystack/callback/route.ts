@@ -32,6 +32,14 @@ export async function GET(req: NextRequest) {
     if (!result.success || result.amount < payment.amount) {
       return back(returnTo, { error: "Payment was not completed. You have not been charged if you cancelled." });
     }
+    // Same revival rule as the webhook: an API-verified charge on a payment
+    // we superseded as FAILED is still real money — never drop it.
+    if (payment.status === "FAILED") {
+      await db.payment.updateMany({
+        where: { id: payment.id, status: "FAILED" },
+        data: { status: "PENDING" },
+      });
+    }
     await confirmPayment(payment.id);
     return back(returnTo, { paid: "1" });
   } catch {

@@ -129,10 +129,19 @@ export async function requirePortal(portal: Portal): Promise<CurrentUser> {
   return user;
 }
 
+/** Redirects to the user's portal home with a visible error message. Thrown
+ * plain Errors are masked by Next.js in production server actions (the user
+ * would only see a generic digest), so expected authz failures redirect. */
+function denied(user: CurrentUser, message: string): never {
+  const home = homePortalFor(user.roles);
+  const base = home ? PORTAL_HOME[home] : "/login";
+  redirect(`${base}?error=${encodeURIComponent(message)}`);
+}
+
 export async function requirePermission(code: string): Promise<CurrentUser> {
   const user = await requireUser();
   if (!user.roles.includes(ROLES.DEVELOPER) && !user.permissions.includes(code)) {
-    throw new Error(`Forbidden: missing permission "${code}"`);
+    denied(user, "You do not have permission to perform that action.");
   }
   return user;
 }
@@ -143,12 +152,12 @@ export function hasRole(user: CurrentUser, ...roles: RoleCode[]): boolean {
   return roles.some((r) => user.roles.includes(r));
 }
 
-/** Used inside server actions/mutations — throws (rather than redirects) so
- * the calling form surfaces a clear error instead of a silent navigation. */
+/** Used inside server actions/mutations — sends the user back to their portal
+ * home with a visible "no permission" message on failure. */
 export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
   const user = await requireUser();
   if (!hasRole(user, ...roles)) {
-    throw new Error(`Forbidden: requires role ${roles.join(" or ")}`);
+    denied(user, "Your account does not have the required role for that action.");
   }
   return user;
 }

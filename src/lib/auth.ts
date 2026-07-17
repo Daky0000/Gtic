@@ -12,10 +12,23 @@ export const auth = betterAuth({
   trustedOrigins: trustedOrigins(),
   emailAndPassword: {
     enabled: true,
-    // Email verification and password reset flows are wired to the
-    // notification engine in a later step of Phase 0/1.
+    // Verification stays off until an email sender is configured in prod —
+    // requiring it with no working mailer would lock every applicant out.
     requireEmailVerification: false,
     minPasswordLength: 8,
+    sendResetPassword: async ({ user, url }) => {
+      const { sendEmail } = await import("@/lib/mailer");
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your SYDA-GTIC password",
+        text:
+          `Hello ${user.name || ""},\n\n` +
+          `Someone (hopefully you) asked to reset the password for this account.\n` +
+          `Open the link below to choose a new password. It expires in 1 hour.\n\n` +
+          `${url}\n\n` +
+          `If you did not request this, you can ignore this email.`,
+      });
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

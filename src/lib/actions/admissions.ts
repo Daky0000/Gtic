@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireRole, requireUser, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { applicationRefNo, verificationCode } from "@/lib/codes";
-import { saveUpload } from "@/lib/storage";
+import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment } from "@/lib/payments";
 import { notify } from "@/lib/notify";
 import { extractApplicationDocument, prescreenApplication } from "@/lib/ai/tasks";
@@ -124,8 +124,12 @@ export async function saveApplicationDetails(formData: FormData) {
 
 // ─── Applicant: documents + AI extraction ───
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
-const ALLOWED_UPLOAD_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+// Application documents are stricter than the general upload allowlist:
+// evidence must be a PDF or an image, never an office/archive file.
+const APPLICATION_DOC_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".webp"] as const;
+const APPLICATION_DOC_KINDS: ReadonlySet<string> = new Set([
+  "RESULTS_SLIP", "CERTIFICATE", "TRANSCRIPT", "PHOTO", "ID_DOCUMENT", "OTHER",
+] satisfies ApplicationDocKind[]);
 
 export async function uploadApplicationDocument(formData: FormData) {
   const user = await requireUser();
@@ -135,13 +139,14 @@ export async function uploadApplicationDocument(formData: FormData) {
     fail("/apply/documents", "Documents can no longer be changed after submission.");
   }
 
-  const kind = String(formData.get("kind")) as ApplicationDocKind;
+  const kindRaw = String(formData.get("kind"));
+  if (!APPLICATION_DOC_KINDS.has(kindRaw)) fail("/apply/documents", "Unknown document type.");
+  const kind = kindRaw as ApplicationDocKind;
+
   const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) fail("/apply/documents", "Choose a file to upload.");
-  if (file.size > MAX_UPLOAD_BYTES) fail("/apply/documents", "File is too large — maximum 10 MB.");
-  if (file.type && !ALLOWED_UPLOAD_TYPES.includes(file.type)) {
-    fail("/apply/documents", "Only PDF, JPG, PNG or WEBP files are accepted.");
-  }
+  if (!file) fail("/apply/documents", "Choose a file to upload.");
+  const rejection = uploadRejection(file, { allowedExtensions: APPLICATION_DOC_EXTENSIONS });
+  if (rejection) fail("/apply/documents", rejection);
 
   const saved = await saveUpload(file, `applications/${app.id}`);
   await db.applicationDocument.create({

@@ -7,7 +7,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { chunkDocument } from "../src/lib/ai/chunker";
 import {
-  applicationRefNo, indexNumber, invoiceNo, staffNo, verificationCode,
+  indexNumber, staffNo,
   voucherPin, voucherSerial,
 } from "../src/lib/codes";
 

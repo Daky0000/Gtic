@@ -18,11 +18,9 @@ import { appBaseUrl } from "@/lib/base-url";
  * Paystack redirect, Paystack webhook, bank teller, or the mock.
  */
 
-/** Percentage of an invoice paid so far — powers fee gates (0–100). */
-export function percentPaid(invoice: { total: number; paid: number }): number {
-  if (invoice.total <= 0) return 100;
-  return Math.min(100, Math.round((invoice.paid / invoice.total) * 100));
-}
+// percentPaid lives in money.ts (pure, unit-tested); re-exported here because
+// every fee-gate call site historically imports it from the payment layer.
+export { percentPaid } from "@/lib/money";
 
 // ─── Confirmation (single source of truth for all channels) ───
 
@@ -37,20 +35,26 @@ export async function confirmPayment(paymentId: string, actorId?: string): Promi
     include: { invoice: true },
   });
 
-  const flipped = await db.payment.updateMany({
-    where: { id: paymentId, status: "PENDING" },
-    data: { status: "CONFIRMED", paidAt: new Date() },
-  });
-  if (flipped.count === 0) return false;
+  // Status flip and ledger credit commit together: a crash mid-way can never
+  // leave a CONFIRMED payment that was not applied to its invoice (which the
+  // idempotency guard would then skip forever on webhook retry).
+  const invoice = await db.$transaction(async (tx) => {
+    const flipped = await tx.payment.updateMany({
+      where: { id: paymentId, status: "PENDING" },
+      data: { status: "CONFIRMED", paidAt: new Date() },
+    });
+    if (flipped.count === 0) return null;
 
-  const invoice = await db.invoice.update({
-    where: { id: payment.invoiceId },
-    data: { paid: { increment: payment.amount } },
+    const credited = await tx.invoice.update({
+      where: { id: payment.invoiceId },
+      data: { paid: { increment: payment.amount } },
+    });
+    return tx.invoice.update({
+      where: { id: credited.id },
+      data: { status: credited.paid >= credited.total ? "PAID" : "PART_PAID" },
+    });
   });
-  await db.invoice.update({
-    where: { id: invoice.id },
-    data: { status: invoice.paid >= invoice.total ? "PAID" : "PART_PAID" },
-  });
+  if (!invoice) return false;
 
   await audit({
     actorId: actorId ?? payment.invoice.userId,
@@ -152,8 +156,29 @@ export async function beginInvoicePayment(params: {
     return { kind: "settled" };
   }
 
+  // One active checkout per invoice: re-entering the pay flow (second tab,
+  // back button) returns the SAME hosted checkout instead of stacking a new
+  // PENDING payment each time — otherwise both could be paid and the invoice
+  // overpaid. A pending whose amount no longer matches the balance (a partial
+  // payment landed meanwhile) is superseded; the webhook revives it if money
+  // actually arrives on it.
+  const existing = await db.payment.findFirst({
+    where: { invoiceId: invoice.id, channel: "PAYSTACK", status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) {
+    const meta = existing.meta as { authorizationUrl?: string } | null;
+    if (existing.amount === balance && meta?.authorizationUrl) {
+      return { kind: "redirect", url: meta.authorizationUrl };
+    }
+    await db.payment.updateMany({
+      where: { invoiceId: invoice.id, channel: "PAYSTACK", status: "PENDING" },
+      data: { status: "FAILED" },
+    });
+  }
+
   const reference = paymentReference();
-  await db.payment.create({
+  const payment = await db.payment.create({
     data: {
       invoiceId: invoice.id,
       channel: "PAYSTACK",
@@ -171,6 +196,10 @@ export async function beginInvoicePayment(params: {
       amount: balance,
       reference,
       callbackUrl: `${baseUrl}/api/payments/paystack/callback`,
+    });
+    await db.payment.update({
+      where: { id: payment.id },
+      data: { meta: { returnTo: params.returnTo, authorizationUrl } },
     });
     return { kind: "redirect", url: authorizationUrl };
   } catch (e) {

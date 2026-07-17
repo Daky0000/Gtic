@@ -2,17 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { db } from "@/lib/db";
 import { getApiUser } from "@/lib/rbac";
-import { readUpload } from "@/lib/storage";
-
-const EXT_MIME: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".txt": "text/plain",
-};
+import { readUpload, UPLOAD_MIME_BY_EXT } from "@/lib/storage";
 
 /**
  * Serves files from the private upload store with per-area authorization:
@@ -38,7 +28,6 @@ export async function GET(
   const isStaffish = !isApplicant && !isStudentish;
 
   let fileName = path.basename(relPath);
-  let mimeType: string | null = null;
 
   if (relPath.startsWith("applications/")) {
     const doc = await db.applicationDocument.findFirst({
@@ -50,7 +39,6 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     fileName = doc.fileName;
-    mimeType = doc.mimeType;
   } else if (!relPath.startsWith("materials/") && !isStaffish) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -62,13 +50,17 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Content-Type comes from the extension allowlist ONLY — never from a
+  // stored (historically client-supplied) MIME type, so nothing in the upload
+  // store can ever be served as an executable type like text/html.
   const ext = path.extname(relPath).toLowerCase();
-  const type = mimeType ?? EXT_MIME[ext] ?? "application/octet-stream";
+  const type = UPLOAD_MIME_BY_EXT[ext] ?? "application/octet-stream";
 
   return new NextResponse(new Uint8Array(buf), {
     headers: {
       "Content-Type": type,
       "Content-Disposition": `inline; filename="${fileName.replace(/[^\w.\- ]/g, "_")}"`,
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, max-age=0",
     },
   });
