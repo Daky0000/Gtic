@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getOrCreateDraftApplication, acceptOffer, payAcceptanceFee, declineOffer } from "@/lib/actions/admissions";
+import { reconcilePendingPaystackPayments } from "@/lib/payments";
 import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Admission Letter" };
@@ -16,6 +17,10 @@ export default async function LetterPage({
   const { error, paid } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
+
+  // Settles an acceptance-fee checkout the payer never returned from — the
+  // "Admission confirmed" state must not depend on the webhook being set up.
+  await reconcilePendingPaystackPayments(user.id);
 
   const offer = await db.offer.findUnique({
     where: { applicationId: app.id },

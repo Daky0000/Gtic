@@ -4,7 +4,7 @@ import { paymentReference } from "@/lib/codes";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { formatGHS } from "@/lib/money";
-import { initializePaystackTransaction, isPaystackConfigured } from "@/lib/paystack";
+import { initializePaystackTransaction, isPaystackConfigured, verifyPaystackTransaction } from "@/lib/paystack";
 import { appBaseUrl } from "@/lib/base-url";
 
 /**
@@ -127,6 +127,37 @@ async function settleInvoiceSideEffects(invoiceId: string) {
       // APPLICATION, TUITION, FINE: gates read the invoice status directly.
       return;
   }
+}
+
+/**
+ * Settles any of the user's in-flight Paystack checkouts whose money has
+ * actually arrived, by re-verifying them against the Paystack API. This is
+ * the safety net for deployments where the dashboard webhook is not (yet)
+ * configured and the payer closed the browser before the callback redirect:
+ * the payment confirms the next time they open a payments-aware page.
+ * Best-effort and idempotent (confirmPayment no-ops on anything already
+ * processed). Returns true if at least one payment was confirmed.
+ */
+export async function reconcilePendingPaystackPayments(userId: string): Promise<boolean> {
+  const pending = await db.payment.findMany({
+    where: { status: "PENDING", channel: "PAYSTACK", invoice: { userId } },
+    take: 5,
+  });
+  if (pending.length === 0 || !(await isPaystackConfigured())) return false;
+
+  let confirmedAny = false;
+  for (const payment of pending) {
+    try {
+      const result = await verifyPaystackTransaction(payment.reference);
+      if (result.success && result.amount >= payment.amount) {
+        if (await confirmPayment(payment.id)) confirmedAny = true;
+      }
+    } catch {
+      // Verification is opportunistic — the callback and webhook paths stay
+      // authoritative, so a transient API failure here is safely ignored.
+    }
+  }
+  return confirmedAny;
 }
 
 // ─── Initiation ───

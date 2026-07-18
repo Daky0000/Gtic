@@ -6,6 +6,7 @@ import {
   getOrCreateDraftApplication, isApplicationFeeCleared, payApplicationFee, redeemVoucher,
 } from "@/lib/actions/admissions";
 import { isPaystackConfigured } from "@/lib/paystack";
+import { reconcilePendingPaystackPayments } from "@/lib/payments";
 import { Flash } from "@/components/flash";
 import { PageHeader, Card, StatusChip } from "@/components/ui";
 
@@ -20,6 +21,10 @@ export default async function PaymentsPage({
   const { error, paid, redeemed } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
+
+  // Settle any checkout the payer completed but never returned from (covers
+  // deployments where the Paystack dashboard webhook isn't configured).
+  const reconciled = await reconcilePendingPaystackPayments(user.id);
 
   const cycle = await db.admissionCycle.findUniqueOrThrow({ where: { id: app.cycleId } });
   const feeCleared = await isApplicationFeeCleared(app.id, user.id, app.cycleId);
@@ -46,7 +51,7 @@ export default async function PaymentsPage({
       <Flash
         error={error}
         success={
-          paid
+          paid || reconciled
             ? "Payment received — thank you."
             : redeemed
               ? "Voucher redeemed — your application fee is cleared."

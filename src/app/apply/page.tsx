@@ -5,6 +5,7 @@ import {
   getOrCreateDraftApplication, isApplicationFeeCleared, withdrawApplication,
 } from "@/lib/actions/admissions";
 import { APPLICATION_STATUS_LABEL, APPLICATION_STATUS_TONE } from "@/lib/status-labels";
+import { reconcilePendingPaystackPayments } from "@/lib/payments";
 import { AnnouncementsBanner } from "@/components/announcements-banner";
 import { Flash } from "@/components/flash";
 import { PageHeader, Card, CardLabel, StatusChip, ButtonLink } from "@/components/ui";
@@ -19,6 +20,9 @@ export default async function ApplyHome({
   const user = await requirePortal("apply");
   const { error, withdrawn } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
+  // The overview is the post-login landing page, so settle any checkout the
+  // applicant paid but never returned from before rendering the checklist.
+  await reconcilePendingPaystackPayments(user.id);
 
   const checklist = app ? await buildChecklist(app.id, user.id, app.cycleId) : null;
   const firstName = user.name.split(/\s+/)[0] || user.name;
