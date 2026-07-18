@@ -37,30 +37,29 @@ Anthropic when a key is present and falls back to mock otherwise.
 
 ## Local development
 
+The project uses the Railway-hosted PostgreSQL database directly — there is
+no local database and no Docker. Point `DATABASE_URL` in `.env` at the
+Railway Postgres **public** URL (Railway dashboard → Postgres service →
+Variables → `DATABASE_PUBLIC_URL`, host `*.proxy.rlwy.net`).
+
 ```bash
-docker compose up -d db          # PostgreSQL on localhost:5433
-cp .env.example .env              # fill in DATABASE_URL, BETTER_AUTH_SECRET, etc.
+cp .env.example .env              # set DATABASE_URL to the Railway public URL
 npm install
-npm run db:migrate
-npm run db:seed
 npm run dev                       # http://localhost:3000
 ```
 
-Seeded super user: `super@demo.campuscore.test` / `Password123!`.
+Note: local development therefore reads and writes the **production**
+database — be deliberate about running seeds or destructive scripts.
 
-## Production (Docker)
+Bootstrap login: `developer@demo.campuscore.test` / `gtic1234` (holds every
+role; created automatically at app startup — change the password in-app).
 
-```bash
-docker compose up -d db
-docker compose --profile prod up -d --build app
-```
+## Production (Railway)
 
-The `app` service builds the multi-stage `Dockerfile` (Next.js
-`output: "standalone"`) and runs against the same `db` service. Configure
-via environment variables read by `docker-compose.yml`: `BETTER_AUTH_SECRET`,
-`BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `ANTHROPIC_API_KEY`, `AI_PROVIDER`,
-and `APP_PORT` (host port, default 3000). Run `npm run db:migrate` and
-`npm run db:seed` against the `db` service before first use.
+Pushing to `main` deploys via Railway (Nixpacks). On boot the app runs
+`prisma migrate deploy` and the account bootstrap automatically
+(`src/instrumentation.ts`), so the schema and the developer login are always
+in sync with the code.
 
 ## Scripts
 
