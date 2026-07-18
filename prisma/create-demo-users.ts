@@ -6,9 +6,10 @@
 //
 // Accounts: creates ONLY the all-roles developer user (per project decision
 // 2026-07-17), after a one-time marker-gated wipe of all pre-existing users.
-// The catalog default password is used only when the account is first created;
-// an existing credential is reset only when ADMIN_PASSWORD (or DEMO_PASSWORD)
-// is explicitly set, so in-app password changes survive deploys.
+// The catalog default password is used only when the account is first created
+// (or when a credential row has no password); an existing working credential
+// is never overwritten, so in-app password changes survive deploys. Env-var
+// password overrides were removed 2026-07-18 — see bootstrap-accounts.ts.
 import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";

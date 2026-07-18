@@ -16,10 +16,11 @@ export function demoEmailForRole(roleCode: string): string {
 }
 
 /** One simple shared password for every testing account (per project decision
- * 2026-07-17: simpler beats per-role). These are TESTING credentials — rotate
- * them via DEMO_PASSWORD / ADMIN_PASSWORD (or in-app) before any real data
- * enters the system. Must stay ≥ 8 chars: seed.ts creates users through the
- * better-auth signup API, which enforces the minimum length. */
+ * 2026-07-17: simpler beats per-role). These are TESTING credentials — change
+ * them in-app before any real data enters the system (env-var overrides were
+ * removed 2026-07-18; see bootstrap-accounts.ts). Must stay ≥ 8 chars:
+ * seed.ts creates users through the better-auth signup API, which enforces
+ * the minimum length. */
 export const DEMO_SHARED_PASSWORD = "gtic1234";
 
 export function demoPasswordForRole(_roleCode: string): string {
