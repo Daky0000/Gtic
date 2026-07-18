@@ -7,21 +7,16 @@ import {
   DEVELOPER_EMAIL, DEVELOPER_PASSWORD,
 } from "./rbac-catalog";
 
-// One-shot marker (per project decision 2026-07-17): the first boot after this
-// ships wipes ALL existing users — the old per-role demo accounts plus any
-// test signups — so only the developer account remains. Marker-gated so later
-// deploys never touch real users again.
-const USERS_RESET_MARKER = "bootstrap.usersResetToDeveloperOnly.v1";
-
-// One-shot developer credential reset (owner request, 2026-07-18): the
-// previous production password was lost. A first attempt (marker
-// ...devCredentialRotation.2026-07-18) wrote a pre-computed hash that turned
-// out not to verify against any known password, locking the account out
-// entirely. The v2 reset below re-hashes the CURRENT default (or
-// ADMIN_PASSWORD when set) through better-auth's own hasher at runtime, so
-// the resulting credential is guaranteed to verify. Marker-gated so later
-// deploys never re-apply it — an in-app password change stays safe.
-const DEV_CREDENTIAL_ROTATION_MARKER = "bootstrap.devCredentialRotation.2026-07-18.v2";
+// One-shot HARD RESET marker (owner request, 2026-07-18): a previous rotation
+// left the developer credential with a pre-computed hash that verified against
+// no password, locking every login out. To guarantee a clean, working state
+// the first boot after this ships WIPES ALL users (old demo accounts + any
+// test signups) and recreates the developer account from scratch — the
+// create path hashes the password at runtime through better-auth's own hasher,
+// so the credential is guaranteed to verify. Marker-gated: bumping the version
+// forces exactly one fresh wipe+recreate; later deploys never touch users
+// again, so real signups and in-app password changes are safe afterwards.
+const USERS_RESET_MARKER = "bootstrap.hardResetToDeveloperOnly.2026-07-18.v3";
 
 export async function bootstrapAccounts(
   db: PrismaClient,
@@ -102,25 +97,11 @@ export async function bootstrapAccounts(
   }
 
   // 3. The single developer user, holding every role so all portals open.
+  // After a hard reset (step 2) this is a fresh CREATE, so the password is
+  // hashed at runtime and the login is guaranteed to work:
+  //   developer@demo.campuscore.test / DEVELOPER_PASSWORD  (or ADMIN_PASSWORD).
+  // Owner should change it in-app immediately (the repo is public).
   const developer = await upsertAccount(DEVELOPER_EMAIL, "Developer", developerPassword);
   for (const [code] of ROLES) await ensureRole(developer.id, roleIds.get(code)!);
   log(`✓ developer user ${DEVELOPER_EMAIL} holds all ${ROLES.length} roles`);
-
-  // 4. One-time credential reset (see marker comment above). Hashed at
-  // runtime through the same hasher the app verifies with, so the credential
-  // is guaranteed to work: developer / DEVELOPER_PASSWORD (or ADMIN_PASSWORD
-  // when that env var is set). Owner should change it in-app right after.
-  const rotationDone = await db.systemSetting.findUnique({
-    where: { key: DEV_CREDENTIAL_ROTATION_MARKER },
-  });
-  if (!rotationDone) {
-    await db.account.updateMany({
-      where: { userId: developer.id, providerId: "credential" },
-      data: { password: await hash(developerPassword) },
-    });
-    await db.systemSetting.create({
-      data: { key: DEV_CREDENTIAL_ROTATION_MARKER, value: new Date().toISOString() },
-    });
-    log(`✓ one-time developer credential reset applied (marker ${DEV_CREDENTIAL_ROTATION_MARKER})`);
-  }
 }
