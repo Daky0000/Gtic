@@ -103,16 +103,23 @@ export async function startApplicationWithPayment(
     });
   }
 
+  // Account + application already exist at this point, so a payment-gateway
+  // hiccup must never look like a failed signup — land them in the portal
+  // with a clear "pay later" message instead.
+  const payLater =
+    "/apply?error=" +
+    encodeURIComponent(
+      "Your account is ready, but we could not start the payment. You have not been charged — pay the application fee from the Payments page whenever you are ready."
+    );
   let result;
   try {
     result = await beginInvoicePayment({ invoiceId: invoice.id, userEmail: email, returnTo: "/apply/application" });
   } catch (e) {
     console.error("[signup] payment initiation failed", e);
-    redirect("/apply"); // account + application already exist; they can pay from /apply/payments
+    redirect(payLater);
   }
   if (result.kind === "failed") {
-    // Same reasoning: don't lose the account over a payment-gateway hiccup.
-    redirect("/apply");
+    redirect(payLater);
   }
   if (result.kind === "settled") {
     // Mock channel (no Paystack key configured) settles instantly.

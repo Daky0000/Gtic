@@ -24,9 +24,19 @@ export default async function LetterPage({
 
   if (!offer) {
     return (
-      <div className="mx-auto max-w-2xl text-center">
-        <h1 className="text-2xl font-bold">Admission letter</h1>
-        <p className="mt-3 text-ink-500">No offer has been issued yet. Check back after your application is reviewed.</p>
+      <div className="scr mx-auto max-w-2xl">
+        <h1 className="font-serif text-[30px] font-normal leading-[1.1]">
+          Admission <em className="text-forest">letter.</em>
+        </h1>
+        <div className="mt-6 rounded-2xl border border-line bg-paper p-6 text-sm leading-[1.6] text-muted">
+          No offer has been issued yet — your letter will appear here the moment the admissions
+          office makes a decision, and you&apos;ll get a notification too. In the meantime you can
+          track progress from your{" "}
+          <Link href="/apply" className="text-forest hover:text-moss">
+            overview page
+          </Link>
+          .
+        </div>
       </div>
     );
   }

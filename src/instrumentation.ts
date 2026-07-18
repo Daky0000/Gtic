@@ -15,7 +15,10 @@ export async function register() {
 
   // 1. Apply pending migrations (best effort — usually a no-op).
   try {
-    const { spawnSync } = await import("node:child_process");
+    // webpackIgnore keeps the bundler from trying to resolve the node: scheme
+    // (it can't; the failed module poisons every route in dev). The import
+    // only ever runs in the nodejs runtime thanks to the guards above.
+    const { spawnSync } = await import(/* webpackIgnore: true */ "node:child_process");
     const res = spawnSync(
       process.execPath,
       ["node_modules/prisma/build/index.js", "migrate", "deploy"],

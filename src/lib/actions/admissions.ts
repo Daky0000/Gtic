@@ -241,7 +241,7 @@ export async function redeemVoucher(formData: FormData) {
     actorId: user.id, action: "admissions.voucher_redeemed", entityType: "Voucher", entityId: voucher.id,
   });
 
-  redirect("/apply/payments");
+  redirect("/apply/payments?redeemed=1");
 }
 
 export async function payApplicationFee(formData: FormData) {

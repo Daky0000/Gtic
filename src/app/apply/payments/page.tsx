@@ -14,10 +14,10 @@ export const metadata = { title: "Payments" };
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; paid?: string }>;
+  searchParams: Promise<{ error?: string; paid?: string; redeemed?: string }>;
 }) {
   const user = await requirePortal("apply");
-  const { error, paid } = await searchParams;
+  const { error, paid, redeemed } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -33,6 +33,9 @@ export default async function PaymentsPage({
     where: { userId: user.id, kind: "ACCEPTANCE", meta: { path: ["applicationId"], equals: app.id } },
     include: { payments: true },
   });
+  const hasPendingCheckout = !!applicationInvoice?.payments.some(
+    (p) => p.channel === "PAYSTACK" && p.status === "PENDING"
+  );
 
   return (
     <div className="scr mx-auto max-w-2xl">
@@ -40,7 +43,16 @@ export default async function PaymentsPage({
         title={<>Fees &amp; <em className="text-forest">payment.</em></>}
         lead="Your fee breakdown and how to pay."
       />
-      <Flash error={error} success={paid ? "Payment received — thank you." : undefined} />
+      <Flash
+        error={error}
+        success={
+          paid
+            ? "Payment received — thank you."
+            : redeemed
+              ? "Voucher redeemed — your application fee is cleared."
+              : undefined
+        }
+      />
 
       <Card className="mb-6">
         <div className="flex items-center justify-between">
@@ -57,15 +69,17 @@ export default async function PaymentsPage({
               <input type="hidden" name="applicationId" value={app.id} />
               <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-faint">Pay online</div>
               <p className="mt-1 text-xs text-muted">
-                {paystackReady
-                  ? "Card or mobile money (MTN, Telecel, AT) — secure checkout via Paystack."
-                  : "Card or mobile money (demo payment — settles instantly)."}
+                {hasPendingCheckout
+                  ? "You have a checkout in progress — continuing takes you back to the same secure Paystack page, so you can never be charged twice."
+                  : paystackReady
+                    ? "Card or mobile money (MTN, Telecel, AT) — secure checkout via Paystack."
+                    : "Card or mobile money (demo payment — settles instantly)."}
               </p>
               <button
                 type="submit"
                 className="mt-3 rounded-full bg-forest px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-forest-deep"
               >
-                Pay {formatGHS(cycle.applicationFee)}
+                {hasPendingCheckout ? "Continue payment" : `Pay ${formatGHS(cycle.applicationFee)}`}
               </button>
             </form>
             <form action={redeemVoucher}>

@@ -10,9 +10,12 @@ export default async function CheckStatusPage({
   searchParams: Promise<{ ref?: string }>;
 }) {
   const { ref } = await searchParams;
+  // Stored refs are mixed-case (they embed the cycle name, e.g.
+  // APP-September-062347), so match case-insensitively rather than forcing
+  // the visitor to type the exact casing.
   const app = ref
-    ? await db.application.findUnique({
-        where: { refNo: ref.trim().toUpperCase() },
+    ? await db.application.findFirst({
+        where: { refNo: { equals: ref.trim(), mode: "insensitive" } },
         include: { offer: true },
       })
     : null;
@@ -31,7 +34,7 @@ export default async function CheckStatusPage({
         <input
           name="ref"
           defaultValue={ref}
-          placeholder="APP-2026202-123456"
+          placeholder="e.g. APP-September-123456"
           className="field flex-1"
         />
         <button
