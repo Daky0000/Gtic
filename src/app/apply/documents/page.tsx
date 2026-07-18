@@ -53,16 +53,16 @@ export default async function DocumentsPage({
         >
           <input type="hidden" name="applicationId" value={app.id} />
           <div>
-            <label className="block text-sm font-medium text-ink-700">Document type</label>
-            <select name="kind" required className="mt-1 rounded-md border border-ink-300 px-3 py-2 text-sm">
+            <label className="block text-[13px] text-muted">Document type</label>
+            <select name="kind" required className="mt-1.5 rounded-[11px] border border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-forest">
               {Object.entries(KIND_LABEL).map(([k, l]) => (
                 <option key={k} value={k}>{l}</option>
               ))}
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-ink-700">File</label>
-            <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png" className="mt-1 text-sm" />
+            <label className="block text-[13px] text-muted">File (PDF, PNG, JPG or WEBP)</label>
+            <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.webp" className="mt-1.5 text-sm" />
           </div>
           <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Upload
@@ -71,7 +71,11 @@ export default async function DocumentsPage({
       )}
 
       <div className="mt-6 space-y-4">
-        {documents.length === 0 && <p className="text-sm text-ink-500">No documents uploaded yet.</p>}
+        {documents.length === 0 && (
+          <p className="text-sm text-muted">
+            No documents uploaded yet — start with your results slip or certificate.
+          </p>
+        )}
         {documents.map((doc) => {
           const extracted = doc.extracted as
             | { subjects: { subject: string; grade: string }[]; notes: string | null }
@@ -80,8 +84,8 @@ export default async function DocumentsPage({
             <div key={doc.id} className="rounded-2xl border border-line bg-paper p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="font-medium">{KIND_LABEL[doc.kind]}</div>
-                  <div className="text-xs text-ink-500">{doc.fileName} · {(doc.size / 1024).toFixed(0)} KB</div>
+                  <div className="font-medium text-ink">{KIND_LABEL[doc.kind]}</div>
+                  <div className="text-xs text-faint">{doc.fileName} · {(doc.size / 1024).toFixed(0)} KB</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <a
