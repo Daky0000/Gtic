@@ -26,6 +26,14 @@ export async function isPaystackConfigured(): Promise<boolean> {
   return !!(await getSecretKey());
 }
 
+/** The Paystack PUBLIC key (pk_…) — safe to expose to the browser for
+ * inline/popup checkout. Null when unset. */
+export async function getPaystackPublicKey(): Promise<string | null> {
+  const raw = await getSetting(SETTING_KEYS.PAYSTACK_PUBLIC_KEY);
+  const trimmed = raw?.trim();
+  return trimmed && trimmed !== "" ? trimmed : null;
+}
+
 /**
  * Live diagnostic for the developer console: confirms the configured secret
  * key actually works against Paystack and that the merchant supports GHS.
@@ -56,6 +64,18 @@ export async function testPaystackConnection(): Promise<{ ok: boolean; message: 
         ok: false,
         message: `Key is valid (${mode} mode) but this Paystack account supports ${currencies.join(", ")}, not GHS. Checkouts in GHS will fail — use a Ghana Paystack account.`,
       };
+    }
+    // Warn (don't fail) if a public key is configured in a different mode —
+    // inline checkout would then use the wrong environment.
+    const publicKey = await getPaystackPublicKey();
+    if (publicKey) {
+      const publicMode = publicKey.startsWith("pk_live_") ? "live" : "test";
+      if (publicMode !== mode) {
+        return {
+          ok: false,
+          message: `Secret key is ${mode}-mode but the public key is ${publicMode}-mode — set both to the same environment.`,
+        };
+      }
     }
     return { ok: true, message: `Connected — ${mode}-mode key valid${currencies.length ? ` for ${currencies.join(", ")}` : ""}. Checkouts will work.` };
   } catch (e) {

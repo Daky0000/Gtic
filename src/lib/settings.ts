@@ -12,6 +12,10 @@ import { audit } from "@/lib/audit";
 
 export const SETTING_KEYS = {
   PAYSTACK_SECRET_KEY: "integration.paystack_secret_key",
+  /** Paystack PUBLIC key (pk_test_… / pk_live_…). Safe to expose to the
+   * browser — only needed for inline/popup checkout; hosted checkout uses
+   * the secret key server-side. Stored so both keys live in one place. */
+  PAYSTACK_PUBLIC_KEY: "integration.paystack_public_key",
   ANTHROPIC_API_KEY: "integration.anthropic_api_key",
   AI_PROVIDER: "integration.ai_provider",
   DOC_FEE_TRANSCRIPT: "fees.document.transcript",
@@ -29,6 +33,7 @@ export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
 /** Env var that backs each setting when no DB override exists. */
 const ENV_FALLBACK: Partial<Record<SettingKey, string>> = {
   [SETTING_KEYS.PAYSTACK_SECRET_KEY]: "PAYSTACK_SECRET_KEY",
+  [SETTING_KEYS.PAYSTACK_PUBLIC_KEY]: "PAYSTACK_PUBLIC_KEY",
   [SETTING_KEYS.ANTHROPIC_API_KEY]: "ANTHROPIC_API_KEY",
   [SETTING_KEYS.AI_PROVIDER]: "AI_PROVIDER",
 };

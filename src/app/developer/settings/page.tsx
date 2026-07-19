@@ -24,13 +24,15 @@ export default async function SystemSettingsPage({
   await requirePortal("developer");
   const { error, saved, paystack, paystackMsg } = await searchParams;
 
-  const [institution, paystackOverride, anthropicOverride, aiProviderOverride] = await Promise.all([
+  const [institution, paystackOverride, paystackPublicOverride, anthropicOverride, aiProviderOverride] = await Promise.all([
     db.institution.findFirst(),
     getSettingOverride(SETTING_KEYS.PAYSTACK_SECRET_KEY),
+    getSettingOverride(SETTING_KEYS.PAYSTACK_PUBLIC_KEY),
     getSettingOverride(SETTING_KEYS.ANTHROPIC_API_KEY),
     getSettingOverride(SETTING_KEYS.AI_PROVIDER),
   ]);
   const paystackEnv = !!process.env.PAYSTACK_SECRET_KEY;
+  const paystackPublicEnv = !!process.env.PAYSTACK_PUBLIC_KEY;
   const anthropicEnv = !!process.env.ANTHROPIC_API_KEY;
 
   const field = "mt-1 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none";
@@ -88,6 +90,28 @@ export default async function SystemSettingsPage({
                 </p>
               )}
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className={label}>Paystack public key</label>
+              <StatusChip override={paystackPublicOverride} env={paystackPublicEnv} />
+            </div>
+            <input
+              name="paystackPublicKey"
+              type="text"
+              placeholder={paystackPublicOverride ? `Current: ${maskSecret(paystackPublicOverride)} — enter a new key to replace` : "pk_live_… or pk_test_…"}
+              autoComplete="off"
+              className={field}
+            />
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+              <input type="checkbox" name="clearPaystackPublic" value="1" />
+              Clear the console value (fall back to environment{paystackPublicEnv ? "" : " — none set"})
+            </label>
+            <p className="mt-1 text-xs text-ink-500">
+              Safe to share publicly. Only needed for inline/popup checkout — the current hosted
+              checkout works with the secret key alone. Use the same mode (test/live) as the secret key.
+            </p>
           </div>
 
           <div>

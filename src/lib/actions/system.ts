@@ -67,6 +67,7 @@ export async function saveIntegrations(formData: FormData) {
   const back = "/developer/settings";
 
   const paystackKey = String(formData.get("paystackKey") ?? "").trim();
+  const paystackPublicKey = String(formData.get("paystackPublicKey") ?? "").trim();
   const anthropicKey = String(formData.get("anthropicKey") ?? "").trim();
   const aiProvider = String(formData.get("aiProvider") ?? "").trim();
 
@@ -74,9 +75,18 @@ export async function saveIntegrations(formData: FormData) {
     await setSetting(SETTING_KEYS.PAYSTACK_SECRET_KEY, "", dev.id);
   } else if (paystackKey) {
     if (!/^sk_(test|live)_/.test(paystackKey)) {
-      fail(back, "That doesn't look like a Paystack secret key (expected sk_test_… or sk_live_…).");
+      fail(back, "That doesn't look like a Paystack SECRET key (expected sk_test_… or sk_live_…).");
     }
     await setSetting(SETTING_KEYS.PAYSTACK_SECRET_KEY, paystackKey, dev.id);
+  }
+
+  if (formData.get("clearPaystackPublic")) {
+    await setSetting(SETTING_KEYS.PAYSTACK_PUBLIC_KEY, "", dev.id);
+  } else if (paystackPublicKey) {
+    if (!/^pk_(test|live)_/.test(paystackPublicKey)) {
+      fail(back, "That doesn't look like a Paystack PUBLIC key (expected pk_test_… or pk_live_…).");
+    }
+    await setSetting(SETTING_KEYS.PAYSTACK_PUBLIC_KEY, paystackPublicKey, dev.id);
   }
 
   if (formData.get("clearAnthropic")) {
