@@ -5,15 +5,26 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { db } from "@/lib/db";
-import { requireRole, ROLES } from "@/lib/rbac";
+import { isDeveloper, requireRole, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
-import { setSetting, SETTING_KEYS } from "@/lib/settings";
+import { getSetting, setSetting, SETTING_KEYS } from "@/lib/settings";
+import { parseUsdRate, usdToPesewas } from "@/lib/money";
 import type { ProgrammeLevel } from "@prisma/client";
 
-/** Developer console actions. Every action requires the developer (or
- * system admin) role — the same guard the /admin/settings pages use. */
+/** Developer console actions (settings, users). Developer or system admin —
+ * the same guard the /admin/settings pages use. */
 async function requireDeveloper() {
   return requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
+}
+
+/** Pricing actions are the developer's ALONE — the system admin keeps the
+ * rest of the console, but fees and the currency multiplier are excluded. */
+async function requireFees() {
+  const user = await requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
+  if (!isDeveloper(user)) {
+    fail("/admin", "Fees and pricing are managed by the developer account only.");
+  }
+  return user;
 }
 
 function fail(path: string, message: string): never {
@@ -25,6 +36,28 @@ function ghsToPesewas(v: FormDataEntryValue | null): number | null {
   const n = Number(String(v ?? "").trim());
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
+}
+
+/** Amount from a paired GHS/USD input. A non-empty USD value wins and
+ * converts at the developer-set multiplier (Paystack Ghana settles GHS
+ * only); without a multiplier configured, USD entry is rejected rather than
+ * guessed. Returns pesewas, or null when neither field parses. */
+async function pairedAmountToPesewas(
+  formData: FormData,
+  ghsField: string,
+  usdField: string
+): Promise<number | null> {
+  const usdRaw = String(formData.get(usdField) ?? "").trim();
+  if (usdRaw !== "") {
+    const rate = parseUsdRate(await getSetting(SETTING_KEYS.USD_TO_GHS_RATE));
+    if (!rate) {
+      fail("/admin/fees", "Set the USD→GHS multiplier before pricing fees in dollars.");
+    }
+    const usd = Number(usdRaw);
+    if (!Number.isFinite(usd) || usd < 0) return null;
+    return usdToPesewas(usd, rate);
+  }
+  return ghsToPesewas(formData.get(ghsField));
 }
 
 // ─── Integrations & institution ───
@@ -92,12 +125,12 @@ export async function saveInstitution(formData: FormData) {
 // ─── Fees ───
 
 export async function updateCycleFees(formData: FormData) {
-  const dev = await requireDeveloper();
+  const dev = await requireFees();
   const cycleId = String(formData.get("cycleId"));
-  const applicationFee = ghsToPesewas(formData.get("applicationFeeGhs"));
-  const acceptanceFee = ghsToPesewas(formData.get("acceptanceFeeGhs"));
+  const applicationFee = await pairedAmountToPesewas(formData, "applicationFeeGhs", "applicationFeeUsd");
+  const acceptanceFee = await pairedAmountToPesewas(formData, "acceptanceFeeGhs", "acceptanceFeeUsd");
   if (applicationFee == null || acceptanceFee == null) {
-    fail("/admin/fees", "Enter valid amounts in GHS.");
+    fail("/admin/fees", "Enter valid amounts.");
   }
 
   await db.admissionCycle.update({
@@ -112,25 +145,49 @@ export async function updateCycleFees(formData: FormData) {
 }
 
 export async function updateDocumentFees(formData: FormData) {
-  const dev = await requireDeveloper();
-  const entries: [string, (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS]][] = [
-    ["transcriptGhs", SETTING_KEYS.DOC_FEE_TRANSCRIPT],
-    ["attestationGhs", SETTING_KEYS.DOC_FEE_ATTESTATION],
-    ["verificationGhs", SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER],
+  const dev = await requireFees();
+  const entries: [string, string, (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS]][] = [
+    ["transcriptGhs", "transcriptUsd", SETTING_KEYS.DOC_FEE_TRANSCRIPT],
+    ["attestationGhs", "attestationUsd", SETTING_KEYS.DOC_FEE_ATTESTATION],
+    ["verificationGhs", "verificationUsd", SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER],
   ];
-  for (const [field, key] of entries) {
-    const pesewas = ghsToPesewas(formData.get(field));
-    if (pesewas == null) fail("/admin/fees", "Enter valid amounts in GHS.");
+  for (const [ghsField, usdField, key] of entries) {
+    const pesewas = await pairedAmountToPesewas(formData, ghsField, usdField);
+    if (pesewas == null) fail("/admin/fees", "Enter valid amounts.");
     await setSetting(key, String(pesewas), dev.id);
   }
   redirect("/admin/fees?saved=1");
 }
 
+export async function updateLibraryFine(formData: FormData) {
+  const dev = await requireFees();
+  const pesewas = await pairedAmountToPesewas(formData, "fineGhs", "fineUsd");
+  if (pesewas == null) fail("/admin/fees", "Enter a valid amount.");
+  await setSetting(SETTING_KEYS.LIBRARY_FINE_PER_DAY, String(pesewas), dev.id);
+  redirect("/admin/fees?saved=1");
+}
+
+/** Sets (or clears) the USD→GHS multiplier used to price fees in dollars. */
+export async function saveCurrencyRate(formData: FormData) {
+  const dev = await requireFees();
+  const raw = String(formData.get("rate") ?? "").trim();
+  if (raw === "" || formData.get("clear")) {
+    await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, "", dev.id);
+    redirect("/admin/fees?saved=1");
+  }
+  const rate = parseUsdRate(raw);
+  if (!rate) {
+    fail("/admin/fees", "Enter a valid multiplier — how many GHS one US dollar buys, e.g. 15.50.");
+  }
+  await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, String(rate), dev.id);
+  redirect("/admin/fees?saved=1");
+}
+
 export async function updateHostelFee(formData: FormData) {
-  const dev = await requireDeveloper();
+  const dev = await requireFees();
   const hostelId = String(formData.get("hostelId"));
-  const feePerYear = ghsToPesewas(formData.get("feeGhs"));
-  if (feePerYear == null) fail("/admin/fees", "Enter a valid amount in GHS.");
+  const feePerYear = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
+  if (feePerYear == null) fail("/admin/fees", "Enter a valid amount.");
 
   await db.hostel.update({ where: { id: hostelId }, data: { feePerYear } });
   await audit({
@@ -141,7 +198,7 @@ export async function updateHostelFee(formData: FormData) {
 }
 
 export async function createFeeSchedule(formData: FormData) {
-  const dev = await requireDeveloper();
+  const dev = await requireFees();
   const academicYearId = String(formData.get("academicYearId"));
   const level = String(formData.get("level")) as ProgrammeLevel;
   const name = String(formData.get("name") ?? "").trim();
@@ -158,11 +215,11 @@ export async function createFeeSchedule(formData: FormData) {
 }
 
 export async function addFeeItem(formData: FormData) {
-  const dev = await requireDeveloper();
+  const dev = await requireFees();
   const scheduleId = String(formData.get("scheduleId"));
   const name = String(formData.get("name") ?? "").trim();
-  const amount = ghsToPesewas(formData.get("amountGhs"));
-  if (!name || amount == null) fail("/admin/fees", "Enter a fee item name and a valid GHS amount.");
+  const amount = await pairedAmountToPesewas(formData, "amountGhs", "amountUsd");
+  if (!name || amount == null) fail("/admin/fees", "Enter a fee item name and a valid amount.");
 
   await db.feeItem.create({ data: { scheduleId, name, amount } });
   await audit({
@@ -173,7 +230,7 @@ export async function addFeeItem(formData: FormData) {
 }
 
 export async function deleteFeeItem(formData: FormData) {
-  const dev = await requireDeveloper();
+  const dev = await requireFees();
   const itemId = String(formData.get("itemId"));
   const item = await db.feeItem.delete({ where: { id: itemId } });
   await audit({

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cedisToPesewas, formatGHS, percentPaid } from "@/lib/money";
+import {
+  cedisToPesewas, formatGHS, formatUSDEquivalent, parseUsdRate, percentPaid, usdToPesewas,
+} from "@/lib/money";
 
 describe("formatGHS", () => {
   it("formats pesewas as cedis with two decimals", () => {
@@ -37,5 +39,48 @@ describe("percentPaid (fee gates)", () => {
     // Rounding must not wave a 69.4%-paid student through the 70% gate.
     expect(percentPaid({ total: 10000, paid: 6940 })).toBeLessThan(70);
     expect(percentPaid({ total: 10000, paid: 6950 })).toBe(70);
+  });
+});
+
+describe("parseUsdRate (currency multiplier)", () => {
+  it("accepts sane positive rates", () => {
+    expect(parseUsdRate("15.50")).toBe(15.5);
+    expect(parseUsdRate(" 12 ")).toBe(12);
+    expect(parseUsdRate("0.01")).toBe(0.01);
+  });
+
+  it("rejects junk, zero, negatives, and absurd values", () => {
+    expect(parseUsdRate("")).toBeNull();
+    expect(parseUsdRate(null)).toBeNull();
+    expect(parseUsdRate(undefined)).toBeNull();
+    expect(parseUsdRate("abc")).toBeNull();
+    expect(parseUsdRate("0")).toBeNull();
+    expect(parseUsdRate("-15")).toBeNull();
+    expect(parseUsdRate("10001")).toBeNull();
+    expect(parseUsdRate("Infinity")).toBeNull();
+  });
+});
+
+describe("usdToPesewas", () => {
+  it("converts dollars to pesewas at the given rate", () => {
+    expect(usdToPesewas(25, 15.5)).toBe(38750); // $25 → GHS 387.50
+    expect(usdToPesewas(1, 15.5)).toBe(1550);
+    expect(usdToPesewas(0, 15.5)).toBe(0);
+  });
+
+  it("rounds to the nearest whole pesewa", () => {
+    expect(usdToPesewas(0.999, 15.5)).toBe(1548); // 1548.45 → 1548
+    expect(usdToPesewas(1.005, 10)).toBe(1005);
+  });
+});
+
+describe("formatUSDEquivalent", () => {
+  it("round-trips a USD-priced fee back to the same dollars", () => {
+    expect(formatUSDEquivalent(usdToPesewas(25, 15.5), 15.5)).toBe("$25.00");
+    expect(formatUSDEquivalent(usdToPesewas(199.99, 12.34), 12.34)).toBe("$199.99");
+  });
+
+  it("formats with thousands separators", () => {
+    expect(formatUSDEquivalent(1550000, 15.5)).toBe("$1,000.00");
   });
 });

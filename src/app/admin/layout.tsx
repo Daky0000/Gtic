@@ -1,11 +1,12 @@
-import { hasRole, requirePortal, ROLES } from "@/lib/rbac";
+import { hasRole, isDeveloper, requirePortal, ROLES } from "@/lib/rbac";
 import { PortalShell, type NavItem } from "@/components/portal-shell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePortal("admin");
 
   // Registrar/management see the overview + calendar; the developer console
-  // pages (settings, fees, users, audit) are developer / system admin only.
+  // pages (settings, users, audit) are developer / system admin only. Fees &
+  // pricing go further: developer ONLY — excluded for the system admin.
   const isConsole = hasRole(user, ROLES.SYSTEM_ADMIN);
   const nav: NavItem[] = [
     { label: "Overview", href: "/admin" },
@@ -13,7 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ...(isConsole
       ? [
           { label: "Users & roles", href: "/admin/users" },
-          { label: "Fees", href: "/admin/fees" },
+          ...(isDeveloper(user) ? [{ label: "Fees & pricing", href: "/admin/fees" }] : []),
           { label: "System settings", href: "/admin/settings" },
           { label: "Audit log", href: "/admin/audit" },
         ]

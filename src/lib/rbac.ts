@@ -162,12 +162,27 @@ export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
   return user;
 }
 
-/** Page guard for the developer console (/admin/settings, /admin/fees,
- * /admin/users, /admin/audit): developer or system admin only — other admin
- * portal roles (registrar, management) are bounced to the admin overview. */
+/** Page guard for the developer console (/admin/settings, /admin/users,
+ * /admin/audit): developer or system admin only — other admin portal roles
+ * (registrar, management) are bounced to the admin overview. */
 export async function requireDeveloperConsole(): Promise<CurrentUser> {
   const user = await requirePortal("admin");
   if (!hasRole(user, ROLES.SYSTEM_ADMIN)) redirect(PORTAL_HOME.admin);
+  return user;
+}
+
+/** True only when the account actually holds the developer role — unlike
+ * hasRole, which treats developer as a superset of every other role. */
+export function isDeveloper(user: CurrentUser): boolean {
+  return user.roles.includes(ROLES.DEVELOPER);
+}
+
+/** Page/action guard for pricing (/admin/fees): the developer ONLY. The
+ * system admin keeps the rest of the console but fees are excluded — prices
+ * and the currency multiplier are a developer decision. */
+export async function requireFeesConsole(): Promise<CurrentUser> {
+  const user = await requirePortal("admin");
+  if (!isDeveloper(user)) redirect(PORTAL_HOME.admin);
   return user;
 }
 

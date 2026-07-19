@@ -7,9 +7,14 @@ import { audit } from "@/lib/audit";
 import { invoiceNo } from "@/lib/codes";
 import { notify } from "@/lib/notify";
 import { formatGHS } from "@/lib/money";
+import { getIntFee, SETTING_KEYS } from "@/lib/settings";
 
 const LOAN_DAYS = 14;
-const FINE_PER_DAY = 100; // GHS 1.00/day, pesewas
+const DEFAULT_FINE_PER_DAY = 100; // GHS 1.00/day, pesewas
+
+// The per-day fine is priced from the fees console (developer-set), falling
+// back to the default above when unset.
+const finePerDay = () => getIntFee(SETTING_KEYS.LIBRARY_FINE_PER_DAY, DEFAULT_FINE_PER_DAY);
 
 function fail(message: string): never {
   redirect(`/staff/library?error=${encodeURIComponent(message)}`);
@@ -36,7 +41,7 @@ export async function borrowItem(formData: FormData) {
   await notify(
     user.id,
     "Library loan recorded",
-    `"${item.title}" is due back by ${dueAt.toLocaleDateString()}. Late returns attract a fine of ${formatGHS(FINE_PER_DAY)} per day.`
+    `"${item.title}" is due back by ${dueAt.toLocaleDateString()}. Late returns attract a fine of ${formatGHS(await finePerDay())} per day.`
   );
   redirect("/staff/library");
 }
@@ -49,7 +54,7 @@ export async function returnItem(formData: FormData) {
 
   const now = new Date();
   const daysLate = Math.max(0, Math.ceil((now.getTime() - loan.dueAt.getTime()) / 86_400_000));
-  const fine = daysLate * FINE_PER_DAY;
+  const fine = daysLate * (await finePerDay());
 
   await db.$transaction(async (tx) => {
     await tx.loan.update({ where: { id: loanId }, data: { returnedAt: now } });

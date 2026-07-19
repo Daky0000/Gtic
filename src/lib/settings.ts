@@ -17,6 +17,11 @@ export const SETTING_KEYS = {
   DOC_FEE_TRANSCRIPT: "fees.document.transcript",
   DOC_FEE_ATTESTATION: "fees.document.attestation",
   DOC_FEE_VERIFICATION_LETTER: "fees.document.verification_letter",
+  LIBRARY_FINE_PER_DAY: "fees.library.fine_per_day",
+  /** Developer-set USD→GHS multiplier (e.g. "15.50"). When present, fee
+   * inputs on the fees console accept USD and convert at this rate —
+   * Paystack Ghana settles in GHS only, so USD pricing needs it. */
+  USD_TO_GHS_RATE: "pricing.usd_to_ghs_rate",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];

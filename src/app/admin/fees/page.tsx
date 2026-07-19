@@ -1,45 +1,113 @@
 import { db } from "@/lib/db";
-import { requireDeveloperConsole } from "@/lib/rbac";
-import { formatGHS } from "@/lib/money";
-import { getIntFee, SETTING_KEYS } from "@/lib/settings";
+import { requireFeesConsole } from "@/lib/rbac";
+import { formatGHS, formatUSDEquivalent, parseUsdRate } from "@/lib/money";
+import { getIntFee, getSetting, SETTING_KEYS } from "@/lib/settings";
 import {
-  addFeeItem, createFeeSchedule, deleteFeeItem, updateCycleFees, updateDocumentFees, updateHostelFee,
+  addFeeItem, createFeeSchedule, deleteFeeItem, saveCurrencyRate,
+  updateCycleFees, updateDocumentFees, updateHostelFee, updateLibraryFine,
 } from "@/lib/actions/system";
 import { Flash } from "@/components/flash";
 
-export const metadata = { title: "Fees" };
+export const metadata = { title: "Fees & Pricing" };
 
 const ghs = (pesewas: number) => (pesewas / 100).toFixed(2);
+
+const field = "rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none";
+const saveBtn = "rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep";
+
+/** Paired GHS + USD inputs; the USD column only renders once a rate is set. */
+function AmountInputs({
+  ghsName, usdName, pesewas, rate,
+}: {
+  ghsName: string; usdName: string; pesewas: number; rate: number | null;
+}) {
+  return (
+    <>
+      <label className="text-xs text-ink-600">
+        GHS
+        {rate && <span className="ml-1 text-[11px] text-ink-400">≈ {formatUSDEquivalent(pesewas, rate)}</span>}
+        <input name={ghsName} type="number" step="0.01" min="0" defaultValue={ghs(pesewas)} className={`${field} mt-1 block w-28`} />
+      </label>
+      {rate && (
+        <label className="text-xs text-ink-600">
+          or USD
+          <input name={usdName} type="number" step="0.01" min="0" placeholder="$" className={`${field} mt-1 block w-24`} />
+        </label>
+      )}
+    </>
+  );
+}
 
 export default async function FeesConsolePage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
-  await requireDeveloperConsole();
+  // Pricing is the developer's alone — system admins keep the rest of the
+  // console but are bounced from this page.
+  await requireFeesConsole();
   const { error, saved } = await searchParams;
 
-  const [cycles, hostels, schedules, years, docTranscript, docAttestation, docVerification] = await Promise.all([
-    db.admissionCycle.findMany({ orderBy: { opensAt: "desc" }, take: 5 }),
-    db.hostel.findMany({ orderBy: { name: "asc" } }),
-    db.feeSchedule.findMany({
-      include: { items: true, academicYear: true },
-      orderBy: [{ academicYear: { label: "desc" } }, { level: "asc" }],
-    }),
-    db.academicYear.findMany({ orderBy: { label: "desc" } }),
-    getIntFee(SETTING_KEYS.DOC_FEE_TRANSCRIPT, 5000),
-    getIntFee(SETTING_KEYS.DOC_FEE_ATTESTATION, 3000),
-    getIntFee(SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER, 2000),
-  ]);
-
-  const field = "rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none";
-  const saveBtn = "rounded-full bg-forest px-3 py-1.5 text-sm font-medium text-white hover:bg-forest-deep";
+  const [cycles, hostels, schedules, years, docTranscript, docAttestation, docVerification, libraryFine, rateRaw] =
+    await Promise.all([
+      db.admissionCycle.findMany({ orderBy: { opensAt: "desc" }, take: 5 }),
+      db.hostel.findMany({ orderBy: { name: "asc" } }),
+      db.feeSchedule.findMany({
+        include: { items: true, academicYear: true },
+        orderBy: [{ academicYear: { label: "desc" } }, { level: "asc" }],
+      }),
+      db.academicYear.findMany({ orderBy: { label: "desc" } }),
+      getIntFee(SETTING_KEYS.DOC_FEE_TRANSCRIPT, 5000),
+      getIntFee(SETTING_KEYS.DOC_FEE_ATTESTATION, 3000),
+      getIntFee(SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER, 2000),
+      getIntFee(SETTING_KEYS.LIBRARY_FINE_PER_DAY, 100),
+      getSetting(SETTING_KEYS.USD_TO_GHS_RATE),
+    ]);
+  const rate = parseUsdRate(rateRaw);
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold">Fees</h1>
-      <p className="mt-1 text-sm text-ink-500">All amounts in GHS. Changes apply to bills generated after the change.</p>
-      <Flash error={error} success={saved ? "Fees updated." : undefined} />
+      <h1 className="text-2xl font-bold">Fees &amp; pricing</h1>
+      <p className="mt-1 text-sm text-ink-500">
+        Charged in GHS. Changes apply to bills generated after the change. This page is available to the
+        developer account only.
+      </p>
+      <Flash error={error} success={saved ? "Pricing updated." : undefined} />
+
+      {/* Currency multiplier */}
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-brand-800">Currency multiplier (USD → GHS)</h2>
+        <p className="mt-1 text-xs text-ink-500">
+          Paystack does not settle USD for Ghana, so fees are always charged in GHS. Set how many GHS one
+          US dollar buys and every fee below can be entered in dollars — the GHS amount is computed at this
+          rate when you save. Update it whenever the exchange rate moves.
+        </p>
+        <form action={saveCurrencyRate} className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-xs text-ink-600">
+            1 USD =
+            <input
+              name="rate" type="number" step="0.0001" min="0.01"
+              defaultValue={rate ?? undefined} placeholder="e.g. 15.50"
+              className={`${field} mt-1 block w-32`}
+            />
+          </label>
+          <span className="pb-2 text-xs text-ink-500">GHS</span>
+          <button type="submit" className={saveBtn}>Save rate</button>
+          {rate && (
+            <button type="submit" name="clear" value="1" className="rounded-full border border-ink-300 px-3 py-1.5 text-sm text-ink-600 hover:bg-ink-50">
+              Clear (GHS-only pricing)
+            </button>
+          )}
+        </form>
+        {rate ? (
+          <p className="mt-2 text-xs text-forest">
+            Active: $1 = GHS {rate.toFixed(2)} — USD columns are enabled below, and each fee shows its
+            dollar equivalent.
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-ink-500">No rate set — fees are entered in GHS only.</p>
+        )}
+      </section>
 
       {/* Admission cycle fees */}
       <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
@@ -51,14 +119,14 @@ export default async function FeesConsolePage({
               <div className="text-sm font-medium">{c.name}</div>
               <div className="text-xs text-ink-500">{c.status}</div>
             </div>
-            <label className="text-xs text-ink-600">
-              Application fee
-              <input name="applicationFeeGhs" type="number" step="0.01" min="0" defaultValue={ghs(c.applicationFee)} className={`${field} mt-1 block w-28`} />
-            </label>
-            <label className="text-xs text-ink-600">
-              Acceptance fee
-              <input name="acceptanceFeeGhs" type="number" step="0.01" min="0" defaultValue={ghs(c.acceptanceFee)} className={`${field} mt-1 block w-28`} />
-            </label>
+            <div className="flex items-end gap-2">
+              <span className="pb-2 text-xs font-medium text-ink-600">Application</span>
+              <AmountInputs ghsName="applicationFeeGhs" usdName="applicationFeeUsd" pesewas={c.applicationFee} rate={rate} />
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="pb-2 text-xs font-medium text-ink-600">Acceptance</span>
+              <AmountInputs ghsName="acceptanceFeeGhs" usdName="acceptanceFeeUsd" pesewas={c.acceptanceFee} rate={rate} />
+            </div>
             <button type="submit" className={saveBtn}>Save</button>
           </form>
         ))}
@@ -68,19 +136,28 @@ export default async function FeesConsolePage({
       {/* Document service fees */}
       <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Document service fees</h2>
-        <form action={updateDocumentFees} className="mt-3 flex flex-wrap items-end gap-3">
-          <label className="text-xs text-ink-600">
-            Transcript (mailed copy)
-            <input name="transcriptGhs" type="number" step="0.01" min="0" defaultValue={ghs(docTranscript)} className={`${field} mt-1 block w-28`} />
-          </label>
-          <label className="text-xs text-ink-600">
-            Attestation
-            <input name="attestationGhs" type="number" step="0.01" min="0" defaultValue={ghs(docAttestation)} className={`${field} mt-1 block w-28`} />
-          </label>
-          <label className="text-xs text-ink-600">
-            Verification letter
-            <input name="verificationGhs" type="number" step="0.01" min="0" defaultValue={ghs(docVerification)} className={`${field} mt-1 block w-28`} />
-          </label>
+        <form action={updateDocumentFees} className="mt-3 flex flex-wrap items-end gap-4">
+          <div className="flex items-end gap-2">
+            <span className="pb-2 text-xs font-medium text-ink-600">Transcript</span>
+            <AmountInputs ghsName="transcriptGhs" usdName="transcriptUsd" pesewas={docTranscript} rate={rate} />
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="pb-2 text-xs font-medium text-ink-600">Attestation</span>
+            <AmountInputs ghsName="attestationGhs" usdName="attestationUsd" pesewas={docAttestation} rate={rate} />
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="pb-2 text-xs font-medium text-ink-600">Verification letter</span>
+            <AmountInputs ghsName="verificationGhs" usdName="verificationUsd" pesewas={docVerification} rate={rate} />
+          </div>
+          <button type="submit" className={saveBtn}>Save</button>
+        </form>
+      </section>
+
+      {/* Library fine */}
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-brand-800">Library overdue fine (per day)</h2>
+        <form action={updateLibraryFine} className="mt-3 flex flex-wrap items-end gap-3">
+          <AmountInputs ghsName="fineGhs" usdName="fineUsd" pesewas={libraryFine} rate={rate} />
           <button type="submit" className={saveBtn}>Save</button>
         </form>
       </section>
@@ -92,7 +169,7 @@ export default async function FeesConsolePage({
           <form key={h.id} action={updateHostelFee} className="mt-3 flex flex-wrap items-end gap-3 border-t border-ink-100 pt-3">
             <input type="hidden" name="hostelId" value={h.id} />
             <div className="min-w-40 flex-1 text-sm font-medium">{h.name}</div>
-            <input name="feeGhs" type="number" step="0.01" min="0" defaultValue={ghs(h.feePerYear)} className={`${field} w-28`} />
+            <AmountInputs ghsName="feeGhs" usdName="feeUsd" pesewas={h.feePerYear} rate={rate} />
             <button type="submit" className={saveBtn}>Save</button>
           </form>
         ))}
@@ -117,7 +194,10 @@ export default async function FeesConsolePage({
                 {s.items.map((i) => (
                   <tr key={i.id} className="border-t border-ink-100">
                     <td className="py-1.5">{i.name}</td>
-                    <td className="py-1.5 text-right font-mono">{formatGHS(i.amount)}</td>
+                    <td className="py-1.5 text-right font-mono">
+                      {formatGHS(i.amount)}
+                      {rate && <span className="ml-1 font-sans text-[11px] text-ink-400">≈ {formatUSDEquivalent(i.amount, rate)}</span>}
+                    </td>
                     <td className="w-14 py-1.5 text-right">
                       <form action={deleteFeeItem}>
                         <input type="hidden" name="itemId" value={i.id} />
@@ -128,7 +208,14 @@ export default async function FeesConsolePage({
                 ))}
                 <tr className="border-t border-ink-300 font-semibold">
                   <td className="py-1.5">Total per semester</td>
-                  <td className="py-1.5 text-right font-mono">{formatGHS(s.items.reduce((sum, i) => sum + i.amount, 0))}</td>
+                  <td className="py-1.5 text-right font-mono">
+                    {formatGHS(s.items.reduce((sum, i) => sum + i.amount, 0))}
+                    {rate && (
+                      <span className="ml-1 font-sans text-[11px] font-normal text-ink-400">
+                        ≈ {formatUSDEquivalent(s.items.reduce((sum, i) => sum + i.amount, 0), rate)}
+                      </span>
+                    )}
+                  </td>
                   <td />
                 </tr>
               </tbody>
@@ -136,7 +223,8 @@ export default async function FeesConsolePage({
             <form action={addFeeItem} className="mt-2 flex flex-wrap items-center gap-2">
               <input type="hidden" name="scheduleId" value={s.id} />
               <input name="name" placeholder="Fee item (e.g. Tuition, ICT levy)" required className={`${field} flex-1`} />
-              <input name="amountGhs" type="number" step="0.01" min="0" placeholder="GHS" required className={`${field} w-24`} />
+              <input name="amountGhs" type="number" step="0.01" min="0" placeholder="GHS" className={`${field} w-24`} />
+              {rate && <input name="amountUsd" type="number" step="0.01" min="0" placeholder="or USD" className={`${field} w-24`} />}
               <button type="submit" className="rounded-md border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100">
                 Add item
               </button>
