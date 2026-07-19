@@ -20,7 +20,13 @@ export default async function StudentTimetablePage() {
     : null;
 
   const sessions = (registration?.courses ?? [])
-    .flatMap((rc) => rc.offering.sessions.map((s) => ({ ...s, courseCode: rc.offering.course.code })))
+    .flatMap((rc) =>
+      rc.offering.sessions.map((s) => ({
+        ...s,
+        courseCode: rc.offering.course.code,
+        courseTitle: rc.offering.course.title,
+      }))
+    )
     .sort((a, b) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
 
   return (
@@ -37,8 +43,10 @@ export default async function StudentTimetablePage() {
             {sessions.map((s) => (
               <tr key={s.id} className="border-t border-ink-100">
                 <td className="px-4 py-2">{DAY_NAMES[s.dayOfWeek ?? 0]}</td>
-                <td className="px-4 py-2">{s.startTime}–{s.endTime}</td>
-                <td className="px-4 py-2">{s.courseCode}</td>
+                <td className="px-4 py-2 font-mono text-xs">{s.startTime}–{s.endTime}</td>
+                <td className="px-4 py-2">
+                  <span className="font-mono text-xs text-ink-500">{s.courseCode}</span> {s.courseTitle}
+                </td>
                 <td className="px-4 py-2">{s.venue?.name}</td>
               </tr>
             ))}

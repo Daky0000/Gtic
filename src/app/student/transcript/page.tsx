@@ -4,6 +4,7 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { generateTranscript } from "@/lib/actions/exams";
 import { classOfDegree } from "@/lib/grading";
+import { PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Transcript" };
 
@@ -29,13 +30,17 @@ export default async function TranscriptPage() {
     orderBy: { createdAt: "desc" },
   });
   const latestResult = results.at(-1);
+  const totalCreditsEarned = results.reduce((s, r) => s + r.creditsEarned, 0);
   const institution = await db.institution.findFirst();
   const institutionName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My transcript</h1>
+    <div className="scr mx-auto max-w-3xl">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title={<>My <em className="text-forest">transcript.</em></>}
+          lead="A live view of your academic record. Generate a verifiable copy any time — each carries a code anyone can check on the public verification page."
+        />
         <form action={generateTranscript}>
           <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
             Generate verifiable transcript
@@ -44,7 +49,7 @@ export default async function TranscriptPage() {
       </div>
 
       {latestIssued && (
-        <div className="mt-3 rounded-md bg-brand-50 p-3 text-sm text-brand-900">
+        <div className="mt-3 rounded-[11px] bg-[#eaf0ea] p-3 text-sm text-forest">
           Last generated {latestIssued.createdAt.toLocaleString()} · code{" "}
           <Link href={`/verify/${latestIssued.code}`} className="font-mono underline">{latestIssued.code}</Link>
         </div>
@@ -62,25 +67,49 @@ export default async function TranscriptPage() {
           <div><dt className="text-ink-500">Class (to date)</dt><dd className="font-medium">{latestResult ? classOfDegree(latestResult.cumulativeAverage) : "—"}</dd></div>
         </dl>
 
-        {results.map((r) => (
-          <div key={r.id} className="mt-5">
-            <h3 className="text-sm font-semibold text-brand-800">{r.semester.label}</h3>
-            <table className="mt-1 w-full text-left text-xs">
-              <tbody>
-                {entries.filter((e) => e.gradeSheet.offering.semesterId === r.semesterId).map((e) => (
-                  <tr key={e.id} className="border-t border-ink-100">
-                    <td className="py-1">{e.gradeSheet.offering.course.code}</td>
-                    <td className="py-1">{e.gradeSheet.offering.course.title}</td>
-                    <td className="py-1 font-mono">{e.total?.toFixed(1)}</td>
-                    <td className="py-1 font-mono">{e.grade}</td>
+        {results.map((r) => {
+          const rows = entries.filter((e) => e.gradeSheet.offering.semesterId === r.semesterId);
+          return (
+            <div key={r.id} className="mt-5">
+              <h3 className="text-sm font-semibold text-brand-800">{r.semester.label}</h3>
+              <table className="mt-1 w-full text-left text-xs">
+                <thead className="text-[10px] uppercase text-ink-500">
+                  <tr>
+                    <th className="py-1">Code</th>
+                    <th className="py-1">Course</th>
+                    <th className="py-1 text-right">Credits</th>
+                    <th className="py-1 text-right">Total</th>
+                    <th className="py-1 text-right">Grade</th>
+                    <th className="py-1 text-right">Points</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-1 text-right text-xs text-ink-500">Semester average: {r.semesterAverage.toFixed(2)} · Cumulative: {r.cumulativeAverage.toFixed(2)}</div>
-          </div>
-        ))}
+                </thead>
+                <tbody>
+                  {rows.map((e) => (
+                    <tr key={e.id} className="border-t border-ink-100">
+                      <td className="py-1 font-mono">{e.gradeSheet.offering.course.code}</td>
+                      <td className="py-1">{e.gradeSheet.offering.course.title}</td>
+                      <td className="py-1 text-right font-mono">{e.gradeSheet.offering.course.credits}</td>
+                      <td className="py-1 text-right font-mono">{e.total?.toFixed(1)}</td>
+                      <td className="py-1 text-right font-mono">{e.grade}</td>
+                      <td className="py-1 text-right font-mono">{e.gradePoint?.toFixed(1) ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-1 text-right text-xs text-ink-500">
+                Credits earned {r.creditsEarned}/{r.creditsTaken} · Semester average {r.semesterAverage.toFixed(2)} · Cumulative {r.cumulativeAverage.toFixed(2)}
+              </div>
+            </div>
+          );
+        })}
         {results.length === 0 && <p className="mt-4 text-sm text-ink-500">No published results yet.</p>}
+
+        {results.length > 0 && (
+          <div className="mt-6 border-t border-ink-300/60 pt-3 text-right text-sm font-semibold text-brand-800">
+            Total credits earned: {totalCreditsEarned}
+            {latestResult && <> · Final cumulative average: {latestResult.cumulativeAverage.toFixed(2)}</>}
+          </div>
+        )}
       </div>
     </div>
   );

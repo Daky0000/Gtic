@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { hasRole, requireRole, requireUser, ROLES, type RoleCode } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { verificationCode } from "@/lib/codes";
-import { PASS_MARK, scoreToGrade } from "@/lib/grading";
+import { classOfDegree, PASS_MARK, scoreToGrade } from "@/lib/grading";
 import { notifyMany } from "@/lib/notify";
 import type { GradeSheetStatus } from "@prisma/client";
 
@@ -251,6 +251,8 @@ export async function generateTranscript() {
         indexNo: student.indexNo,
         programmeName: student.programme.name,
         cumulativeAverage: latest ? latest.cumulativeAverage.toFixed(2) : "0.00",
+        classOfDegree: latest ? classOfDegree(latest.cumulativeAverage) : "—",
+        creditsEarned: String(results.reduce((s, r) => s + r.creditsEarned, 0)),
         semestersCompleted: String(results.length),
         issuedAt: new Date().toISOString(),
       },

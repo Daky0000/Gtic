@@ -31,11 +31,15 @@ export default async function StudentHome({
     : null;
 
   const firstName = user.name.split(/\s+/)[0] || user.name;
+  // Ghana runs on UTC, which the server also uses — so the hour is right for
+  // the audience without any timezone gymnastics.
+  const hour = new Date().getUTCHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
     <div className="scr">
       <PageHeader
-        title={<>Good morning, <em className="text-forest">{firstName}.</em></>}
+        title={<>{greeting}, <em className="text-forest">{firstName}.</em></>}
         lead={student ? `${student.programme.name} · ${student.status.toLowerCase()}` : "Your student dashboard."}
       />
 

@@ -58,6 +58,13 @@ export default async function RegistrationPage({
 
       <div className={`mt-4 rounded-md p-3 text-sm ${anyOpen ? "bg-brand-50 text-brand-900" : "bg-ink-100 text-ink-700"}`}>
         {anyOpen ? "Registration or add/drop is currently open." : "Registration and add/drop are both closed."}
+        {windows.length > 0 && (
+          <span className="mt-1 block text-xs opacity-80">
+            {windows
+              .map((w) => `${w.type === "ADD_DROP" ? "Add/drop" : "Registration"}: ${w.opensAt.toLocaleDateString()} – ${w.closesAt.toLocaleDateString()}`)
+              .join(" · ")}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -102,7 +109,22 @@ export default async function RegistrationPage({
 
       {registration && registration.status === "SUBMITTED" && (
         <div className="mt-6 rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-          Registration on file for {semester.label} — {registration.courses.length} course(s).
+          <div className="font-medium">
+            Registration on file for {semester.label} — {registration.courses.length} course(s),{" "}
+            {offerings
+              .filter((o) => registeredIds.has(o.id))
+              .reduce((s, o) => s + o.course.credits, 0)}{" "}
+            credit hours.
+          </div>
+          <ul className="mt-2 space-y-0.5 text-xs">
+            {offerings
+              .filter((o) => registeredIds.has(o.id))
+              .map((o) => (
+                <li key={o.id}>
+                  <span className="font-mono">{o.course.code}</span> {o.course.title} · {o.course.credits} cr
+                </li>
+              ))}
+          </ul>
         </div>
       )}
     </div>
