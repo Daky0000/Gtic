@@ -1,16 +1,20 @@
 // Human-facing identifiers: application refs, verification codes, invoice/index numbers.
 // Formats are simple and readable — swap for institution-configured formats later (SYS-15/REG-15).
+import { randomInt } from "node:crypto";
 
+// CSPRNG-backed: several of these codes gate access to personal records
+// (letter verification, voucher PINs), so predictable Math.random output
+// would let an attacker enumerate them.
 function randomDigits(n: number): string {
   let s = "";
-  for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10);
+  for (let i = 0; i < n; i++) s += randomInt(10);
   return s;
 }
 
 function randomAlnum(n: number): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 ambiguity
   let s = "";
-  for (let i = 0; i < n; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < n; i++) s += chars[randomInt(chars.length)];
   return s;
 }
 

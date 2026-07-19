@@ -7,18 +7,24 @@ export const metadata = { title: "Check Application Status" };
 export default async function CheckStatusPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; surname?: string }>;
 }) {
-  const { ref } = await searchParams;
-  // Stored refs are mixed-case (they embed the cycle name, e.g.
-  // APP-September-062347), so match case-insensitively rather than forcing
-  // the visitor to type the exact casing.
-  const app = ref
-    ? await db.application.findFirst({
-        where: { refNo: { equals: ref.trim(), mode: "insensitive" } },
-        include: { offer: true },
-      })
-    : null;
+  const { ref, surname } = await searchParams;
+  // The reference alone is a guessable 6-digit code, so status (and the
+  // letter link) is only revealed when the surname on the application ALSO
+  // matches — a bot enumerating references learns nothing. Stored refs are
+  // mixed-case (they embed the cycle name, e.g. APP-September-062347), so
+  // both fields match case-insensitively.
+  const app =
+    ref && surname?.trim()
+      ? await db.application.findFirst({
+          where: {
+            refNo: { equals: ref.trim(), mode: "insensitive" },
+            surname: { equals: surname.trim(), mode: "insensitive" },
+          },
+          include: { offer: true },
+        })
+      : null;
 
   return (
     <div className="scr mx-auto max-w-[520px] px-7 py-16">
@@ -27,28 +33,44 @@ export default async function CheckStatusPage({
         Check application <em className="text-forest">status.</em>
       </h1>
       <p className="mb-6 text-[15px] leading-[1.6] text-muted">
-        Enter your application reference number. No login required.
+        Enter your application reference number and the surname on the
+        application. No login required.
       </p>
 
-      <form className="flex gap-[10px]">
+      <form className="flex flex-col gap-[10px]">
         <input
           name="ref"
           defaultValue={ref}
+          required
           placeholder="e.g. APP-September-123456"
-          className="field flex-1"
+          className="field"
         />
-        <button
-          type="submit"
-          className="rounded-xl bg-forest px-6 text-[14px] font-medium text-white transition-colors hover:bg-forest-deep"
-        >
-          Check
-        </button>
+        <div className="flex gap-[10px]">
+          <input
+            name="surname"
+            defaultValue={surname}
+            required
+            autoComplete="family-name"
+            placeholder="Surname on the application"
+            className="field flex-1"
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-forest px-6 text-[14px] font-medium text-white transition-colors hover:bg-forest-deep"
+          >
+            Check
+          </button>
+        </div>
       </form>
 
       {ref && (
         <div className="mt-6 card p-6">
           {!app ? (
-            <p className="text-sm text-[#b23a2e]">No application found with that reference number.</p>
+            <p className="text-sm text-[#b23a2e]">
+              No application matches that reference number and surname. Check
+              both and try again — the surname must be exactly as entered on
+              the application form.
+            </p>
           ) : (
             <>
               <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
