@@ -92,6 +92,16 @@ export async function saveIntegrations(formData: FormData) {
   redirect(`${back}?saved=1`);
 }
 
+/** Runs a live Paystack connection test and returns to settings with the
+ * real result in the URL, so the developer can see exactly why checkouts
+ * fail (or confirm they now work). */
+export async function testPaystack() {
+  await requireDeveloper();
+  const { testPaystackConnection } = await import("@/lib/paystack");
+  const result = await testPaystackConnection();
+  redirect(`/developer/settings?paystack=${result.ok ? "ok" : "fail"}&paystackMsg=${encodeURIComponent(result.message)}`);
+}
+
 export async function saveInstitution(formData: FormData) {
   const dev = await requireDeveloper();
   const name = String(formData.get("name") ?? "").trim();

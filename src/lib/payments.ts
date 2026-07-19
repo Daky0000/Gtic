@@ -254,10 +254,20 @@ export async function beginInvoicePayment(params: {
     });
     return { kind: "redirect", url: authorizationUrl };
   } catch (e) {
-    console.error("Paystack initialization failed:", e);
+    // The Paystack error message (invalid key, unsupported currency, …) is the
+    // actionable detail — log it verbatim so it shows in the server logs, and
+    // mark the stale PENDING payment FAILED so a retry starts cleanly.
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error(`[paystack] initialize failed for invoice ${invoice.id}: ${detail}`);
+    await db.payment.updateMany({
+      where: { id: payment.id, status: "PENDING" },
+      data: { status: "FAILED" },
+    });
     return {
       kind: "failed",
-      message: "The payment service is unavailable right now. Please try again shortly — you have not been charged.",
+      message:
+        "We couldn't start the online payment — the payment gateway isn't accepting the transaction. " +
+        "You have not been charged. An administrator can check the Paystack connection under Developer → System settings.",
     };
   }
 }

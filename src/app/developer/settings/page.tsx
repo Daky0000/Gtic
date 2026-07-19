@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requirePortal } from "@/lib/rbac";
 import { appBaseUrl } from "@/lib/base-url";
 import { getSettingOverride, maskSecret, SETTING_KEYS } from "@/lib/settings";
-import { saveIntegrations, saveInstitution } from "@/lib/actions/system";
+import { saveIntegrations, saveInstitution, testPaystack } from "@/lib/actions/system";
 import { Flash } from "@/components/flash";
 
 export const metadata = { title: "System Settings" };
@@ -19,10 +19,10 @@ function StatusChip({ override, env }: { override: string | null; env: boolean }
 export default async function SystemSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; paystack?: string; paystackMsg?: string }>;
 }) {
   await requirePortal("developer");
-  const { error, saved } = await searchParams;
+  const { error, saved, paystack, paystackMsg } = await searchParams;
 
   const [institution, paystackOverride, anthropicOverride, aiProviderOverride] = await Promise.all([
     db.institution.findFirst(),
@@ -70,6 +70,24 @@ export default async function SystemSettingsPage({
               Webhook URL for your Paystack dashboard:{" "}
               <span className="font-mono">{appBaseUrl()}/api/payments/paystack/webhook</span>
             </p>
+            {/* Live connection test — the fastest way to see why checkouts fail */}
+            <div className="mt-3 rounded-md border border-ink-200 bg-ink-50 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-ink-600">
+                  Test the live connection to confirm checkouts will work.
+                </span>
+                <form action={testPaystack}>
+                  <button type="submit" className="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100">
+                    Test Paystack connection
+                  </button>
+                </form>
+              </div>
+              {paystack && (
+                <p className={`mt-2 text-xs ${paystack === "ok" ? "text-forest" : "text-[#b23a2e]"}`}>
+                  {paystack === "ok" ? "✓ " : "✗ "}{paystackMsg}
+                </p>
+              )}
+            </div>
           </div>
 
           <div>

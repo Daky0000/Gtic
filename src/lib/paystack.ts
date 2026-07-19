@@ -14,11 +14,53 @@ import { getSetting, SETTING_KEYS } from "@/lib/settings";
 const API_BASE = "https://api.paystack.co";
 
 async function getSecretKey(): Promise<string | null> {
-  return getSetting(SETTING_KEYS.PAYSTACK_SECRET_KEY);
+  // Trim defensively: a key pasted into an env var or the console can carry a
+  // trailing space/newline that makes Paystack reject every request as
+  // "Invalid key" — the trim removes that whole class of failure.
+  const raw = await getSetting(SETTING_KEYS.PAYSTACK_SECRET_KEY);
+  const trimmed = raw?.trim();
+  return trimmed && trimmed !== "" ? trimmed : null;
 }
 
 export async function isPaystackConfigured(): Promise<boolean> {
   return !!(await getSecretKey());
+}
+
+/**
+ * Live diagnostic for the developer console: confirms the configured secret
+ * key actually works against Paystack and that the merchant supports GHS.
+ * Never throws — returns a plain result so the settings page can show the
+ * real reason a checkout would fail (invalid key, wrong currency, etc.).
+ */
+export async function testPaystackConnection(): Promise<{ ok: boolean; message: string }> {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, message: "No Paystack secret key configured — payments settle on the mock channel." };
+  if (!/^sk_(test|live)_/.test(key)) {
+    return { ok: false, message: `The configured key starts with "${key.slice(0, 3)}…" — it must be a SECRET key (sk_test_… or sk_live_…), not a public (pk_…) key.` };
+  }
+  try {
+    const res = await fetch(`${API_BASE}/balance`, {
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      status?: boolean; message?: string; data?: { currency: string; balance: number }[];
+    };
+    if (!res.ok || !body.status) {
+      return { ok: false, message: `Paystack rejected the key: ${body.message ?? res.statusText} (HTTP ${res.status}).` };
+    }
+    const currencies = (body.data ?? []).map((b) => b.currency);
+    const mode = key.startsWith("sk_live_") ? "live" : "test";
+    if (currencies.length > 0 && !currencies.includes("GHS")) {
+      return {
+        ok: false,
+        message: `Key is valid (${mode} mode) but this Paystack account supports ${currencies.join(", ")}, not GHS. Checkouts in GHS will fail — use a Ghana Paystack account.`,
+      };
+    }
+    return { ok: true, message: `Connected — ${mode}-mode key valid${currencies.length ? ` for ${currencies.join(", ")}` : ""}. Checkouts will work.` };
+  } catch (e) {
+    return { ok: false, message: `Could not reach Paystack: ${e instanceof Error ? e.message : "network error"}.` };
+  }
 }
 
 async function paystackFetch<T>(path: string, init?: RequestInit): Promise<T> {
