@@ -69,7 +69,7 @@ export default async function DeveloperOverview() {
         <p className="mt-4 border-t border-line-soft pt-3 text-xs text-faint">
           Paystack webhook URL: <span className="font-mono">{appBaseUrl()}/api/payments/paystack/webhook</span>
           {" · "}manage keys in{" "}
-          <Link href="/admin/settings" className="text-forest hover:text-moss">System settings</Link>
+          <Link href="/developer/settings" className="text-forest hover:text-moss">System settings</Link>
         </p>
       </Card>
 

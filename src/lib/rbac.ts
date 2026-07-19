@@ -166,9 +166,10 @@ export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
   return user;
 }
 
-/** Page guard for the developer console (/admin/settings, /admin/users,
- * /admin/audit): developer or system admin only — other admin portal roles
- * (registrar, management) are bounced to the admin overview. */
+/** Page guard for the shared admin console (/admin/users, /admin/audit):
+ * developer or system admin only — other admin portal roles (registrar,
+ * management) are bounced to the admin overview. System settings and pricing
+ * live in the developer-only portal (see requirePortal("developer")). */
 export async function requireDeveloperConsole(): Promise<CurrentUser> {
   const user = await requirePortal("admin");
   if (!hasRole(user, ROLES.SYSTEM_ADMIN)) redirect(PORTAL_HOME.admin);

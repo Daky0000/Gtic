@@ -49,14 +49,13 @@ export default async function AdminHome({
       {isConsole && (
         <div className="mt-8">
           <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
-            Developer console
+            Administration
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {(
               [
                 ["Users & roles", "/admin/users", "Create accounts, assign and revoke roles"],
                 ["Forms", "/admin/forms", "Build forms and surveys, view responses and results"],
-                ["System settings", "/admin/settings", "Integrations (Paystack, Claude) and institution identity"],
                 ["Audit log", "/admin/audit", "Every sensitive action, append-only"],
               ] as const
             ).map(([title, href, note]) => (

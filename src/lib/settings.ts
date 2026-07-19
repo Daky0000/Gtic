@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
 /**
- * System settings managed from the developer console (/admin/settings).
+ * System settings managed from the developer portal (/developer/settings).
  * A DB value overrides the corresponding environment variable at runtime, so
  * integrations can be reconfigured without a redeploy; deleting the DB value
  * falls back to the env var. Secrets are stored verbatim (single-tenant demo

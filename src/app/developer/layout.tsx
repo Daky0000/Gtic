@@ -10,9 +10,9 @@ export default async function DeveloperLayout({ children }: { children: React.Re
       nav={[
         { label: "Overview", href: "/developer" },
         { label: "Fees & pricing", href: "/developer/fees" },
+        { label: "System settings", href: "/developer/settings" },
         // The developer also owns the shared admin console pages — linked
         // here so everything is reachable from one place.
-        { label: "System settings", href: "/admin/settings" },
         { label: "Users & roles", href: "/admin/users" },
         { label: "Forms", href: "/admin/forms" },
         { label: "Audit log", href: "/admin/audit" },

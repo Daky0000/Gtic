@@ -12,7 +12,7 @@ import { parseUsdRate, usdToPesewas } from "@/lib/money";
 import type { ProgrammeLevel } from "@prisma/client";
 
 /** Developer console actions (settings, users). Developer or system admin —
- * the same guard the /admin/settings pages use. */
+ * the same guard the developer/admin console pages use. */
 async function requireDeveloper() {
   return requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
 }
@@ -64,7 +64,7 @@ async function pairedAmountToPesewas(
 
 export async function saveIntegrations(formData: FormData) {
   const dev = await requireDeveloper();
-  const back = "/admin/settings";
+  const back = "/developer/settings";
 
   const paystackKey = String(formData.get("paystackKey") ?? "").trim();
   const anthropicKey = String(formData.get("anthropicKey") ?? "").trim();
@@ -96,7 +96,7 @@ export async function saveInstitution(formData: FormData) {
   const dev = await requireDeveloper();
   const name = String(formData.get("name") ?? "").trim();
   const shortName = String(formData.get("shortName") ?? "").trim();
-  if (!name || !shortName) fail("/admin/settings", "Institution name and short name are required.");
+  if (!name || !shortName) fail("/developer/settings", "Institution name and short name are required.");
 
   const str = (k: string) => {
     const v = String(formData.get(k) ?? "").trim();
@@ -119,7 +119,7 @@ export async function saveInstitution(formData: FormData) {
     await db.institution.create({ data });
   }
   await audit({ actorId: dev.id, action: "system.institution_updated", entityType: "Institution" });
-  redirect("/admin/settings?saved=1");
+  redirect("/developer/settings?saved=1");
 }
 
 // ─── Fees ───
