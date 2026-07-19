@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyPaystackTransaction } from "@/lib/paystack";
 import { confirmPayment } from "@/lib/payments";
+import { completePendingRegistration } from "@/lib/registration";
 import { appBaseUrl } from "@/lib/base-url";
 
 /**
@@ -23,6 +24,24 @@ export async function GET(req: NextRequest) {
   };
 
   if (!reference) return back("/", { error: "Missing payment reference." });
+
+  // A registration reference means "pay to register": no account exists yet.
+  // Verify the charge, then create the account and send them to sign in.
+  const pending = await db.pendingRegistration.findUnique({ where: { reference } });
+  if (pending) {
+    try {
+      const result = await verifyPaystackTransaction(reference);
+      if (!result.success || result.amount < pending.amount) {
+        return back("/signup", { error: "Payment was not completed. You have not been charged if you cancelled." });
+      }
+      await completePendingRegistration(reference);
+      return back("/login", { registered: "1", email: pending.email });
+    } catch {
+      return back("/login", {
+        error: "We could not verify your payment yet. If you were charged, your account will be ready shortly — sign in with your email.",
+      });
+    }
+  }
 
   const payment = await db.payment.findUnique({ where: { reference } });
   if (!payment || payment.channel !== "PAYSTACK") {

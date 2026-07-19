@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isValidPaystackSignature } from "@/lib/paystack";
 import { confirmPayment } from "@/lib/payments";
+import { completePendingRegistration } from "@/lib/registration";
 
 /**
  * Paystack server-to-server webhook (charge.success). This is the reliable
@@ -23,6 +24,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.event === "charge.success" && event.data?.reference) {
+    // Payment-first registration: the reference belongs to a held signup,
+    // not a Payment. This is the reliable path for payers who closed the
+    // browser before the callback — the account is created here. Idempotent.
+    const pending = await db.pendingRegistration.findUnique({ where: { reference: event.data.reference } });
+    if (pending && (event.data.amount ?? 0) >= pending.amount) {
+      await completePendingRegistration(event.data.reference);
+      return NextResponse.json({ received: true });
+    }
+
     const payment = await db.payment.findUnique({ where: { reference: event.data.reference } });
     if (payment && payment.channel === "PAYSTACK" && (event.data.amount ?? 0) >= payment.amount) {
       // A payment superseded as FAILED (stale checkout tab) can still be

@@ -1,22 +1,26 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { getOrCreateDraftApplication, saveApplicationDetails, submitApplication } from "@/lib/actions/admissions";
+import {
+  getOrCreateDraftApplication, saveApplicationDetails, submitApplication, uploadResultsSlipForAI,
+} from "@/lib/actions/admissions";
 import { reconcilePendingPaystackPayments } from "@/lib/payments";
-import { admissionStatusLabel, isAdmissionOpen } from "@/lib/intake";
+import { isAdmissionOpen } from "@/lib/intake";
 import { Flash } from "@/components/flash";
+import { ApplicationWizard, type SchoolGroup } from "./application-wizard";
 
 export const metadata = { title: "My Application" };
 
-const RESULT_ROWS = 9;
+const STEP_INDEX: Record<string, number> = { "0": 0, "1": 1, "2": 2, "3": 3 };
 
 export default async function ApplicationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string; paid?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; paid?: string; step?: string; aifilled?: string; aiuploaded?: string }>;
 }) {
   const user = await requirePortal("apply");
-  const { error, saved, paid } = await searchParams;
+  const { error, saved, paid, step, aifilled, aiuploaded } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
 
@@ -29,7 +33,7 @@ export default async function ApplicationPage({
   const voucherPaid = voucherInvoice ? voucherInvoice.paid >= voucherInvoice.total : false;
 
   const editable = app.status === "DRAFT" || app.status === "INFO_REQUESTED";
-  const schools = await db.school.findMany({
+  const dbSchools = await db.school.findMany({
     orderBy: { name: "asc" },
     include: { departments: { include: { programmes: { orderBy: { name: "asc" } } } } },
   });
@@ -39,8 +43,51 @@ export default async function ApplicationPage({
   });
   const results = (app.results as { subject: string; grade: string }[] | null) ?? [];
 
-  const field = "mt-1.5 w-full rounded-[11px] border border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-forest disabled:opacity-70";
-  const label = "block text-[13px] text-muted";
+  // Flatten schools → programme options for the wizard (only open programmes
+  // are selectable; closed ones render disabled with their reopen label).
+  const schools: SchoolGroup[] = dbSchools.map((s) => ({
+    id: s.id,
+    name: s.name,
+    programmes: s.departments.flatMap((d) =>
+      d.programmes.map((p) => ({
+        id: p.id,
+        name: p.name,
+        admissionClosesMonth: p.admissionClosesMonth,
+        admissionClosesDay: p.admissionClosesDay,
+        cohortStartsMonth: p.cohortStartsMonth,
+        cohortStartsDay: p.cohortStartsDay,
+      }))
+    ),
+  }));
+  const anyProgrammeOpen = schools.some((s) => s.programmes.some((p) => isAdmissionOpen(p)));
+
+  const successMsg = saved
+    ? "Your application details were saved."
+    : aifilled
+      ? `The AI read ${aifilled} subject(s) from your slip and filled your grades — please review them below.`
+      : aiuploaded
+        ? "Your results slip was uploaded. Enter or check your grades below."
+        : paid && voucherPaid
+          ? "Voucher payment confirmed — welcome! Complete your application below."
+          : undefined;
+
+  // Results-slip AI upload widget rendered inside the wizard's results step.
+  const resultsSlipForm = (
+    <form action={uploadResultsSlipForAI} encType="multipart/form-data" className="rounded-[14px] border border-brand-200 bg-brand-50 p-4">
+      <input type="hidden" name="applicationId" value={app.id} />
+      <div className="text-sm font-medium text-brand-900">Upload your results slip for AI to read your grades</div>
+      <p className="mt-1 text-xs text-brand-800">
+        Upload your WASSCE/results slip (PDF or image) and the AI assistant fills in the subjects and grades
+        below for you to confirm — no manual typing needed.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.webp" className="text-sm" />
+        <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
+          Upload &amp; auto-fill
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="scr mx-auto max-w-3xl">
@@ -50,21 +97,11 @@ export default async function ApplicationPage({
       <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
         Reference {app.refNo}
       </p>
-      <Flash
-        error={error}
-        success={
-          saved
-            ? "Your application details were saved."
-            : paid && voucherPaid
-              ? "Voucher payment confirmed — welcome! Fill in your application form below."
-              : undefined
-        }
-      />
+      <Flash error={error} success={successMsg} />
       {paid && !voucherPaid && (
         <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
-          Thanks — we received your checkout and are confirming the payment with
-          the provider. It usually reflects within a minute; refresh this page
-          shortly. Please do not pay again.
+          Thanks — we received your checkout and are confirming the payment with the provider. It usually
+          reflects within a minute; refresh this page shortly. Please do not pay again.
         </p>
       )}
       {!editable && (
@@ -72,151 +109,43 @@ export default async function ApplicationPage({
           This application has been submitted and can no longer be edited here.
         </p>
       )}
+      {editable && !anyProgrammeOpen && (
+        <p className="mt-3 rounded-[11px] border border-gold/30 bg-[#f6efdf] p-3 text-sm text-[#7a5a22]">
+          All programme intakes are currently closed. You can prepare your details now, but you&apos;ll be
+          able to choose a programme and submit once the next intake opens.
+        </p>
+      )}
 
-      <form action={saveApplicationDetails} className="mt-6 space-y-8">
-        <input type="hidden" name="applicationId" value={app.id} />
+      <ApplicationWizard
+        saveAction={saveApplicationDetails}
+        app={{
+          id: app.id,
+          surname: app.surname,
+          firstName: app.firstName,
+          otherNames: app.otherNames,
+          dateOfBirth: app.dateOfBirth ? app.dateOfBirth.toISOString().slice(0, 10) : null,
+          gender: app.gender,
+          nationality: app.nationality,
+          phone: app.phone,
+          address: app.address,
+          emergencyName: app.emergencyName,
+          emergencyPhone: app.emergencyPhone,
+          qualificationType: app.qualificationType,
+          examIndexNo: app.examIndexNo,
+          examYear: app.examYear,
+        }}
+        schools={schools}
+        choices={choices.map((c) => ({ rank: c.rank, programmeId: c.programmeId }))}
+        results={results}
+        editable={editable}
+        initialStep={step ? (STEP_INDEX[step] ?? 0) : 0}
+        resultsSlipForm={resultsSlipForm}
+      />
 
-        <section className="rounded-2xl border border-line bg-paper p-5">
-          <h2 className="font-semibold text-brand-800">Personal details</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={label}>Surname</label>
-              <input name="surname" defaultValue={app.surname ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>First name</label>
-              <input name="firstName" defaultValue={app.firstName ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Other names</label>
-              <input name="otherNames" defaultValue={app.otherNames ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Date of birth</label>
-              <input
-                type="date" name="dateOfBirth"
-                defaultValue={app.dateOfBirth ? app.dateOfBirth.toISOString().slice(0, 10) : ""}
-                disabled={!editable} className={field}
-              />
-            </div>
-            <div>
-              <label className={label}>Gender</label>
-              <select name="gender" defaultValue={app.gender ?? ""} disabled={!editable} className={field}>
-                <option value="">Select…</option>
-                <option value="Female">Female</option>
-                <option value="Male">Male</option>
-              </select>
-            </div>
-            <div>
-              <label className={label}>Nationality</label>
-              <input name="nationality" defaultValue={app.nationality ?? "Ghanaian"} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Phone</label>
-              <input name="phone" defaultValue={app.phone ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Address</label>
-              <input name="address" defaultValue={app.address ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Emergency contact name</label>
-              <input name="emergencyName" defaultValue={app.emergencyName ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Emergency contact phone</label>
-              <input name="emergencyPhone" defaultValue={app.emergencyPhone ?? ""} disabled={!editable} className={field} />
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-paper p-5">
-          <h2 className="font-semibold text-brand-800">Qualification</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className={label}>Qualification type</label>
-              <select name="qualificationType" defaultValue={app.qualificationType ?? "WASSCE"} disabled={!editable} className={field}>
-                <option value="WASSCE">WASSCE</option>
-                <option value="MATURE">Mature entry</option>
-                <option value="INTERNATIONAL">International</option>
-                <option value="POSTGRADUATE">Postgraduate</option>
-              </select>
-            </div>
-            <div>
-              <label className={label}>Examination index number</label>
-              <input name="examIndexNo" defaultValue={app.examIndexNo ?? ""} disabled={!editable} className={field} />
-            </div>
-            <div>
-              <label className={label}>Examination year</label>
-              <input name="examYear" defaultValue={app.examYear ?? ""} disabled={!editable} className={field} />
-            </div>
-          </div>
-
-          <h3 className="mt-5 text-sm font-semibold text-ink-700">Results</h3>
-          <p className="text-xs text-ink-500">
-            Enter each subject and grade, or upload your results slip under Documents and let the AI assistant
-            fill this in for you to confirm.
-          </p>
-          <div className="mt-3 space-y-2">
-            {Array.from({ length: RESULT_ROWS }).map((_, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2">
-                <input
-                  name={`subject_${i}`} placeholder="Subject" disabled={!editable}
-                  defaultValue={results[i]?.subject ?? ""} className={field}
-                />
-                <input
-                  name={`grade_${i}`} placeholder="Grade" disabled={!editable}
-                  defaultValue={results[i]?.grade ?? ""} className={field}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-paper p-5">
-          <h2 className="font-semibold text-brand-800">Programme choices</h2>
-          <div className="mt-4 space-y-3">
-            {[1, 2, 3].map((rank) => (
-              <div key={rank}>
-                <label className={label}>Choice {rank}</label>
-                <select
-                  name={`choice${rank}`}
-                  defaultValue={choices.find((c) => c.rank === rank)?.programmeId ?? ""}
-                  disabled={!editable}
-                  className={field}
-                >
-                  <option value="">Select a programme…</option>
-                  {schools.map((s) => (
-                    <optgroup key={s.id} label={s.name}>
-                      {s.departments.flatMap((d) =>
-                        d.programmes.map((p) => {
-                          const open = isAdmissionOpen(p);
-                          const status = admissionStatusLabel(p);
-                          return (
-                            <option key={p.id} value={p.id} disabled={!open}>
-                              {p.name}
-                              {status ? ` — ${status}` : ""}
-                            </option>
-                          );
-                        })
-                      )}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {editable && (
-          <button
-            type="submit"
-            className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep"
-          >
-            Save
-          </button>
-        )}
-      </form>
+      <div className="mt-4 text-sm text-muted">
+        Need to upload certificates or a photo?{" "}
+        <Link href="/apply/documents" className="text-forest hover:text-moss">Go to Documents →</Link>
+      </div>
 
       {editable && (
         <form action={submitApplication} className="mt-6 rounded-lg border border-brand-200 bg-brand-50 p-5">
@@ -224,8 +153,8 @@ export default async function ApplicationPage({
           <h2 className="font-semibold text-brand-900">Ready to submit?</h2>
           <p className="mt-1 text-sm text-brand-800">
             Make sure you have saved your details, uploaded your documents, and paid the application fee
-            (or redeemed a voucher) before submitting. Once submitted you cannot make further changes unless
-            the admissions office requests more information.
+            before submitting. Once submitted you cannot make further changes unless the admissions office
+            requests more information.
           </p>
           <button
             type="submit"

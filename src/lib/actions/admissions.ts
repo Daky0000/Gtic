@@ -171,6 +171,58 @@ export async function uploadApplicationDocument(formData: FormData) {
   redirect("/apply/documents");
 }
 
+/**
+ * Results step convenience: upload a results slip and have the AI read the
+ * grades straight into the application in one action. Stores the file as a
+ * RESULTS_SLIP document (so it also counts toward the documents requirement),
+ * extracts, and applies the subjects — then returns to the results step.
+ */
+export async function uploadResultsSlipForAI(formData: FormData) {
+  const user = await requireUser();
+  const applicationId = String(formData.get("applicationId"));
+  const app = await getOwnApplication(applicationId, user.id);
+  const back = "/apply/application?step=1";
+  if (!isEditable(app.status)) fail(back, "This application can no longer be edited.");
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) fail(back, "Choose your results slip (PDF or image) to upload.");
+  const rejection = uploadRejection(file, { allowedExtensions: APPLICATION_DOC_EXTENSIONS });
+  if (rejection) fail(back, rejection);
+
+  const saved = await saveUpload(file, `applications/${app.id}`);
+  const doc = await db.applicationDocument.create({
+    data: { applicationId: app.id, kind: "RESULTS_SLIP", ...saved },
+  });
+
+  try {
+    const { result } = await extractApplicationDocument({
+      userId: user.id,
+      filePath: doc.filePath,
+      mimeType: doc.mimeType,
+    });
+    await db.applicationDocument.update({
+      where: { id: doc.id },
+      data: { extracted: JSON.parse(JSON.stringify(result)) },
+    });
+    if (result.subjects.length > 0) {
+      await db.application.update({
+        where: { id: app.id },
+        data: { results: JSON.parse(JSON.stringify(result.subjects)) },
+      });
+      redirect(`${back}&aifilled=${result.subjects.length}`);
+    }
+  } catch (e) {
+    // redirect() throws NEXT_REDIRECT by design — let the success path bubble.
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) {
+      throw e;
+    }
+    console.error("[results-slip AI] extraction failed", e);
+  }
+  // Uploaded but nothing auto-filled (AI unavailable or found nothing) —
+  // the slip is saved; the applicant can type grades manually.
+  redirect(`${back}&aiuploaded=1`);
+}
+
 export async function deleteApplicationDocument(formData: FormData) {
   const user = await requireUser();
   const documentId = String(formData.get("documentId"));

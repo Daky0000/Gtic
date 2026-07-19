@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { admissionForm, publicNavForms } from "@/lib/form-placement";
 
 // Dynamic (not ISR): avoids requiring a database connection at build time —
 // same reasoning as the homepage/programmes pages. Without this, routes
@@ -10,11 +11,19 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const institution = await db.institution.findFirst();
+  const [institution, admission, navForms] = await Promise.all([
+    db.institution.findFirst(),
+    admissionForm(),
+    publicNavForms(),
+  ]);
   const shortName = institution?.shortName ?? "SYDA·GTIC";
   const fullName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
   const address = institution?.address ?? "SYDA Center, Sunyani, Bono Region, Ghana";
   const email = institution?.contactEmail ?? "info@syda-gtic.org";
+  // Admissions are "open" (Apply entry shown) when the admission form is
+  // published, or when it was deleted entirely (default-open fallback).
+  const admissionsOpen = !admission || admission.status === "PUBLISHED";
+  const genericNavForms = navForms.filter((f) => !f.isAdmission);
 
   return (
     <div className="flex min-h-screen flex-col bg-cream text-ink">
@@ -37,21 +46,25 @@ export default async function PublicLayout({ children }: { children: React.React
             <Link href="/short-courses" className="hidden text-muted hover:text-forest sm:inline">
               Short courses
             </Link>
-            <Link href="/#curriculum" className="hidden text-muted hover:text-forest sm:inline">
-              Curriculum
-            </Link>
+            {genericNavForms.map((f) => (
+              <Link key={f.slug} href={f.href} className="hidden text-muted hover:text-forest sm:inline">
+                {f.title}
+              </Link>
+            ))}
             <Link href="/#about" className="hidden text-muted hover:text-forest sm:inline">
               About
             </Link>
             <Link href="/login" className="text-ink hover:text-forest">
               Sign in
             </Link>
-            <Link
-              href="/signup"
-              className="rounded-full bg-forest px-[18px] py-[9px] font-medium text-white transition-colors hover:bg-forest-deep"
-            >
-              Apply now
-            </Link>
+            {admissionsOpen && (
+              <Link
+                href="/signup"
+                className="rounded-full bg-forest px-[18px] py-[9px] font-medium text-white transition-colors hover:bg-forest-deep"
+              >
+                Apply now
+              </Link>
+            )}
           </nav>
         </div>
       </header>

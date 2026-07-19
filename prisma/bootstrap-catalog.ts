@@ -324,7 +324,28 @@ export async function bootstrapInstitutionCatalog(
   }
   if (shortCoursesCreated) log(`✓ ${shortCoursesCreated} short courses created`);
 
-  // 5. Knowledge base for the AI assistant — create-only, chunked on create.
+  // 5. The Admission Form — a builder-manageable handle on the admission
+  // application. Create-only: admins can then edit its intro, hide/show it
+  // (status), relocate it (placement), or delete it. The specialized
+  // application flow keeps its programme picker, AI results upload and fee
+  // gating; this record only controls its visibility, intro and placement.
+  const admissionForm = await db.formDef.findFirst({ where: { type: "ADMISSION" } });
+  if (!admissionForm) {
+    await db.formDef.create({
+      data: {
+        slug: "admission-application",
+        title: "Admission Application",
+        description:
+          "Apply to a SYDA-GTIC flagship programme. Pay the application voucher to register, then complete your details, results and programme choices.",
+        type: "ADMISSION",
+        status: "PUBLISHED",
+        placement: "PUBLIC_NAV",
+      },
+    });
+    log("✓ admission form created (manageable from the form builder)");
+  }
+
+  // 6. Knowledge base for the AI assistant — create-only, chunked on create.
   let docsCreated = 0;
   for (const docDef of KNOWLEDGE_DOCS) {
     const existing = await db.knowledgeDocument.findUnique({ where: { slug: docDef.slug } });

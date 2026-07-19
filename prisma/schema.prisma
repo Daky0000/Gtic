@@ -1377,16 +1377,66 @@ enum FormStatus {
   CLOSED
 }
 
+enum FormType {
+  GENERIC
+  ADMISSION
+}
+
+// Where a form's entry point appears. LINK_ONLY: reachable only via its
+// /forms/<slug> link. PUBLIC_NAV: a link in the public site header/footer.
+// APPLICANT_PORTAL: a link inside the applicant portal.
+enum FormPlacement {
+  LINK_ONLY
+  PUBLIC_NAV
+  APPLICANT_PORTAL
+}
+
+// A payment-first applicant registration held BEFORE any account exists.
+// Signup captures details + a pre-hashed password here and starts checkout;
+// the account, applicant role and draft application are created only when
+// the payment confirms (see completePendingRegistration). Serial + PIN are
+// the applicant's proof of purchase (delivered by SMS, verifiable by staff).
+enum PendingRegStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model PendingRegistration {
+  id           String           @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  passwordHash String
+  cycleId      String
+  amount       Int
+  reference    String           @unique
+  serial       String           @unique
+  pin          String
+  status       PendingRegStatus @default(PENDING)
+  userId       String? // set when completed
+  createdAt    DateTime         @default(now())
+  completedAt  DateTime?
+
+  @@index([email])
+  @@index([status])
+}
+
 model FormDef {
-  id          String     @id @default(cuid())
-  slug        String     @unique
+  id          String        @id @default(cuid())
+  slug        String        @unique
   title       String
   description String?
-  status      FormStatus @default(DRAFT)
-  fields      Json       @default("[]")
+  status      FormStatus    @default(DRAFT)
+  // GENERIC = ordinary survey/data form; ADMISSION = the special admission
+  // application (keeps the programme picker, AI results upload, fee gating).
+  type        FormType      @default(GENERIC)
+  // Where the form (or its entry point) is surfaced.
+  placement   FormPlacement @default(LINK_ONLY)
+  fields      Json          @default("[]")
   createdById String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   responses FormResponse[]
 }

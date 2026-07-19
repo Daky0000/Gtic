@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { requireDeveloperConsole } from "@/lib/rbac";
 import { appBaseUrl } from "@/lib/base-url";
 import {
-  addFormField, deleteForm, deleteFormField, moveFormField, setFormStatus,
+  addFormField, deleteForm, deleteFormField, moveFormField, setFormStatus, updateFormMeta,
 } from "@/lib/actions/forms";
-import { FIELD_TYPE_LABEL, FIELD_TYPES, parseFields } from "@/lib/forms";
+import { FIELD_TYPE_LABEL, FIELD_TYPES, PLACEMENTS, PLACEMENT_LABEL, parseFields, type Placement } from "@/lib/forms";
 import { Flash } from "@/components/flash";
 import { StatusChip, type ChipTone } from "@/components/ui";
 
@@ -41,12 +41,48 @@ export default async function EditFormPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/forms" className="text-xs text-ink-500 hover:text-forest">← All forms</Link>
-          <h1 className="text-2xl font-bold">{form.title}</h1>
+          <h1 className="text-2xl font-bold">
+            {form.title}
+            {form.type === "ADMISSION" && (
+              <span className="ml-2 rounded-full bg-[#eaf0ea] px-2 py-0.5 align-middle text-xs font-semibold text-forest">
+                Admission application
+              </span>
+            )}
+          </h1>
           {form.description && <p className="mt-1 text-sm text-ink-500">{form.description}</p>}
         </div>
         <StatusChip tone={STATUS_TONE[form.status] ?? "neutral"}>{form.status}</StatusChip>
       </div>
       <Flash error={error} success={saved ? "Saved." : undefined} />
+
+      {/* Form settings — title, intro text, and where it appears */}
+      <section className="mt-5 rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-brand-800">Settings</h2>
+        <form action={updateFormMeta} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="formId" value={form.id} />
+          <label className="text-xs text-ink-600 sm:col-span-2">
+            Title
+            <input name="title" required defaultValue={form.title} className={`${field} mt-1 block w-full`} />
+          </label>
+          <label className="text-xs text-ink-600 sm:col-span-2">
+            Intro text {form.type === "ADMISSION" && "(shown to applicants on the apply page)"}
+            <input name="description" defaultValue={form.description ?? ""} className={`${field} mt-1 block w-full`} />
+          </label>
+          <label className="text-xs text-ink-600">
+            Where it shows
+            <select name="placement" defaultValue={form.placement} className={`${field} mt-1 block w-full`}>
+              {PLACEMENTS.map((p) => (
+                <option key={p} value={p}>{PLACEMENT_LABEL[p as Placement]}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
+            <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
+              Save settings
+            </button>
+          </div>
+        </form>
+      </section>
 
       {/* Share + status controls */}
       <section className="mt-5 rounded-2xl border border-line bg-paper p-5">
@@ -81,7 +117,24 @@ export default async function EditFormPage({
         </div>
       </section>
 
-      {/* Questions */}
+      {/* The admission application's questions are its fixed, specialised
+          fields (personal details, results, programme choices) — not editable
+          as generic questions. Everything else (intro, show/hide, location,
+          delete) is managed above. */}
+      {form.type === "ADMISSION" && (
+        <section className="mt-5 rounded-2xl border border-line bg-paper p-5">
+          <h2 className="font-semibold text-brand-800">Application fields</h2>
+          <p className="mt-1 text-sm text-ink-500">
+            This is the smart admission application — it keeps the programme picker, AI results-slip
+            upload, document upload and fee gating. Use <strong>Publish</strong> to open admissions
+            (the Apply links appear on the site) and <strong>Close</strong> to hide them; set where the
+            Apply link shows under Settings above.
+          </p>
+        </section>
+      )}
+
+      {/* Questions (generic forms only) */}
+      {form.type !== "ADMISSION" && (
       <section className="mt-5 rounded-2xl border border-line bg-paper p-5">
         <h2 className="font-semibold text-brand-800">Questions</h2>
         <div className="mt-3 space-y-2">
@@ -148,6 +201,7 @@ export default async function EditFormPage({
           </div>
         </form>
       </section>
+      )}
 
       {/* Danger zone */}
       <section className="mt-5 rounded-2xl border border-[#e3b5ad] bg-[#faece9] p-4">

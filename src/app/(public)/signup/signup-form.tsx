@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { startApplicationWithPayment, type SignupState } from "@/lib/actions/account";
 
-export function SignupForm({ feeLabel }: { feeLabel: string }) {
+export function SignupForm({ feeLabel, intro }: { feeLabel: string; intro?: string | null }) {
   const [state, action, pending] = useActionState<SignupState, FormData>(startApplicationWithPayment, null);
 
   return (
@@ -13,9 +13,11 @@ export function SignupForm({ feeLabel }: { feeLabel: string }) {
       <h1 className="mb-3 font-serif text-[38px] font-normal">
         Begin your <em className="text-forest">application.</em>
       </h1>
+      {intro && <p className="mb-4 text-[15px] leading-[1.6] text-ink">{intro}</p>}
       <p className="mb-7 text-[15px] leading-[1.6] text-muted">
-        Create your account, purchase the {feeLabel} application voucher with Paystack (card or
-        mobile money), then fill in your application form. Already applying?{" "}
+        Enter your details and pay the {feeLabel} application voucher with Paystack (card or mobile
+        money) to register. Your account is created once payment is confirmed — then sign in with the
+        email and password below to complete your application. Already registered?{" "}
         <Link href="/login" className="text-forest hover:text-moss">
           Sign in
         </Link>
@@ -76,7 +78,8 @@ export function SignupForm({ feeLabel }: { feeLabel: string }) {
           </label>
         </div>
         <p className="text-xs text-faint">
-          You&apos;ll sign in with this email and password — keep them safe.
+          You&apos;ll sign in with this email and password after payment — keep them safe. You&apos;ll
+          also receive a voucher Serial and PIN by SMS as proof of purchase.
         </p>
 
         {state?.error && (
@@ -90,7 +93,7 @@ export function SignupForm({ feeLabel }: { feeLabel: string }) {
           disabled={pending}
           className="mt-2 w-full rounded-xl bg-forest py-[15px] text-[15px] font-medium text-white transition-colors hover:bg-forest-deep disabled:opacity-60"
         >
-          {pending ? "Creating your account…" : `Create account & pay ${feeLabel} voucher`}
+          {pending ? "Starting secure checkout…" : `Pay ${feeLabel} to register`}
         </button>
       </form>
 

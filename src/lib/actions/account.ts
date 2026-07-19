@@ -1,24 +1,21 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { APIError } from "better-auth/api";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { audit } from "@/lib/audit";
-import { notify } from "@/lib/notify";
-import { ROLES } from "@/lib/rbac";
-import { beginInvoicePayment } from "@/lib/payments";
 import { currentOrBootstrapCycle } from "@/lib/admission-cycle";
-import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
+import { initializePaystackTransaction, isPaystackConfigured } from "@/lib/paystack";
+import { startPendingRegistration, completePendingRegistration } from "@/lib/registration";
+import { appBaseUrl } from "@/lib/base-url";
 
 export type SignupState = { error: string } | null;
 
 /**
- * Applicant self-registration. The applicant chooses their own password
- * (they are signed in immediately — no one-time reveal to lose), then goes
- * straight to Paystack hosted checkout to buy the application voucher (the
- * open cycle's applicationFee — GHS 50 by default). After checkout the
- * callback drops them on /apply/application to fill in the form.
+ * Payment-first applicant registration. The visitor chooses a password, then
+ * "Pay to register" starts a Paystack checkout for the application voucher.
+ * NO account exists until that payment confirms — the account, applicant role
+ * and draft application are created by completePendingRegistration, driven by
+ * the Paystack callback and webhook. After paying, the applicant signs in with
+ * the email and password they chose (they also get a Serial/PIN by SMS).
  */
 export async function startApplicationWithPayment(
   _prev: SignupState,
@@ -46,84 +43,34 @@ export async function startApplicationWithPayment(
     return { error: "An account with that email already exists. Sign in instead." };
   }
 
-  let userId: string;
-  try {
-    // autoSignIn (better-auth default) sets the session cookie here, so the
-    // applicant is already logged in when they return from Paystack.
-    const res = await auth.api.signUpEmail({ body: { name, email, password } });
-    userId = res.user.id;
-  } catch (e) {
-    if (e instanceof APIError) return { error: e.message || "Could not create your account." };
-    throw e;
-  }
-
-  // Atomic so the account is never left without the applicant role.
-  await db.$transaction(async (tx) => {
-    const role = await tx.role.upsert({
-      where: { code: ROLES.APPLICANT },
-      update: {},
-      create: { code: ROLES.APPLICANT, name: "Prospective Applicant" },
-    });
-    await tx.roleAssignment.create({ data: { userId, roleId: role.id } });
+  const started = await startPendingRegistration({
+    name, email, phone, password, cycleId: cycle.id, amount: cycle.applicationFee,
   });
+  if (started.kind === "error") return { error: started.message };
 
-  await audit({ actorId: userId, action: "account.applicant_registered", entityType: "User", entityId: userId });
+  // No Paystack key configured (demo/dev) — settle instantly: create the
+  // account now and send them to sign in.
+  if (!(await isPaystackConfigured())) {
+    await completePendingRegistration(started.reference);
+    redirect(`/login?registered=1&email=${encodeURIComponent(email)}`);
+  }
+
   try {
-    await notify(
-      userId,
-      "Welcome to SYDA-GTIC",
-      "Your account was created. Pay the application voucher fee, then complete your application form.",
-      "/apply"
-    );
-  } catch (e) {
-    console.error("[signup] welcome notification failed", e);
-  }
-
-  const app = await getOrCreateDraftApplication(userId);
-  if (!app) {
-    // The cycle closed in the instant between the check above and now —
-    // vanishingly rare, but the account must still be usable.
-    redirect("/apply");
-  }
-  await db.application.update({ where: { id: app.id }, data: { phone } });
-
-  let invoice = await db.invoice.findFirst({
-    where: { userId, kind: "APPLICATION", meta: { path: ["applicationId"], equals: app.id } },
-  });
-  if (!invoice) {
-    invoice = await db.invoice.create({
-      data: {
-        invoiceNo: `INV-APP-${Date.now().toString(36).toUpperCase()}`,
-        kind: "APPLICATION",
-        userId,
-        total: cycle.applicationFee,
-        meta: { applicationId: app.id },
-        lines: { create: [{ description: "Application voucher fee", amount: cycle.applicationFee }] },
-      },
+    const { authorizationUrl } = await initializePaystackTransaction({
+      email,
+      amount: cycle.applicationFee,
+      reference: started.reference,
+      callbackUrl: `${appBaseUrl()}/api/payments/paystack/callback`,
     });
-  }
-
-  // Account + application already exist at this point, so a payment-gateway
-  // hiccup must never look like a failed signup — land them in the portal
-  // with a clear "pay later" message instead.
-  const payLater =
-    "/apply?error=" +
-    encodeURIComponent(
-      "Your account is ready, but we could not start the payment. You have not been charged — pay the application fee from the Payments page whenever you are ready."
-    );
-  let result;
-  try {
-    result = await beginInvoicePayment({ invoiceId: invoice.id, userEmail: email, returnTo: "/apply/application" });
+    redirect(authorizationUrl);
   } catch (e) {
+    // redirect() throws by design — let it propagate.
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) {
+      throw e;
+    }
     console.error("[signup] payment initiation failed", e);
-    redirect(payLater);
+    return {
+      error: "We could not start the payment just now. You have not been charged — please try again in a moment.",
+    };
   }
-  if (result.kind === "failed") {
-    redirect(payLater);
-  }
-  if (result.kind === "settled") {
-    // Mock channel (no Paystack key configured) settles instantly.
-    redirect("/apply/application?paid=1");
-  }
-  redirect(result.url);
 }

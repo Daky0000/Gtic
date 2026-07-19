@@ -5,11 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
-export function LoginForm() {
+export function LoginForm({
+  registered = false,
+  presetEmail,
+  notice,
+}: {
+  registered?: boolean;
+  presetEmail?: string;
+  notice?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(presetEmail ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(notice ?? null);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -29,6 +37,13 @@ export function LoginForm() {
   return (
     <div className="scr mx-auto max-w-[440px] px-7 py-[72px]">
       <h1 className="mb-3 font-serif text-[38px] font-normal">Sign in</h1>
+      {registered && (
+        <div className="mb-6 rounded-[14px] border-2 border-forest bg-[#eaf0ea] p-4 text-sm text-forest">
+          <strong>Payment confirmed — your account is ready.</strong> Sign in with your email and the
+          password you chose during registration. Your voucher Serial and PIN have been sent to your
+          phone by SMS; keep them safe as proof of payment.
+        </div>
+      )}
       <p className="mb-7 text-[15px] leading-[1.6] text-muted">
         One account for every portal — applicant, student, staff and administration. New applicant?{" "}
         <Link href="/signup" className="text-forest hover:text-moss">

@@ -34,6 +34,15 @@ export function parseFields(raw: unknown): FormFieldDef[] {
   );
 }
 
+export const PLACEMENTS = ["LINK_ONLY", "PUBLIC_NAV", "APPLICANT_PORTAL"] as const;
+export type Placement = (typeof PLACEMENTS)[number];
+
+export const PLACEMENT_LABEL: Record<Placement, string> = {
+  LINK_ONLY: "Direct link only",
+  PUBLIC_NAV: "Public site (header & footer link)",
+  APPLICANT_PORTAL: "Inside the applicant portal",
+};
+
 /** "Trainee feedback 2026" → "trainee-feedback-2026". Uniqueness comes from
  * a random suffix added by the action when needed. */
 export function slugify(title: string): string {

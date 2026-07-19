@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { getCurrentUser, requireRole, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
-import { parseFields, slugify, FIELD_TYPES, type FieldType } from "@/lib/forms";
+import { parseFields, slugify, FIELD_TYPES, PLACEMENTS, type FieldType, type Placement } from "@/lib/forms";
 
 /** Form building and response viewing: admin (system admin) and developer. */
 async function requireFormsConsole() {
@@ -33,6 +33,23 @@ export async function createForm(formData: FormData) {
   });
   await audit({ actorId: user.id, action: "forms.created", entityType: "FormDef", entityId: form.id });
   redirect(`/admin/forms/${form.id}`);
+}
+
+/** Edits a form's title, description (its intro text) and placement — where
+ * its entry point is surfaced. Works for both generic and admission forms. */
+export async function updateFormMeta(formData: FormData) {
+  const user = await requireFormsConsole();
+  const formId = String(formData.get("formId"));
+  const back = `/admin/forms/${formId}`;
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const placement = String(formData.get("placement")) as Placement;
+  if (title.length < 3) fail(back, "Give the form a title (at least 3 characters).");
+  if (!PLACEMENTS.includes(placement)) fail(back, "Pick a valid location.");
+
+  await db.formDef.update({ where: { id: formId }, data: { title, description, placement } });
+  await audit({ actorId: user.id, action: "forms.meta_updated", entityType: "FormDef", entityId: formId });
+  redirect(`${back}?saved=1`);
 }
 
 export async function addFormField(formData: FormData) {
@@ -97,7 +114,9 @@ export async function setFormStatus(formData: FormData) {
   if (!["DRAFT", "PUBLISHED", "CLOSED"].includes(status)) fail(`/admin/forms/${formId}`, "Invalid status.");
 
   const form = await db.formDef.findUniqueOrThrow({ where: { id: formId } });
-  if (status === "PUBLISHED" && parseFields(form.fields).length === 0) {
+  // The admission form's questions are its fixed application fields, so it
+  // needs none of its own to publish; generic forms need at least one.
+  if (status === "PUBLISHED" && form.type !== "ADMISSION" && parseFields(form.fields).length === 0) {
     fail(`/admin/forms/${formId}`, "Add at least one question before publishing.");
   }
   await db.formDef.update({ where: { id: formId }, data: { status: status as "DRAFT" | "PUBLISHED" | "CLOSED" } });
