@@ -55,7 +55,7 @@ export default async function AdminHome({
             {(
               [
                 ["Users & roles", "/admin/users", "Create accounts, assign and revoke roles"],
-                ["Fees", "/admin/fees", "Admission, tuition, hostel and document fees"],
+                ["Forms", "/admin/forms", "Build forms and surveys, view responses and results"],
                 ["System settings", "/admin/settings", "Integrations (Paystack, Claude) and institution identity"],
                 ["Audit log", "/admin/audit", "Every sensitive action, append-only"],
               ] as const

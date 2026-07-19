@@ -4,9 +4,9 @@ import { PortalShell, type NavItem } from "@/components/portal-shell";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePortal("admin");
 
-  // Registrar/management see the overview + calendar; the developer console
-  // pages (settings, users, audit) are developer / system admin only. Fees &
-  // pricing go further: developer ONLY — excluded for the system admin.
+  // Registrar/management see the overview + calendar; the console pages
+  // (settings, users, forms, audit) are developer / system admin. Fees &
+  // pricing live in the separate developer portal — excluded here entirely.
   const isConsole = hasRole(user, ROLES.SYSTEM_ADMIN);
   const nav: NavItem[] = [
     { label: "Overview", href: "/admin" },
@@ -15,11 +15,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ? [
           { label: "Users & roles", href: "/admin/users" },
           { label: "Forms", href: "/admin/forms" },
-          ...(isDeveloper(user) ? [{ label: "Fees & pricing", href: "/admin/fees" }] : []),
           { label: "System settings", href: "/admin/settings" },
           { label: "Audit log", href: "/admin/audit" },
         ]
       : []),
+    ...(isDeveloper(user) ? [{ label: "Developer console ↗", href: "/developer" }] : []),
     { label: "Knowledge base", href: "/admin/knowledge", comingSoon: true },
     { label: "AI usage & budgets", href: "/admin/ai", comingSoon: true },
   ];

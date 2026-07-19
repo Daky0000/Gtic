@@ -41,18 +41,21 @@ const STAFF_ROLES: RoleCode[] = [
   ROLES.MANAGEMENT,
 ];
 
-// Which roles may enter which portal (route group).
+// Which roles may enter which portal (route group). The developer portal is
+// the developer's alone — the system console (pricing, plumbing, oversight)
+// as distinct from the admin portal's institutional administration.
 export const PORTAL_ACCESS: Record<Portal, RoleCode[]> = {
+  developer: [ROLES.DEVELOPER],
   apply: [ROLES.APPLICANT, ROLES.DEVELOPER],
   student: [ROLES.STUDENT, ROLES.ALUMNI, ROLES.DEVELOPER],
   staff: [...STAFF_ROLES, ROLES.DEVELOPER],
   admin: [ROLES.SYSTEM_ADMIN, ROLES.MANAGEMENT, ROLES.REGISTRAR, ROLES.DEVELOPER],
 };
 
-export type Portal = "apply" | "student" | "staff" | "admin";
+export type Portal = "developer" | "apply" | "student" | "staff" | "admin";
 
 // Preferred landing portal when a user holds several roles.
-const PORTAL_PRIORITY: Portal[] = ["admin", "staff", "student", "apply"];
+const PORTAL_PRIORITY: Portal[] = ["developer", "admin", "staff", "student", "apply"];
 
 export function homePortalFor(roles: string[]): Portal | null {
   for (const portal of PORTAL_PRIORITY) {
@@ -68,6 +71,7 @@ export function accessiblePortals(roles: string[]): Portal[] {
 }
 
 export const PORTAL_HOME: Record<Portal, string> = {
+  developer: "/developer",
   apply: "/apply",
   student: "/student",
   staff: "/staff",
@@ -177,13 +181,11 @@ export function isDeveloper(user: CurrentUser): boolean {
   return user.roles.includes(ROLES.DEVELOPER);
 }
 
-/** Page/action guard for pricing (/admin/fees): the developer ONLY. The
- * system admin keeps the rest of the console but fees are excluded — prices
- * and the currency multiplier are a developer decision. */
+/** Page/action guard for the developer portal (and its pricing console):
+ * the developer ONLY. The system admin keeps the admin console but pricing
+ * and system plumbing are a developer decision. */
 export async function requireFeesConsole(): Promise<CurrentUser> {
-  const user = await requirePortal("admin");
-  if (!isDeveloper(user)) redirect(PORTAL_HOME.admin);
-  return user;
+  return requirePortal("developer");
 }
 
 /** Non-redirecting variant for API routes: returns null when unauthenticated. */

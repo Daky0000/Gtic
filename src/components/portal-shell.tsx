@@ -8,6 +8,7 @@ import { SidebarNav } from "@/components/sidebar-nav";
 import { OpenAssistantButton } from "@/components/open-assistant-button";
 
 const PORTAL_LABEL: Record<string, string> = {
+  developer: "Developer",
   apply: "Applicant",
   student: "Student",
   staff: "Instructor",

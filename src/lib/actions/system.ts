@@ -51,7 +51,7 @@ async function pairedAmountToPesewas(
   if (usdRaw !== "") {
     const rate = parseUsdRate(await getSetting(SETTING_KEYS.USD_TO_GHS_RATE));
     if (!rate) {
-      fail("/admin/fees", "Set the USD→GHS multiplier before pricing fees in dollars.");
+      fail("/developer/fees", "Set the USD→GHS multiplier before pricing fees in dollars.");
     }
     const usd = Number(usdRaw);
     if (!Number.isFinite(usd) || usd < 0) return null;
@@ -130,7 +130,7 @@ export async function updateCycleFees(formData: FormData) {
   const applicationFee = await pairedAmountToPesewas(formData, "applicationFeeGhs", "applicationFeeUsd");
   const acceptanceFee = await pairedAmountToPesewas(formData, "acceptanceFeeGhs", "acceptanceFeeUsd");
   if (applicationFee == null || acceptanceFee == null) {
-    fail("/admin/fees", "Enter valid amounts.");
+    fail("/developer/fees", "Enter valid amounts.");
   }
 
   await db.admissionCycle.update({
@@ -141,7 +141,7 @@ export async function updateCycleFees(formData: FormData) {
     actorId: dev.id, action: "system.cycle_fees_updated", entityType: "AdmissionCycle",
     entityId: cycleId, after: { applicationFee, acceptanceFee },
   });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function updateDocumentFees(formData: FormData) {
@@ -153,31 +153,31 @@ export async function updateDocumentFees(formData: FormData) {
   ];
   for (const [ghsField, usdField, key] of entries) {
     const pesewas = await pairedAmountToPesewas(formData, ghsField, usdField);
-    if (pesewas == null) fail("/admin/fees", "Enter valid amounts.");
+    if (pesewas == null) fail("/developer/fees", "Enter valid amounts.");
     await setSetting(key, String(pesewas), dev.id);
   }
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function updateShortCourseFee(formData: FormData) {
   const dev = await requireFees();
   const shortCourseId = String(formData.get("shortCourseId"));
   const pesewas = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
-  if (pesewas == null) fail("/admin/fees", "Enter a valid amount.");
+  if (pesewas == null) fail("/developer/fees", "Enter a valid amount.");
   await db.shortCourse.update({ where: { id: shortCourseId }, data: { feePesewas: pesewas } });
   await audit({
     actorId: dev.id, action: "system.short_course_fee_updated", entityType: "ShortCourse",
     entityId: shortCourseId, after: { feePesewas: pesewas },
   });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function updateLibraryFine(formData: FormData) {
   const dev = await requireFees();
   const pesewas = await pairedAmountToPesewas(formData, "fineGhs", "fineUsd");
-  if (pesewas == null) fail("/admin/fees", "Enter a valid amount.");
+  if (pesewas == null) fail("/developer/fees", "Enter a valid amount.");
   await setSetting(SETTING_KEYS.LIBRARY_FINE_PER_DAY, String(pesewas), dev.id);
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 /** Sets (or clears) the USD→GHS multiplier used to price fees in dollars. */
@@ -186,28 +186,28 @@ export async function saveCurrencyRate(formData: FormData) {
   const raw = String(formData.get("rate") ?? "").trim();
   if (raw === "" || formData.get("clear")) {
     await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, "", dev.id);
-    redirect("/admin/fees?saved=1");
+    redirect("/developer/fees?saved=1");
   }
   const rate = parseUsdRate(raw);
   if (!rate) {
-    fail("/admin/fees", "Enter a valid multiplier — how many GHS one US dollar buys, e.g. 15.50.");
+    fail("/developer/fees", "Enter a valid multiplier — how many GHS one US dollar buys, e.g. 15.50.");
   }
   await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, String(rate), dev.id);
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function updateHostelFee(formData: FormData) {
   const dev = await requireFees();
   const hostelId = String(formData.get("hostelId"));
   const feePerYear = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
-  if (feePerYear == null) fail("/admin/fees", "Enter a valid amount.");
+  if (feePerYear == null) fail("/developer/fees", "Enter a valid amount.");
 
   await db.hostel.update({ where: { id: hostelId }, data: { feePerYear } });
   await audit({
     actorId: dev.id, action: "system.hostel_fee_updated", entityType: "Hostel",
     entityId: hostelId, after: { feePerYear },
   });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function createFeeSchedule(formData: FormData) {
@@ -215,16 +215,16 @@ export async function createFeeSchedule(formData: FormData) {
   const academicYearId = String(formData.get("academicYearId"));
   const level = String(formData.get("level")) as ProgrammeLevel;
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) fail("/admin/fees", "Give the fee schedule a name.");
+  if (!name) fail("/developer/fees", "Give the fee schedule a name.");
 
   const existing = await db.feeSchedule.findUnique({
     where: { academicYearId_level: { academicYearId, level } },
   });
-  if (existing) fail("/admin/fees", "A schedule for that year and level already exists.");
+  if (existing) fail("/developer/fees", "A schedule for that year and level already exists.");
 
   await db.feeSchedule.create({ data: { academicYearId, level, name } });
   await audit({ actorId: dev.id, action: "system.fee_schedule_created", entityType: "FeeSchedule" });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function addFeeItem(formData: FormData) {
@@ -232,14 +232,14 @@ export async function addFeeItem(formData: FormData) {
   const scheduleId = String(formData.get("scheduleId"));
   const name = String(formData.get("name") ?? "").trim();
   const amount = await pairedAmountToPesewas(formData, "amountGhs", "amountUsd");
-  if (!name || amount == null) fail("/admin/fees", "Enter a fee item name and a valid amount.");
+  if (!name || amount == null) fail("/developer/fees", "Enter a fee item name and a valid amount.");
 
   await db.feeItem.create({ data: { scheduleId, name, amount } });
   await audit({
     actorId: dev.id, action: "system.fee_item_added", entityType: "FeeSchedule",
     entityId: scheduleId, after: { name, amount },
   });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 export async function deleteFeeItem(formData: FormData) {
@@ -250,7 +250,7 @@ export async function deleteFeeItem(formData: FormData) {
     actorId: dev.id, action: "system.fee_item_deleted", entityType: "FeeSchedule",
     entityId: item.scheduleId, after: { name: item.name },
   });
-  redirect("/admin/fees?saved=1");
+  redirect("/developer/fees?saved=1");
 }
 
 // ─── Users & roles ───
