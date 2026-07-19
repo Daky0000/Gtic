@@ -33,6 +33,8 @@ type ProgDef = {
   name: string;
   deptCode: string;
   entryRequirements: string;
+  /** [closesMonth, closesDay, startsMonth, startsDay] from the published calendar. */
+  intake: [number, number, number, number];
   modules: { code: string; title: string; description: string }[];
   provisional?: boolean;
 };
@@ -53,6 +55,7 @@ const PROGRAMMES: ProgDef[] = [
     code: "SENG",
     name: "Solar Energy Engineering",
     deptCode: "DSE",
+    intake: [12, 1, 1, 3],
     entryRequirements: `${ELIGIBILITY} Cohort runs 3 January – 31 March; admission closes 1 December.`,
     modules: [
       { code: "SENG 101", title: "Electrical Fundamentals I", description: "Basic principles of electricity, circuits and symbols, voltage, current, resistance and power." },
@@ -69,6 +72,7 @@ const PROGRAMMES: ProgDef[] = [
     code: "BENG",
     name: "Biogas & Biomass Engineering",
     deptCode: "DBE",
+    intake: [4, 1, 5, 1],
     entryRequirements: `${ELIGIBILITY} Cohort runs 1 May – 31 July; admission closes 1 April.`,
     modules: [
       { code: "BENG 101", title: "Introduction to Biogas & Organic Waste Management I", description: "Principles of biogas, sources of organic waste, the anaerobic digestion process." },
@@ -85,6 +89,7 @@ const PROGRAMMES: ProgDef[] = [
     code: "WENG",
     name: "Wind Energy Engineering",
     deptCode: "DWE",
+    intake: [8, 1, 9, 1],
     entryRequirements: `${ELIGIBILITY} Cohort runs 1 September – 30 November; admission closes 1 August.`,
     modules: [
       { code: "WENG 101", title: "Wind Energy Fundamentals I", description: "Introduction to wind power, history and development, principles of wind energy conversion." },
@@ -101,6 +106,7 @@ const PROGRAMMES: ProgDef[] = [
     code: "ESS",
     name: "Energy Storage Systems",
     deptCode: "DESS",
+    intake: [12, 1, 1, 3],
     entryRequirements: `${ELIGIBILITY} Cohort runs 3 January – 31 March; admission closes 1 December.`,
     provisional: true,
     modules: [
@@ -114,6 +120,7 @@ const PROGRAMMES: ProgDef[] = [
     code: "EV",
     name: "Electric Vehicles",
     deptCode: "DEV",
+    intake: [8, 1, 9, 1],
     entryRequirements: `${ELIGIBILITY} Cohort runs 1 September – 30 November; admission closes 1 August.`,
     provisional: true,
     modules: [
@@ -122,6 +129,44 @@ const PROGRAMMES: ProgDef[] = [
       { code: "EV 301", title: "Drivetrains, Motors & Power Electronics", description: "Provisional module — full breakdown pending publication by the Center." },
       { code: "EV 401", title: "EV Diagnostics, Maintenance & Repair", description: "Provisional module — full breakdown pending publication by the Center." },
     ],
+  },
+];
+
+// The Center's four published 2-week intensives. Fees are 0 ("to be
+// announced") until the developer prices them on the fees console —
+// registration stays closed until then.
+const SHORT_COURSES = [
+  {
+    code: "SWPS",
+    name: "Solar Water Pumping Systems",
+    description: "Install solar-powered water pumping systems for farms, communities and small businesses — self-reliant water access through clean energy.",
+    audience: "Farmers, water service providers, agricultural entrepreneurs",
+    trainingWindow: "First two weeks of April each year",
+    registrationCloses: "End of February",
+  },
+  {
+    code: "SWIS",
+    name: "Solar Water Irrigation Systems",
+    description: "Design and install solar-powered irrigation — from drip to sprinkler systems, all powered by the sun.",
+    audience: "Farmers, agro-processing businesses, irrigation contractors",
+    trainingWindow: "First two weeks of August each year",
+    registrationCloses: "30 June",
+  },
+  {
+    code: "SWHS",
+    name: "Solar Water Heating Systems",
+    description: "Install solar thermal systems for residential, commercial and industrial hot water — cut energy bills and emissions with one practical skill.",
+    audience: "Plumbers, installers, building service contractors, hospitality businesses",
+    trainingWindow: "First two weeks of December each year",
+    registrationCloses: "31 October",
+  },
+  {
+    code: "KCP",
+    name: "Kiln Charcoal Production",
+    description: "Produce charcoal sustainably and efficiently using modern kiln technology — practical and business-focused.",
+    audience: "Entrepreneurs, sustainable forestry workers, rural development practitioners",
+    trainingWindow: "First two weeks of April each year",
+    registrationCloses: "End of February",
   },
 ];
 
@@ -204,9 +249,13 @@ export async function bootstrapInstitutionCatalog(
 
   let curriculaCreated = 0;
   for (const p of PROGRAMMES) {
+    const [admissionClosesMonth, admissionClosesDay, cohortStartsMonth, cohortStartsDay] = p.intake;
+    // The intake window IS the published calendar — kept in sync on every
+    // boot (there is no in-app editor for it, so nothing can be clobbered).
+    const intakeFields = { admissionClosesMonth, admissionClosesDay, cohortStartsMonth, cohortStartsDay };
     const programme = await db.programme.upsert({
       where: { code: p.code },
-      update: {},
+      update: intakeFields,
       create: {
         code: p.code,
         name: p.name,
@@ -214,6 +263,7 @@ export async function bootstrapInstitutionCatalog(
         durationSemesters: 1, // one 3-month cohort
         departmentId: deptIds.get(p.deptCode)!,
         entryRequirements: p.entryRequirements,
+        ...intakeFields,
       },
     });
 
@@ -263,7 +313,18 @@ export async function bootstrapInstitutionCatalog(
       (curriculaCreated ? `, ${curriculaCreated} curricula created` : "")
   );
 
-  // 4. Knowledge base for the AI assistant — create-only, chunked on create.
+  // 4. Short courses — create-only; fees and activation stay in the
+  // developer's hands afterwards (fees console).
+  let shortCoursesCreated = 0;
+  for (const sc of SHORT_COURSES) {
+    const existing = await db.shortCourse.findUnique({ where: { code: sc.code } });
+    if (existing) continue;
+    await db.shortCourse.create({ data: sc });
+    shortCoursesCreated++;
+  }
+  if (shortCoursesCreated) log(`✓ ${shortCoursesCreated} short courses created`);
+
+  // 5. Knowledge base for the AI assistant — create-only, chunked on create.
   let docsCreated = 0;
   for (const docDef of KNOWLEDGE_DOCS) {
     const existing = await db.knowledgeDocument.findUnique({ where: { slug: docDef.slug } });

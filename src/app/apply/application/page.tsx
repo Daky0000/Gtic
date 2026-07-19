@@ -3,6 +3,7 @@ import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getOrCreateDraftApplication, saveApplicationDetails, submitApplication } from "@/lib/actions/admissions";
 import { reconcilePendingPaystackPayments } from "@/lib/payments";
+import { admissionStatusLabel, isAdmissionOpen } from "@/lib/intake";
 import { Flash } from "@/components/flash";
 
 export const metadata = { title: "My Application" };
@@ -188,11 +189,16 @@ export default async function ApplicationPage({
                   {schools.map((s) => (
                     <optgroup key={s.id} label={s.name}>
                       {s.departments.flatMap((d) =>
-                        d.programmes.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))
+                        d.programmes.map((p) => {
+                          const open = isAdmissionOpen(p);
+                          const status = admissionStatusLabel(p);
+                          return (
+                            <option key={p.id} value={p.id} disabled={!open}>
+                              {p.name}
+                              {status ? ` — ${status}` : ""}
+                            </option>
+                          );
+                        })
                       )}
                     </optgroup>
                   ))}

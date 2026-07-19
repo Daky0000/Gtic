@@ -34,6 +34,9 @@ export default async function PublicLayout({ children }: { children: React.React
             <Link href="/programmes" className="text-muted hover:text-forest">
               Programmes
             </Link>
+            <Link href="/short-courses" className="hidden text-muted hover:text-forest sm:inline">
+              Short courses
+            </Link>
             <Link href="/#curriculum" className="hidden text-muted hover:text-forest sm:inline">
               Curriculum
             </Link>
@@ -74,6 +77,7 @@ export default async function PublicLayout({ children }: { children: React.React
             </div>
             <FooterCol title="Portal">
               <FooterLink href="/programmes">Programmes</FooterLink>
+              <FooterLink href="/short-courses">Short courses</FooterLink>
               <FooterLink href="/signup">Apply now</FooterLink>
               <FooterLink href="/login">Sign in</FooterLink>
             </FooterCol>

@@ -5,6 +5,7 @@ import { getIntFee, getSetting, SETTING_KEYS } from "@/lib/settings";
 import {
   addFeeItem, createFeeSchedule, deleteFeeItem, saveCurrencyRate,
   updateCycleFees, updateDocumentFees, updateHostelFee, updateLibraryFine,
+  updateShortCourseFee,
 } from "@/lib/actions/system";
 import { Flash } from "@/components/flash";
 
@@ -48,7 +49,7 @@ export default async function FeesConsolePage({
   await requireFeesConsole();
   const { error, saved } = await searchParams;
 
-  const [cycles, hostels, schedules, years, docTranscript, docAttestation, docVerification, libraryFine, rateRaw] =
+  const [cycles, hostels, schedules, years, docTranscript, docAttestation, docVerification, libraryFine, rateRaw, shortCourses] =
     await Promise.all([
       db.admissionCycle.findMany({ orderBy: { opensAt: "desc" }, take: 5 }),
       db.hostel.findMany({ orderBy: { name: "asc" } }),
@@ -62,6 +63,7 @@ export default async function FeesConsolePage({
       getIntFee(SETTING_KEYS.DOC_FEE_VERIFICATION_LETTER, 2000),
       getIntFee(SETTING_KEYS.LIBRARY_FINE_PER_DAY, 100),
       getSetting(SETTING_KEYS.USD_TO_GHS_RATE),
+      db.shortCourse.findMany({ orderBy: { name: "asc" } }),
     ]);
   const rate = parseUsdRate(rateRaw);
 
@@ -151,6 +153,27 @@ export default async function FeesConsolePage({
           </div>
           <button type="submit" className={saveBtn}>Save</button>
         </form>
+      </section>
+
+      {/* Short course fees */}
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
+        <h2 className="font-semibold text-brand-800">Short course fees (2-week intensives)</h2>
+        <p className="mt-1 text-xs text-ink-500">
+          A fee of GHS 0.00 means &ldquo;to be announced&rdquo; — public registration stays closed for
+          that course until you set a price here.
+        </p>
+        {shortCourses.map((sc) => (
+          <form key={sc.id} action={updateShortCourseFee} className="mt-3 flex flex-wrap items-end gap-3 border-t border-ink-100 pt-3">
+            <input type="hidden" name="shortCourseId" value={sc.id} />
+            <div className="min-w-40 flex-1">
+              <div className="text-sm font-medium">{sc.name}</div>
+              <div className="text-xs text-ink-500">{sc.trainingWindow}</div>
+            </div>
+            <AmountInputs ghsName="feeGhs" usdName="feeUsd" pesewas={sc.feePesewas} rate={rate} />
+            <button type="submit" className={saveBtn}>Save</button>
+          </form>
+        ))}
+        {shortCourses.length === 0 && <p className="mt-2 text-sm text-ink-500">No short courses yet.</p>}
       </section>
 
       {/* Library fine */}

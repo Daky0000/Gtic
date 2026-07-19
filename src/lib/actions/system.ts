@@ -159,6 +159,19 @@ export async function updateDocumentFees(formData: FormData) {
   redirect("/admin/fees?saved=1");
 }
 
+export async function updateShortCourseFee(formData: FormData) {
+  const dev = await requireFees();
+  const shortCourseId = String(formData.get("shortCourseId"));
+  const pesewas = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
+  if (pesewas == null) fail("/admin/fees", "Enter a valid amount.");
+  await db.shortCourse.update({ where: { id: shortCourseId }, data: { feePesewas: pesewas } });
+  await audit({
+    actorId: dev.id, action: "system.short_course_fee_updated", entityType: "ShortCourse",
+    entityId: shortCourseId, after: { feePesewas: pesewas },
+  });
+  redirect("/admin/fees?saved=1");
+}
+
 export async function updateLibraryFine(formData: FormData) {
   const dev = await requireFees();
   const pesewas = await pairedAmountToPesewas(formData, "fineGhs", "fineUsd");

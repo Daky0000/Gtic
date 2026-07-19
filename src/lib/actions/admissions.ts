@@ -9,6 +9,7 @@ import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment } from "@/lib/payments";
 import { notify } from "@/lib/notify";
 import { extractApplicationDocument, prescreenApplication } from "@/lib/ai/tasks";
+import { isAdmissionOpen } from "@/lib/intake";
 import type { ApplicationDocKind, Recommendation } from "@prisma/client";
 
 /** Redirect back with a human-readable error instead of crashing the page. */
@@ -90,6 +91,20 @@ export async function saveApplicationDetails(formData: FormData) {
 
   // De-duplicate programme choices while preserving rank order.
   const choiceIds = [...new Set([str("choice1"), str("choice2"), str("choice3")].filter(Boolean))] as string[];
+
+  // Fixed intake calendar (published deadlines): a programme whose admission
+  // window has closed cannot be chosen until its cohort starts.
+  if (choiceIds.length > 0) {
+    const chosen = await db.programme.findMany({ where: { id: { in: choiceIds } } });
+    const closed = chosen.filter((prog) => !isAdmissionOpen(prog));
+    if (closed.length > 0) {
+      fail(
+        "/apply/application",
+        `Admissions for ${closed.map((prog) => prog.name).join(" and ")} closed for this intake — ` +
+          `choose another programme, or apply again when the next intake opens.`
+      );
+    }
+  }
 
   await db.$transaction(async (tx) => {
     await tx.application.update({
@@ -300,6 +315,20 @@ export async function submitApplication(formData: FormData) {
   if (!isEditable(app.status)) fail(back, "This application has already been submitted.");
   if (!app.surname || !app.firstName) fail(back, "Fill in and save your personal details first.");
   if (app.choices.length === 0) fail(back, "Choose at least one programme.");
+  {
+    // The published deadline is the submission cutoff for each programme.
+    const chosen = await db.programme.findMany({
+      where: { id: { in: app.choices.map((c) => c.programmeId) } },
+    });
+    const closed = chosen.filter((prog) => !isAdmissionOpen(prog));
+    if (closed.length > 0) {
+      fail(
+        back,
+        `Admissions for ${closed.map((prog) => prog.name).join(" and ")} closed for this intake — ` +
+          `switch to an open programme before submitting, or wait for the next intake.`
+      );
+    }
+  }
   if (!app.results || (app.results as unknown[]).length === 0) fail(back, "Add your examination results (or apply them from your uploaded results slip).");
   if (app.documents.length === 0) fail(back, "Upload at least one supporting document.");
   if (!(await isApplicationFeeCleared(app.id, user.id, app.cycleId))) {

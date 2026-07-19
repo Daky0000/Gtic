@@ -123,6 +123,26 @@ async function settleInvoiceSideEffects(invoiceId: string) {
       await db.documentRequest.update({ where: { id: request.id }, data: { status: "QUEUED" } });
       return;
     }
+    case "SHORT_COURSE": {
+      const meta = invoice.meta as { registrationId?: string } | null;
+      if (!meta?.registrationId) return;
+      const reg = await db.shortCourseRegistration.findUnique({
+        where: { id: meta.registrationId },
+        include: { shortCourse: true },
+      });
+      if (!reg || reg.status !== "PENDING_PAYMENT") return;
+      await db.shortCourseRegistration.update({
+        where: { id: reg.id },
+        data: { status: "CONFIRMED", confirmedAt: new Date() },
+      });
+      await notify(
+        invoice.userId,
+        "Short course registration confirmed",
+        `Your place on "${reg.shortCourse.name}" (${reg.shortCourse.trainingWindow.toLowerCase()}) is confirmed. The Center will contact you with joining details.`,
+        "/short-courses"
+      );
+      return;
+    }
     default:
       // APPLICATION, TUITION, FINE: gates read the invoice status directly.
       return;

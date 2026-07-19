@@ -38,6 +38,9 @@ model User {
   leaveRequests    LeaveRequest[]
   taughtOfferings  OfferingLecturer[]
 
+  shortCourseRegistrations ShortCourseRegistration[]
+  formResponses            FormResponse[]
+
   @@map("user")
 }
 
@@ -200,6 +203,14 @@ model Programme {
   departmentId      String
   department        Department     @relation(fields: [departmentId], references: [id])
   entryRequirements String? // plain-text summary shown in the catalogue (structured rules come in Phase 1)
+
+  // Fixed annual intake (published calendar): applications for this programme
+  // CLOSE on admissionCloses* and reopen once the cohort starts on
+  // cohortStarts* (applying then targets next year's cohort). Null = always open.
+  admissionClosesMonth Int? // 1-12
+  admissionClosesDay   Int? // 1-31
+  cohortStartsMonth    Int?
+  cohortStartsDay      Int?
 
   cycleProgrammes    CycleProgramme[]
   applicationChoices ApplicationChoice[]
@@ -864,6 +875,7 @@ enum InvoiceKind {
   DOCUMENT
   RESIT
   FINE
+  SHORT_COURSE
   OTHER
 }
 
@@ -1308,4 +1320,87 @@ model Evaluation {
   createdAt  DateTime       @default(now())
 
   @@unique([offeringId, studentId])
+}
+
+// ─────────────────────────── Short courses ────────────────────────────
+// The Center's 2-week intensives (solar water pumping/irrigation/heating,
+// kiln charcoal). Registration is open to any signed-in account; payment
+// reuses the invoice/payment machinery (kind SHORT_COURSE). A fee of 0
+// means "fee to be announced" — registration stays closed until the
+// developer prices the course on the fees console.
+
+model ShortCourse {
+  id                 String  @id @default(cuid())
+  code               String  @unique
+  name               String
+  description        String
+  audience           String // "Designed for: …" line from the published copy
+  trainingWindow     String // e.g. "First two weeks of April each year"
+  registrationCloses String // e.g. "End of February"
+  feePesewas         Int     @default(0)
+  active             Boolean @default(true)
+
+  registrations ShortCourseRegistration[]
+}
+
+enum ShortCourseRegStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+}
+
+model ShortCourseRegistration {
+  id            String               @id @default(cuid())
+  shortCourseId String
+  shortCourse   ShortCourse          @relation(fields: [shortCourseId], references: [id])
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone         String?
+  status        ShortCourseRegStatus @default(PENDING_PAYMENT)
+  invoiceId     String?
+  createdAt     DateTime             @default(now())
+  confirmedAt   DateTime?
+
+  @@unique([shortCourseId, userId])
+  @@index([shortCourseId, status])
+}
+
+// ─────────────────────────── Form builder ─────────────────────────────
+// Admin/developer-built forms (surveys, feedback, data collection) with a
+// public fill link and response/results views in the console. Field
+// definitions live as JSON [{id, label, type, required, options[]}] —
+// relational integrity is not needed for v1 and JSON keeps editing simple.
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+model FormDef {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  description String?
+  status      FormStatus @default(DRAFT)
+  fields      Json       @default("[]")
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  responses FormResponse[]
+}
+
+model FormResponse {
+  id              String   @id @default(cuid())
+  formId          String
+  form            FormDef  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  respondentName  String?
+  respondentEmail String?
+  answers         Json
+  submittedAt     DateTime @default(now())
+
+  @@index([formId, submittedAt])
 }
