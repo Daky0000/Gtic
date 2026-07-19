@@ -14,6 +14,7 @@ import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bootstrapAccounts } from "./bootstrap-accounts";
+import { bootstrapInstitutionCatalog } from "./bootstrap-catalog";
 
 const db = new PrismaClient();
 
@@ -27,6 +28,7 @@ const auth = betterAuth({
 async function main() {
   const ctx = await auth.$context;
   await bootstrapAccounts(db, (pw) => ctx.password.hash(pw));
+  await bootstrapInstitutionCatalog(db);
 }
 
 main()

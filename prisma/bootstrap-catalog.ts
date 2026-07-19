@@ -1,0 +1,288 @@
+// SYDA-GTIC institutional catalog — the Center's REAL structure from the
+// official website content strategy (2026): identity, School of Renewable
+// Energy, departments, the five flagship programmes with their published
+// intake windows, the module curriculum for each, and the public knowledge
+// base for the AI assistant.
+//
+// Runs at every app boot via src/instrumentation.ts (and manually via
+// create-demo-users.ts), so a FRESH production database becomes a usable
+// portal without ever running the demo seed. Everything is create-if-missing
+// or code-keyed upsert: admin edits made in-app are never overwritten, and
+// records created here are never duplicated. The demo seed (seed.ts) remains
+// the richer dev-only dataset; where the two overlap they share codes, so
+// they converge instead of colliding.
+import type { PrismaClient } from "@prisma/client";
+import { chunkDocument } from "../src/lib/ai/chunker";
+
+const INSTITUTION = {
+  name: "SYDA — Green Energy & Innovation Center",
+  shortName: "SYDA-GTIC",
+  motto: "Training the engineers who power Africa's renewable future",
+  address: "Sunyani Youth Development Association (SYDA) Centre, Sunyani, Bono Region, Ghana",
+  website: "https://portal.gticglobal.com",
+  // Phone/email intentionally unset — the Center will provide them; the
+  // admin can fill both in from /admin/settings.
+};
+
+// Common eligibility line from the published admissions requirements.
+const ELIGIBILITY =
+  "Open to anyone aged 16–50 who can read and write — JHS, SHS, degree and postgraduate holders are all welcome.";
+
+type ProgDef = {
+  code: string;
+  name: string;
+  deptCode: string;
+  entryRequirements: string;
+  modules: { code: string; title: string; description: string }[];
+  provisional?: boolean;
+};
+
+const STRUCTURE = {
+  school: { code: "SORE", name: "School of Renewable Energy" },
+  departments: [
+    { code: "DSE", name: "Department of Solar Energy" },
+    { code: "DBE", name: "Department of Biogas & Biomass Engineering" },
+    { code: "DWE", name: "Department of Wind Energy" },
+    { code: "DEV", name: "Department of Electric Vehicles" },
+    { code: "DESS", name: "Department of Energy Storage Systems" },
+  ],
+};
+
+const PROGRAMMES: ProgDef[] = [
+  {
+    code: "SENG",
+    name: "Solar Energy Engineering",
+    deptCode: "DSE",
+    entryRequirements: `${ELIGIBILITY} Cohort runs 3 January – 31 March; admission closes 1 December.`,
+    modules: [
+      { code: "SENG 101", title: "Electrical Fundamentals I", description: "Basic principles of electricity, circuits and symbols, voltage, current, resistance and power." },
+      { code: "SENG 102", title: "Electrical Fundamentals II", description: "Electrical safety rules and precautions; interpreting simple electrical circuits." },
+      { code: "SENG 201", title: "Electrical Wiring I", description: "Wiring systems, electrical cables and conductors, wiring techniques and terminations." },
+      { code: "SENG 202", title: "Electrical Wiring II", description: "Circuit breakers, fuses and protection devices; electrical installation and routine maintenance." },
+      { code: "SENG 301", title: "Solar Energy & Systems I", description: "Solar energy overview, PV system components, panel types and configurations." },
+      { code: "SENG 302", title: "Solar Energy & Systems II", description: "Charge controllers and battery systems; inverters and grid-connection fundamentals." },
+      { code: "SENG 401", title: "Solar Installation, Repair & Integration I", description: "Panel mounting, system wiring and commissioning, fault diagnosis, repair and preventive maintenance." },
+      { code: "SENG 402", title: "Solar Installation, Repair & Integration II", description: "Integration with building wiring; grid-tied, off-grid and hybrid systems; energy storage and backup power." },
+    ],
+  },
+  {
+    code: "BENG",
+    name: "Biogas & Biomass Engineering",
+    deptCode: "DBE",
+    entryRequirements: `${ELIGIBILITY} Cohort runs 1 May – 31 July; admission closes 1 April.`,
+    modules: [
+      { code: "BENG 101", title: "Introduction to Biogas & Organic Waste Management I", description: "Principles of biogas, sources of organic waste, the anaerobic digestion process." },
+      { code: "BENG 102", title: "Introduction to Biogas & Organic Waste Management II", description: "Benefits of biogas systems; environmental and health impacts." },
+      { code: "BENG 201", title: "Biogas Plant Design & Sizing I", description: "Digester types; household and farm-scale systems." },
+      { code: "BENG 202", title: "Biogas Plant Design & Sizing II", description: "Gas demand estimation, digester volume calculation, retention time." },
+      { code: "BENG 301", title: "Biogas System Components & Installation I", description: "Inlet/outlet chambers, gas storage systems, piping and valves." },
+      { code: "BENG 302", title: "Biogas System Components & Installation II", description: "Gas purification (H2S removal), safety devices, leak detection and commissioning." },
+      { code: "BENG 401", title: "Operation, Maintenance & Energy Integration I", description: "Feeding procedures, slurry management, pH/temperature monitoring, troubleshooting low gas production." },
+      { code: "BENG 402", title: "Operation, Maintenance & Energy Integration II", description: "Cooking applications, biogas generators, CHP, integration with solar PV, economic analysis." },
+    ],
+  },
+  {
+    code: "WENG",
+    name: "Wind Energy Engineering",
+    deptCode: "DWE",
+    entryRequirements: `${ELIGIBILITY} Cohort runs 1 September – 30 November; admission closes 1 August.`,
+    modules: [
+      { code: "WENG 101", title: "Wind Energy Fundamentals I", description: "Introduction to wind power, history and development, principles of wind energy conversion." },
+      { code: "WENG 102", title: "Wind Energy Fundamentals II", description: "Wind characteristics and speed measurement; environmental and safety considerations." },
+      { code: "WENG 201", title: "Wind Turbine Components & Design I", description: "Turbine types (horizontal/vertical axis), rotor blades and aerodynamics." },
+      { code: "WENG 202", title: "Wind Turbine Components & Design II", description: "Nacelle components — gearbox, generator, brakes; tower design; yaw and pitch control." },
+      { code: "WENG 301", title: "Wind Resource Assessment & Site Analysis I", description: "Wind rose diagrams, Weibull distribution analysis, site selection criteria." },
+      { code: "WENG 302", title: "Wind Resource Assessment & Site Analysis II", description: "Wind data collection methods; anemometers and wind vanes; environmental impact." },
+      { code: "WENG 401", title: "Installation, Maintenance & Integration I", description: "Foundation design, tower erection, electrical wiring and grid connection, routine inspection." },
+      { code: "WENG 402", title: "Installation, Maintenance & Integration II", description: "Fault diagnosis, grid integration, hybrid wind–solar systems, storage, power quality, project economics." },
+    ],
+  },
+  {
+    code: "ESS",
+    name: "Energy Storage Systems",
+    deptCode: "DESS",
+    entryRequirements: `${ELIGIBILITY} Cohort runs 3 January – 31 March; admission closes 1 December.`,
+    provisional: true,
+    modules: [
+      { code: "ESS 101", title: "Fundamentals of Energy Storage", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "ESS 201", title: "Battery Technologies & Chemistries", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "ESS 301", title: "ESS Design, Sizing & Installation", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "ESS 401", title: "Operation, Maintenance & Integration", description: "Provisional module — full breakdown pending publication by the Center." },
+    ],
+  },
+  {
+    code: "EV",
+    name: "Electric Vehicles",
+    deptCode: "DEV",
+    entryRequirements: `${ELIGIBILITY} Cohort runs 1 September – 30 November; admission closes 1 August.`,
+    provisional: true,
+    modules: [
+      { code: "EV 101", title: "Introduction to EV Technology", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "EV 201", title: "EV Battery Systems & Charging Infrastructure", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "EV 301", title: "Drivetrains, Motors & Power Electronics", description: "Provisional module — full breakdown pending publication by the Center." },
+      { code: "EV 401", title: "EV Diagnostics, Maintenance & Repair", description: "Provisional module — full breakdown pending publication by the Center." },
+    ],
+  },
+];
+
+// Public knowledge base for the AI assistant — admissions requirements,
+// intake calendar, short courses, payment channels, governance — drawn from
+// the published website content. Create-only: in-app edits survive.
+const KNOWLEDGE_DOCS = [
+  {
+    slug: "intakes-and-short-courses",
+    title: "Intake Calendar & Short Courses",
+    category: "admissions",
+    text: `
+# Who Can Apply
+Admission is open to anyone who can read and write, aged 16 to 50. JHS, SHS, first degree, second degree and PhD holders are all welcome — what matters most is commitment to the practical work. Trainees must be willing to wear the prescribed training attire.
+
+# Programme Intakes and Deadlines
+Solar Energy Engineering (SENG): trains 3 January – 31 March; admission closes 1 December each year.
+Biogas & Biomass Engineering (BENG): trains 1 May – 31 July; admission closes 1 April each year.
+Wind Energy Engineering (WENG): trains 1 September – 30 November; admission closes 1 August each year.
+Energy Storage Systems (ESS): trains 3 January – 31 March; admission closes 1 December each year.
+Electric Vehicles (EV): trains 1 September – 30 November; admission closes 1 August each year.
+Apply at least one month before your preferred start date.
+
+# Short Courses (2-week intensives)
+Solar Water Pumping Systems — first two weeks of April; registration closes end of February.
+Solar Water Irrigation Systems — first two weeks of August; registration closes 30 June.
+Solar Water Heating Systems — first two weeks of December; registration closes 31 October.
+Kiln Charcoal Production — first two weeks of April; registration closes end of February.
+Short courses suit working professionals, farmers and entrepreneurs who want one focused, applicable skill.
+
+# Payment Channels
+The application voucher fee is paid online by card or mobile money (Paystack). Training fees can also be paid at Ghana Commercial Bank (GCB), Sunyani Branch — quote your reference number and send the receipt to the admissions team to complete enrolment.
+`,
+  },
+  {
+    slug: "about-the-center",
+    title: "About SYDA-GTIC",
+    category: "handbook",
+    text: `
+# The Center
+SYDA — Green Energy and Innovation Center (SYDA-GTIC) is a TVET/NVTI-accredited renewable energy training center operating from the Sunyani Youth Development Association (SYDA) Centre in Sunyani, Bono Region, Ghana. Established in 2023, it officially began operations in January 2026. It is partly a non-governmental organization. Mission: to train the African youth in practical renewable energy technologies — solar, wind, biogas, biomass, EVs and energy storage — for efficient deployment and utilization. Core values: Excellence, Transparency, Innovation, Integrity.
+
+# Training Philosophy
+Hands-on practicals, field trips, industrial visits, internships and industrial attachments are the backbone of every programme. Trainees install, configure and troubleshoot real systems.
+
+# Governance and Leadership
+The Board is chaired by Ing. Prof. Nana Sarfo Agyemany Derkyi. The Director of Training is Ing. Ferka-Ahenkorah Atta Senior — MSc Sustainable Energy Management and BSc Renewable Energy Engineering (UENR), currently pursuing a PhD, with industry experience across Ghana's Energy Commission, GRIDCo, NEDCo, Dream Renewables and BAK Energy. The Manager is Mr. Kofi Boamah Arhin; Mr. Elkana Atikle Yaovi is Field Expert; Mr. Raphael Sarpong is Coordinator & Consultant.
+
+# Accreditation and Partners
+Accredited by TVET (Technical and Vocational Education and Training) and NVTI (National Vocational Training Institute). Academic and industry partners include RCEES, UENR, Sunyani Technical University, University of Mines – Tarkwa, KNUST, GIZ, RES4Africa, Dream Renewables and Net-Tech Renewables. Graduates gain access to internships and industrial attachments through this network, and every certificate carries a verification code checkable on the public verification page.
+`,
+  },
+];
+
+export async function bootstrapInstitutionCatalog(
+  db: PrismaClient,
+  log: (msg: string) => void = console.log
+) {
+  // 1. Institution identity — create only; /admin/settings owns it afterwards.
+  if (!(await db.institution.findFirst())) {
+    await db.institution.create({ data: INSTITUTION });
+    log("✓ institution identity created (SYDA-GTIC)");
+  }
+
+  // 2. School, departments, programmes (code-keyed upserts).
+  const school = await db.school.upsert({
+    where: { code: STRUCTURE.school.code },
+    update: {},
+    create: STRUCTURE.school,
+  });
+  const deptIds = new Map<string, string>();
+  for (const d of STRUCTURE.departments) {
+    const dept = await db.department.upsert({
+      where: { code: d.code },
+      update: {},
+      create: { ...d, schoolId: school.id },
+    });
+    deptIds.set(d.code, dept.id);
+  }
+
+  let curriculaCreated = 0;
+  for (const p of PROGRAMMES) {
+    const programme = await db.programme.upsert({
+      where: { code: p.code },
+      update: {},
+      create: {
+        code: p.code,
+        name: p.name,
+        level: "DIPLOMA",
+        durationSemesters: 1, // one 3-month cohort
+        departmentId: deptIds.get(p.deptCode)!,
+        entryRequirements: p.entryRequirements,
+      },
+    });
+
+    // 3. Module curriculum — only when the programme has none yet, so both
+    // the demo seed's richer local data and any in-app curriculum work are
+    // left untouched.
+    const hasCurriculum = await db.curriculumVersion.findFirst({
+      where: { programmeId: programme.id },
+    });
+    if (hasCurriculum) continue;
+
+    const courseIds: string[] = [];
+    for (const m of p.modules) {
+      const course = await db.course.upsert({
+        where: { code: m.code },
+        update: {},
+        create: {
+          code: m.code,
+          title: m.title,
+          credits: 3,
+          departmentId: deptIds.get(p.deptCode)!,
+          description: m.description,
+        },
+      });
+      courseIds.push(course.id);
+    }
+    const curriculum = await db.curriculumVersion.create({
+      data: {
+        programmeId: programme.id,
+        name: "2026 cohort",
+        minCredits: 3,
+        maxCredits: p.modules.length * 3,
+      },
+    });
+    await db.curriculumCourse.createMany({
+      data: courseIds.map((courseId) => ({
+        curriculumId: curriculum.id,
+        courseId,
+        semesterNumber: 1,
+        type: "CORE" as const,
+      })),
+    });
+    curriculaCreated++;
+  }
+  log(
+    `✓ academic catalog: ${STRUCTURE.departments.length} departments, ${PROGRAMMES.length} programmes` +
+      (curriculaCreated ? `, ${curriculaCreated} curricula created` : "")
+  );
+
+  // 4. Knowledge base for the AI assistant — create-only, chunked on create.
+  let docsCreated = 0;
+  for (const docDef of KNOWLEDGE_DOCS) {
+    const existing = await db.knowledgeDocument.findUnique({ where: { slug: docDef.slug } });
+    if (existing) continue;
+    const doc = await db.knowledgeDocument.create({
+      data: {
+        slug: docDef.slug,
+        title: docDef.title,
+        category: docDef.category,
+        sourceText: docDef.text.trim(),
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+      },
+    });
+    const chunks = chunkDocument(doc.sourceText);
+    await db.knowledgeChunk.createMany({
+      data: chunks.map((c, i) => ({ documentId: doc.id, ord: i, heading: c.heading, content: c.content })),
+    });
+    docsCreated++;
+  }
+  if (docsCreated) log(`✓ ${docsCreated} knowledge documents published for the AI assistant`);
+}

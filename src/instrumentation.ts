@@ -41,4 +41,16 @@ export async function register() {
   } catch (e) {
     console.error("[startup] account bootstrap failed (continuing):", e);
   }
+
+  // 3. Ensure the real institutional catalog exists — identity, departments,
+  // programmes, curricula, and the assistant's knowledge base — so a fresh
+  // production database is a usable portal without the demo seed.
+  try {
+    const { db } = await import("@/lib/db");
+    const { bootstrapInstitutionCatalog } = await import("../prisma/bootstrap-catalog");
+    await bootstrapInstitutionCatalog(db, (m) => console.log("[startup]", m));
+    console.log("[startup] institution catalog complete");
+  } catch (e) {
+    console.error("[startup] institution catalog failed (continuing):", e);
+  }
 }
