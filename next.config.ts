@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
+          // Browsers pin HTTPS for a year after the first visit — a network
+          // attacker can no longer downgrade the login or payment pages.
+          // Harmless on plain-HTTP localhost (browsers ignore it there).
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           // No page in the app is meant to be embedded — blocks clickjacking
           // (especially around the payment and login flows).
           { key: "X-Frame-Options", value: "DENY" },

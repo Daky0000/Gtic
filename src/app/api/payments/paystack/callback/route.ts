@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyPaystackTransaction } from "@/lib/paystack";
 import { confirmPayment } from "@/lib/payments";
+import { appBaseUrl } from "@/lib/base-url";
 
 /**
  * Paystack redirects the payer here after hosted checkout. We never trust the
@@ -12,8 +13,11 @@ import { confirmPayment } from "@/lib/payments";
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const reference = url.searchParams.get("reference") ?? url.searchParams.get("trxref");
+  // Redirects are built on the configured public origin, NEVER url.origin:
+  // behind Railway's proxy the reconstructed request URL carries the internal
+  // Host (localhost:8080), which once bounced real payers to a dead address.
   const back = (path: string, params: Record<string, string>) => {
-    const target = new URL(path, url.origin);
+    const target = new URL(path, appBaseUrl());
     for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
     return NextResponse.redirect(target);
   };

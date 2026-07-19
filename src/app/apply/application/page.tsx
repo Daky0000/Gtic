@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getOrCreateDraftApplication, saveApplicationDetails, submitApplication } from "@/lib/actions/admissions";
+import { reconcilePendingPaystackPayments } from "@/lib/payments";
 import { Flash } from "@/components/flash";
 
 export const metadata = { title: "My Application" };
@@ -17,6 +18,14 @@ export default async function ApplicationPage({
   const { error, saved, paid } = await searchParams;
   const app = await getOrCreateDraftApplication(user.id);
   if (!app) redirect("/apply");
+
+  // This is the page Paystack returns payers to — settle any in-flight
+  // checkout here too, so a missed callback/webhook can't strand the voucher.
+  await reconcilePendingPaystackPayments(user.id);
+  const voucherInvoice = await db.invoice.findFirst({
+    where: { userId: user.id, kind: "APPLICATION", meta: { path: ["applicationId"], equals: app.id } },
+  });
+  const voucherPaid = voucherInvoice ? voucherInvoice.paid >= voucherInvoice.total : false;
 
   const editable = app.status === "DRAFT" || app.status === "INFO_REQUESTED";
   const schools = await db.school.findMany({
@@ -45,11 +54,18 @@ export default async function ApplicationPage({
         success={
           saved
             ? "Your application details were saved."
-            : paid
+            : paid && voucherPaid
               ? "Voucher payment confirmed — welcome! Fill in your application form below."
               : undefined
         }
       />
+      {paid && !voucherPaid && (
+        <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
+          Thanks — we received your checkout and are confirming the payment with
+          the provider. It usually reflects within a minute; refresh this page
+          shortly. Please do not pay again.
+        </p>
+      )}
       {!editable && (
         <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
           This application has been submitted and can no longer be edited here.

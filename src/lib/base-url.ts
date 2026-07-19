@@ -8,13 +8,34 @@ import "server-only";
  * Keeping this in one place means auth origins, payment callbacks and
  * webhook URLs can never disagree with each other.
  */
-export function appBaseUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+const LOOPBACK_HOST = /^(localhost|127(\.\d{1,3}){3}|0\.0\.0\.0|\[::1?\])$/i;
+
+/** Normalizes a configured value ("example.com", "https://example.com/") to
+ * an origin, or null when it isn't a usable URL. */
+function normalizeOrigin(value: string): string | null {
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    return null;
   }
-  return "http://localhost:3000";
+}
+
+export function appBaseUrl(): string {
+  const railway = process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : null;
+  for (const value of [process.env.NEXT_PUBLIC_APP_URL, process.env.BETTER_AUTH_URL]) {
+    if (!value?.trim()) continue;
+    const origin = normalizeOrigin(value.trim());
+    if (!origin) continue;
+    // On a deployed platform a loopback value is always a misconfiguration —
+    // payment callbacks and auth built on it would strand real users on
+    // localhost. Fall through to the platform-injected public domain instead.
+    if (railway && LOOPBACK_HOST.test(new URL(origin).hostname)) continue;
+    return origin;
+  }
+  return railway ?? "http://localhost:3000";
 }
 
 /** Every origin browsers may legitimately send for this deployment. */

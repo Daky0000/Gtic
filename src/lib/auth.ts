@@ -34,6 +34,20 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh daily
   },
+  // Per-IP rate limiting (in-memory — fine on a single Railway instance).
+  // Tight windows on the credential endpoints blunt password brute-forcing
+  // and signup/reset spam without touching normal interactive use.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 60, max: 5 },
+      "/request-password-reset": { window: 300, max: 5 },
+      "/reset-password": { window: 300, max: 5 },
+    },
+  },
   // nextCookies must be the last plugin so server actions set cookies correctly.
   plugins: [nextCookies()],
 });
