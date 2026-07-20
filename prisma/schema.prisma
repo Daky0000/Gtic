@@ -1323,46 +1323,181 @@ model Evaluation {
 }
 
 // ─────────────────────────── Short courses ────────────────────────────
-// The Center's 2-week intensives (solar water pumping/irrigation/heating,
-// kiln charcoal). Registration is open to any signed-in account; payment
-// reuses the invoice/payment machinery (kind SHORT_COURSE). A fee of 0
-// means "fee to be announced" — registration stays closed until the
-// developer prices the course on the fees console.
+// The Center's real vocational training sessions — 2 to 8-week intensives
+// run in scheduled batches. Registration is open to any signed-in account;
+// the intake form mirrors the Center's paper application (Renewable Energy
+// Training Application Form 2026) section for section. Payment reuses the
+// invoice/payment machinery (kind SHORT_COURSE). A fee of 0 means "fee to
+// be announced" — registration stays closed until the developer prices the
+// course on the fees console.
 
 model ShortCourse {
-  id                 String  @id @default(cuid())
-  code               String  @unique
-  name               String
-  description        String
-  audience           String // "Designed for: …" line from the published copy
-  trainingWindow     String // e.g. "First two weeks of April each year"
-  registrationCloses String // e.g. "End of February"
-  feePesewas         Int     @default(0)
-  active             Boolean @default(true)
+  id            String  @id @default(cuid())
+  code          String  @unique
+  name          String
+  description   String
+  audience      String // "Designed for: …" line from the published copy
+  durationWeeks Int
+  feePesewas    Int     @default(0)
+  active        Boolean @default(true)
 
+  batches       ShortCourseBatch[]
   registrations ShortCourseRegistration[]
 }
 
+/**
+ * A scheduled intake — "Batch A/B/C" on the paper form. Batches share
+ * start dates across courses; each batch's end date is its course's own
+ * duration added to that start, so a 2-week and an 8-week course can share
+ * the same intake calendar.
+ */
+model ShortCourseBatch {
+  id            String      @id @default(cuid())
+  shortCourseId String
+  shortCourse   ShortCourse @relation(fields: [shortCourseId], references: [id], onDelete: Cascade)
+  label         String // "Batch A"
+  startDate     DateTime
+  endDate       DateTime
+  active        Boolean     @default(true)
+
+  registrations ShortCourseRegistration[]
+
+  @@unique([shortCourseId, label])
+}
+
 enum ShortCourseRegStatus {
+  DRAFT
   PENDING_PAYMENT
   CONFIRMED
   CANCELLED
 }
 
+enum TshirtSize {
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+enum AccommodationChoice {
+  YES
+  NO
+  NOT_SURE
+}
+
+enum EducationLevel {
+  WASSCE
+  DIPLOMA
+  HND
+  DEGREE
+  OTHER
+}
+
+enum ExperienceLevel {
+  NONE
+  MONTHS_0_6
+  MONTHS_6_24
+  YEARS_2_PLUS
+}
+
+enum SponsorshipType {
+  SELF
+  COMPANY
+  NGO
+}
+
+enum ReferralSource {
+  FACEBOOK
+  WHATSAPP
+  FRIEND
+  RADIO
+  ECG
+  OTHER
+}
+
+// Mirrors the paper form's Sections A–E. Editable only while DRAFT; the
+// registration reference ("Form Code" on the paper form) is assigned when
+// the applicant submits and moves to PENDING_PAYMENT.
 model ShortCourseRegistration {
   id            String               @id @default(cuid())
+  refNo         String?              @unique
   shortCourseId String
   shortCourse   ShortCourse          @relation(fields: [shortCourseId], references: [id])
+  batchId       String?
+  batch         ShortCourseBatch?    @relation(fields: [batchId], references: [id])
   userId        String
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone         String?
-  status        ShortCourseRegStatus @default(PENDING_PAYMENT)
+  status        ShortCourseRegStatus @default(DRAFT)
   invoiceId     String?
   createdAt     DateTime             @default(now())
   confirmedAt   DateTime?
 
+  // Section A — personal details
+  fullName              String?
+  gender                String?
+  dateOfBirth           DateTime?
+  idNumber              String? // Ghana Card / Passport number
+  phone                 String?
+  currentAddress        String? // "Where are you currently staying?"
+  homeRegion            String? // "Home region / where coming from"
+  emergencyName         String?
+  emergencyRelationship String?
+  emergencyPhone        String?
+  emergencyEmail        String?
+
+  // Section B — training details
+  fullDuration        Boolean?
+  partialDurationNote String?
+  accommodation       AccommodationChoice?
+  tshirtSize          TshirtSize?
+
+  // Section C — education & experience
+  educationLevel  EducationLevel?
+  educationOther  String?
+  experienceLevel ExperienceLevel?
+  experienceNote  String?
+  toolsOwned      String[]         @default([])
+
+  // Section D — medical & safety
+  medicalConditions String?
+  bloodGroup        String?
+
+  // Section E — referral, sponsorship & declaration
+  referralSource      ReferralSource?
+  referralOther       String?
+  sponsorship         SponsorshipType?
+  sponsorName         String?
+  declarationName     String? // typed signature
+  declarationAccepted Boolean          @default(false)
+  declarationSignedAt DateTime?
+
+  documents ShortCourseDocument[]
+
   @@unique([shortCourseId, userId])
   @@index([shortCourseId, status])
+}
+
+enum ShortCourseDocKind {
+  CV
+  CERTIFICATE
+  PHOTO
+  ID_DOCUMENT
+  OTHER
+}
+
+model ShortCourseDocument {
+  id             String                  @id @default(cuid())
+  registrationId String
+  registration   ShortCourseRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  kind           ShortCourseDocKind
+  fileName       String
+  filePath       String
+  mimeType       String
+  size           Int
+  uploadedAt     DateTime                @default(now())
+
+  @@index([registrationId])
 }
 
 // ─────────────────────────── Form builder ─────────────────────────────

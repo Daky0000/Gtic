@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole, ROLES } from "@/lib/rbac";
 import { formatGHS } from "@/lib/money";
@@ -8,11 +9,13 @@ export const metadata = { title: "Short Course Registrations" };
 const STATUS_TONE: Record<string, ChipTone> = {
   CONFIRMED: "green",
   PENDING_PAYMENT: "amber",
+  DRAFT: "neutral",
   CANCELLED: "neutral",
 };
 const STATUS_LABEL: Record<string, string> = {
   CONFIRMED: "Confirmed",
   PENDING_PAYMENT: "Awaiting payment",
+  DRAFT: "In progress",
   CANCELLED: "Cancelled",
 };
 
@@ -24,9 +27,10 @@ export default async function StaffShortCoursesPage() {
   const courses = await db.shortCourse.findMany({
     orderBy: { name: "asc" },
     include: {
+      batches: { orderBy: { startDate: "asc" } },
       registrations: {
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: { name: true, email: true } }, batch: true },
       },
     },
   });
@@ -35,7 +39,7 @@ export default async function StaffShortCoursesPage() {
     <div className="scr mx-auto max-w-4xl">
       <PageHeader
         title={<>Short course <em className="text-forest">registrations.</em></>}
-        lead="Every registration for the 2-week intensives, with payment status. Confirmed rows are paid places."
+        lead="Every registration for the Center's vocational intensives, with payment status. Confirmed rows are paid places."
       />
 
       {courses.map((c) => {
@@ -46,9 +50,11 @@ export default async function StaffShortCoursesPage() {
               <div>
                 <h2 className="font-semibold text-brand-800">
                   <span className="font-mono text-xs text-faint">{c.code}</span> {c.name}
+                  {!c.active && <span className="ml-2 text-xs font-normal text-faint">(inactive)</span>}
                 </h2>
                 <p className="mt-0.5 text-xs text-faint">
-                  {c.trainingWindow} · registration closes {c.registrationCloses} ·{" "}
+                  {c.durationWeeks} weeks ·{" "}
+                  {c.batches.map((b) => `${b.label} ${b.startDate.toLocaleDateString()}`).join(" · ") || "no batches scheduled"} ·{" "}
                   {c.feePesewas > 0 ? formatGHS(c.feePesewas) : "fee not yet published"}
                 </p>
               </div>
@@ -66,6 +72,7 @@ export default async function StaffShortCoursesPage() {
                       <th className="py-1.5 pr-2">Name</th>
                       <th className="py-1.5 pr-2">Email</th>
                       <th className="py-1.5 pr-2">Phone</th>
+                      <th className="py-1.5 pr-2">Batch</th>
                       <th className="py-1.5 pr-2">Registered</th>
                       <th className="py-1.5 text-right">Status</th>
                     </tr>
@@ -73,9 +80,14 @@ export default async function StaffShortCoursesPage() {
                   <tbody>
                     {c.registrations.map((r) => (
                       <tr key={r.id} className="border-t border-line-soft">
-                        <td className="py-2 pr-2 font-medium">{r.user.name}</td>
+                        <td className="py-2 pr-2 font-medium">
+                          <Link href={`/staff/short-courses/${r.id}`} className="text-forest hover:text-moss">
+                            {r.fullName || r.user.name}
+                          </Link>
+                        </td>
                         <td className="py-2 pr-2">{r.user.email}</td>
                         <td className="py-2 pr-2">{r.phone ?? "—"}</td>
+                        <td className="py-2 pr-2">{r.batch?.label ?? "—"}</td>
                         <td className="py-2 pr-2 text-muted">{r.createdAt.toLocaleDateString()}</td>
                         <td className="py-2 text-right">
                           <StatusChip tone={STATUS_TONE[r.status] ?? "neutral"}>

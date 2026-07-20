@@ -157,7 +157,7 @@ export default async function FeesConsolePage({
 
       {/* Short course fees */}
       <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-semibold text-brand-800">Short course fees (2-week intensives)</h2>
+        <h2 className="font-semibold text-brand-800">Short course fees (vocational intensives)</h2>
         <p className="mt-1 text-xs text-ink-500">
           A fee of GHS 0.00 means &ldquo;to be announced&rdquo; — public registration stays closed for
           that course until you set a price here.
@@ -166,8 +166,8 @@ export default async function FeesConsolePage({
           <form key={sc.id} action={updateShortCourseFee} className="mt-3 flex flex-wrap items-end gap-3 border-t border-ink-100 pt-3">
             <input type="hidden" name="shortCourseId" value={sc.id} />
             <div className="min-w-40 flex-1">
-              <div className="text-sm font-medium">{sc.name}</div>
-              <div className="text-xs text-ink-500">{sc.trainingWindow}</div>
+              <div className="text-sm font-medium">{sc.name}{!sc.active && <span className="ml-1.5 font-normal text-ink-400">(inactive)</span>}</div>
+              <div className="text-xs text-ink-500">{sc.durationWeeks} weeks</div>
             </div>
             <AmountInputs ghsName="feeGhs" usdName="feeUsd" pesewas={sc.feePesewas} rate={rate} />
             <button type="submit" className={saveBtn}>Save</button>

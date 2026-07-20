@@ -52,3 +52,9 @@ export function voucherPin(): string {
 export function staffNo(): string {
   return `STF${randomDigits(5)}`;
 }
+
+/** Short-course registration reference — the "Form Code" on the paper form. */
+export function shortCourseRefNo(code: string): string {
+  const clean = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  return `SC-${clean}-${randomDigits(6)}`;
+}

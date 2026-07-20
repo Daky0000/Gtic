@@ -128,17 +128,18 @@ async function settleInvoiceSideEffects(invoiceId: string) {
       if (!meta?.registrationId) return;
       const reg = await db.shortCourseRegistration.findUnique({
         where: { id: meta.registrationId },
-        include: { shortCourse: true },
+        include: { shortCourse: true, batch: true },
       });
       if (!reg || reg.status !== "PENDING_PAYMENT") return;
       await db.shortCourseRegistration.update({
         where: { id: reg.id },
         data: { status: "CONFIRMED", confirmedAt: new Date() },
       });
+      const batchNote = reg.batch ? ` (${reg.batch.label}, starting ${reg.batch.startDate.toLocaleDateString()})` : "";
       await notify(
         invoice.userId,
         "Short course registration confirmed",
-        `Your place on "${reg.shortCourse.name}" (${reg.shortCourse.trainingWindow.toLowerCase()}) is confirmed. The Center will contact you with joining details.`,
+        `Your place on "${reg.shortCourse.name}"${batchNote} is confirmed. The Center will contact you with joining details.`,
         "/short-courses"
       );
       return;

@@ -6,9 +6,10 @@ import { readUpload, UPLOAD_MIME_BY_EXT } from "@/lib/storage";
 
 /**
  * Serves files from the private upload store with per-area authorization:
- *  - applications/<appId>/…  → the applicant who owns it, or any staff/admin
- *  - materials/<offeringId>/… → any signed-in user (course content)
- *  - anything else            → staff/admin only
+ *  - applications/<appId>/…              → the applicant who owns it, or any staff/admin
+ *  - short-course-registrations/<regId>/… → the registrant who owns it, or any staff/admin
+ *  - materials/<offeringId>/…             → any signed-in user (course content)
+ *  - anything else                        → staff/admin only
  */
 export async function GET(
   _req: NextRequest,
@@ -36,6 +37,16 @@ export async function GET(
     });
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (doc.application.userId !== user.id && !isStaffish) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    fileName = doc.fileName;
+  } else if (relPath.startsWith("short-course-registrations/")) {
+    const doc = await db.shortCourseDocument.findFirst({
+      where: { filePath: relPath },
+      include: { registration: { select: { userId: true } } },
+    });
+    if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (doc.registration.userId !== user.id && !isStaffish) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     fileName = doc.fileName;

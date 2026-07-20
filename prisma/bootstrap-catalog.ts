@@ -135,39 +135,47 @@ const PROGRAMMES: ProgDef[] = [
 // The Center's four published 2-week intensives. Fees are 0 ("to be
 // announced") until the developer prices them on the fees console —
 // registration stays closed until then.
+// The Center's real published training sessions (from the official
+// Renewable Energy Training Application Form 2026) — replaces an earlier,
+// invented catalog. Each runs in the same three scheduled batches
+// (BATCH_STARTS below); a batch's end date is its start plus the course's
+// own durationWeeks, so a 2-week and an 8-week course can share one intake
+// calendar.
 const SHORT_COURSES = [
   {
-    code: "SWPS",
-    name: "Solar Water Pumping Systems",
-    description: "Install solar-powered water pumping systems for farms, communities and small businesses — self-reliant water access through clean energy.",
-    audience: "Farmers, water service providers, agricultural entrepreneurs",
-    trainingWindow: "First two weeks of April each year",
-    registrationCloses: "End of February",
+    code: "SPVM",
+    name: "Solar PV Installation & Maintenance",
+    description: "Install and maintain complete solar photovoltaic systems — panel sizing, wiring, inverters and battery banks — for residential, commercial and off-grid use.",
+    audience: "Aspiring solar technicians, electricians, entrepreneurs and anyone building a career in solar installation",
+    durationWeeks: 4,
   },
   {
-    code: "SWIS",
-    name: "Solar Water Irrigation Systems",
-    description: "Design and install solar-powered irrigation — from drip to sprinkler systems, all powered by the sun.",
-    audience: "Farmers, agro-processing businesses, irrigation contractors",
-    trainingWindow: "First two weeks of August each year",
-    registrationCloses: "30 June",
+    code: "WES",
+    name: "Wind Energy Systems",
+    description: "Design, install and maintain small-scale wind energy systems, from turbine siting to grid and battery integration.",
+    audience: "Technicians and engineers exploring wind power generation and small-scale turbine systems",
+    durationWeeks: 2,
   },
   {
-    code: "SWHS",
-    name: "Solar Water Heating Systems",
-    description: "Install solar thermal systems for residential, commercial and industrial hot water — cut energy bills and emissions with one practical skill.",
-    audience: "Plumbers, installers, building service contractors, hospitality businesses",
-    trainingWindow: "First two weeks of December each year",
-    registrationCloses: "31 October",
+    code: "BGT",
+    name: "Biogas Energy Technology",
+    description: "Build and operate biogas digesters that convert organic waste into clean cooking and heating fuel — a practical, income-generating skill.",
+    audience: "Farmers, rural development practitioners and entrepreneurs producing clean energy from organic waste",
+    durationWeeks: 2,
   },
   {
-    code: "KCP",
-    name: "Kiln Charcoal Production",
-    description: "Produce charcoal sustainably and efficiently using modern kiln technology — practical and business-focused.",
-    audience: "Entrepreneurs, sustainable forestry workers, rural development practitioners",
-    trainingWindow: "First two weeks of April each year",
-    registrationCloses: "End of February",
+    code: "CREC",
+    name: "Complete Renewable Energy Course",
+    description: "The full intensive spanning solar PV, wind and biogas systems — the fastest path to becoming a well-rounded renewable energy technician.",
+    audience: "Career-changers and job seekers wanting full-spectrum, hands-on training across every technology",
+    durationWeeks: 8,
   },
+];
+
+const BATCH_STARTS = [
+  { label: "Batch A", startDate: "2026-11-03" },
+  { label: "Batch B", startDate: "2026-12-01" },
+  { label: "Batch C", startDate: "2027-01-05" },
 ];
 
 // Public knowledge base for the AI assistant — admissions requirements,
@@ -190,12 +198,12 @@ Energy Storage Systems (ESS): trains 3 January – 31 March; admission closes 1 
 Electric Vehicles (EV): trains 1 September – 30 November; admission closes 1 August each year.
 Apply at least one month before your preferred start date.
 
-# Short Courses (2-week intensives)
-Solar Water Pumping Systems — first two weeks of April; registration closes end of February.
-Solar Water Irrigation Systems — first two weeks of August; registration closes 30 June.
-Solar Water Heating Systems — first two weeks of December; registration closes 31 October.
-Kiln Charcoal Production — first two weeks of April; registration closes end of February.
-Short courses suit working professionals, farmers and entrepreneurs who want one focused, applicable skill.
+# Short Courses (vocational intensives)
+Solar PV Installation & Maintenance — 4 weeks.
+Wind Energy Systems — 2 weeks.
+Biogas Energy Technology — 2 weeks.
+Complete Renewable Energy Course — 8 weeks (the full syllabus across solar, wind and biogas).
+Each course runs in scheduled batches: Batch A starts 3 November 2026, Batch B starts 1 December 2026, Batch C starts 5 January 2027 (a batch's end date follows the course's own duration). Short courses suit working professionals, farmers and entrepreneurs who want one focused, applicable skill — or the complete course for a full-spectrum foundation. Registration fees are published on the short courses page once set.
 
 # Payment Channels
 The application voucher fee is paid online by card or mobile money (Paystack). Training fees can also be paid at Ghana Commercial Bank (GCB), Sunyani Branch — quote your reference number and send the receipt to the admissions team to complete enrolment.
@@ -313,16 +321,39 @@ export async function bootstrapInstitutionCatalog(
       (curriculaCreated ? `, ${curriculaCreated} curricula created` : "")
   );
 
-  // 4. Short courses — create-only; fees and activation stay in the
-  // developer's hands afterwards (fees console).
+  // 4. Short courses + their batches — create-only; fees, activation and
+  // batch dates stay in the developer's/admin's hands afterwards. Older
+  // placeholder courses from an earlier, since-superseded catalog are
+  // deactivated (never deleted, so any stray historical records keep their
+  // foreign keys) rather than left visible on the public listing.
   let shortCoursesCreated = 0;
+  let batchesCreated = 0;
   for (const sc of SHORT_COURSES) {
-    const existing = await db.shortCourse.findUnique({ where: { code: sc.code } });
-    if (existing) continue;
-    await db.shortCourse.create({ data: sc });
-    shortCoursesCreated++;
+    let course = await db.shortCourse.findUnique({ where: { code: sc.code } });
+    if (!course) {
+      course = await db.shortCourse.create({ data: sc });
+      shortCoursesCreated++;
+    }
+    for (const b of BATCH_STARTS) {
+      const existingBatch = await db.shortCourseBatch.findUnique({
+        where: { shortCourseId_label: { shortCourseId: course.id, label: b.label } },
+      });
+      if (existingBatch) continue;
+      const startDate = new Date(`${b.startDate}T00:00:00.000Z`);
+      const endDate = new Date(startDate.getTime() + course.durationWeeks * 7 * 86_400_000);
+      await db.shortCourseBatch.create({
+        data: { shortCourseId: course.id, label: b.label, startDate, endDate },
+      });
+      batchesCreated++;
+    }
   }
+  const legacyDeactivated = await db.shortCourse.updateMany({
+    where: { code: { notIn: SHORT_COURSES.map((sc) => sc.code) }, active: true },
+    data: { active: false },
+  });
   if (shortCoursesCreated) log(`✓ ${shortCoursesCreated} short courses created`);
+  if (batchesCreated) log(`✓ ${batchesCreated} short-course batches scheduled`);
+  if (legacyDeactivated.count) log(`✓ ${legacyDeactivated.count} superseded short course(s) deactivated`);
 
   // 5. The Admission Form — a builder-manageable handle on the admission
   // application. Create-only: admins can then edit its intro, hide/show it

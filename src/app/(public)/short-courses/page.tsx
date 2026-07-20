@@ -2,12 +2,19 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/rbac";
 import { formatGHS } from "@/lib/money";
-import { registerForShortCourse } from "@/lib/actions/short-courses";
+import { startShortCourseRegistration } from "@/lib/actions/short-courses";
 import { reconcilePendingPaystackPayments } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Short Courses" };
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Continue application",
+  PENDING_PAYMENT: "Complete payment",
+  CONFIRMED: "✓ Registered",
+  CANCELLED: "Register",
+};
 
 export default async function ShortCoursesPage({
   searchParams,
@@ -22,6 +29,7 @@ export default async function ShortCoursesPage({
   const courses = await db.shortCourse.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
+    include: { batches: { where: { active: true }, orderBy: { startDate: "asc" } } },
   });
   const myRegs = user
     ? await db.shortCourseRegistration.findMany({
@@ -30,16 +38,18 @@ export default async function ShortCoursesPage({
       })
     : [];
   const regByCourse = new Map(myRegs.map((r) => [r.shortCourseId, r]));
+  const now = new Date();
 
   return (
     <div className="scr mx-auto max-w-[1000px] px-7 pb-[60px] pt-16">
-      <div className="mb-3 eyebrow">Professional upskilling</div>
+      <div className="mb-3 eyebrow">Vocational training</div>
       <h1 className="mb-4 max-w-[640px] font-serif text-[46px] font-normal leading-[1.05]">
-        Two weeks. One specialized <em className="text-forest">skill.</em>
+        Weeks of practical training. One <em className="text-forest">specialized skill.</em>
       </h1>
       <p className="mb-8 max-w-[620px] text-[17px] leading-[1.6] text-muted">
         Focused, hands-on intensives for professionals, entrepreneurs and farmers — leave confidently
-        capable of delivering a complete solution. Register online; payment confirms your place.
+        capable of delivering a complete solution. Register online; payment confirms your place in a
+        scheduled batch.
       </p>
 
       {error && (
@@ -56,7 +66,7 @@ export default async function ShortCoursesPage({
           To register, first{" "}
           <Link href="/login" className="font-medium underline">sign in</Link> — or{" "}
           <Link href="/signup" className="font-medium underline">create an account</Link> if you are new
-          here (the application voucher on that page is for the 3-month programmes; once your account
+          here (the application voucher on that page is for the diploma programmes; once your account
           exists you can register for short courses from this page).
         </p>
       )}
@@ -65,6 +75,7 @@ export default async function ShortCoursesPage({
         {courses.map((c) => {
           const reg = regByCourse.get(c.id);
           const priced = c.feePesewas > 0;
+          const openBatches = c.batches.filter((b) => b.startDate > now);
           return (
             <div key={c.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-paper p-7">
               <div>
@@ -77,12 +88,16 @@ export default async function ShortCoursesPage({
               <p className="text-[13px] text-faint">Designed for: {c.audience}</p>
               <div className="grid grid-cols-2 gap-[10px] border-t border-line-soft pt-4 text-[12px]">
                 <div>
-                  <div className="mb-[3px] font-mono text-[10px] uppercase tracking-[0.08em] text-faint">Training</div>
-                  <div className="text-ink">{c.trainingWindow}</div>
+                  <div className="mb-[3px] font-mono text-[10px] uppercase tracking-[0.08em] text-faint">Duration</div>
+                  <div className="text-ink">{c.durationWeeks} weeks</div>
                 </div>
                 <div>
-                  <div className="mb-[3px] font-mono text-[10px] uppercase tracking-[0.08em] text-faint">Registration closes</div>
-                  <div className="text-ink">{c.registrationCloses}</div>
+                  <div className="mb-[3px] font-mono text-[10px] uppercase tracking-[0.08em] text-faint">Next batch</div>
+                  <div className="text-ink">
+                    {openBatches[0]
+                      ? `${openBatches[0].label} — ${openBatches[0].startDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                      : "To be scheduled"}
+                  </div>
                 </div>
               </div>
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-line-soft pt-4">
@@ -90,17 +105,20 @@ export default async function ShortCoursesPage({
                   {priced ? formatGHS(c.feePesewas) : <span className="text-faint">Fee to be announced</span>}
                 </div>
                 {reg?.status === "CONFIRMED" ? (
-                  <span className="rounded-full bg-[#eaf0ea] px-4 py-2 text-sm font-medium text-forest">
+                  <Link
+                    href={`/short-courses/register/${reg.id}`}
+                    className="rounded-full bg-[#eaf0ea] px-4 py-2 text-sm font-medium text-forest"
+                  >
                     ✓ Registered
-                  </span>
+                  </Link>
                 ) : user && priced ? (
-                  <form action={registerForShortCourse}>
+                  <form action={startShortCourseRegistration}>
                     <input type="hidden" name="shortCourseId" value={c.id} />
                     <button
                       type="submit"
                       className="rounded-full bg-forest px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-forest-deep"
                     >
-                      {reg ? "Complete payment" : "Register & pay"}
+                      {reg ? STATUS_LABEL[reg.status] ?? "Continue" : "Register"}
                     </button>
                   </form>
                 ) : (
