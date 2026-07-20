@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { accessiblePortals, PORTAL_HOME, type CurrentUser } from "@/lib/rbac";
+import { accessiblePortals, isDeveloper, PORTAL_HOME, type CurrentUser } from "@/lib/rbac";
+import { getHiddenFeatureKeys } from "@/lib/feature-flags";
 import { SignOutButton } from "@/components/sign-out-button";
 import { AssistantPanel } from "@/components/chat/assistant-panel";
 import { NotificationsBell } from "@/components/notifications-bell";
@@ -46,7 +47,8 @@ export async function PortalShell({
   user: CurrentUser;
   children: React.ReactNode;
 }) {
-  const [institution, recent, unreadCount] = await Promise.all([
+  const dev = isDeveloper(user);
+  const [institution, recent, unreadCount, hidden] = await Promise.all([
     db.institution.findFirst(),
     db.notification.findMany({
       where: { userId: user.id },
@@ -54,6 +56,7 @@ export async function PortalShell({
       take: 10,
     }),
     db.notification.count({ where: { userId: user.id, readAt: null } }),
+    dev ? Promise.resolve(new Set<string>()) : getHiddenFeatureKeys(),
   ]);
   const shortName = institution?.shortName ?? "SYDA·GTIC";
   const bellItems = recent.map((n) => ({
@@ -65,7 +68,7 @@ export async function PortalShell({
     createdAt: n.createdAt.toISOString(),
   }));
   const userInitial = initials(user.name);
-  const portals = accessiblePortals(user.roles);
+  const portals = accessiblePortals(user.roles, hidden);
   // Derive the active portal from the nav's own hrefs (e.g. "/staff/..." → "staff").
   const currentPortal = nav[0]?.href.split("/")[1] ?? "";
 

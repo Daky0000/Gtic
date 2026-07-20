@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getHiddenFeatureKeys, isPortalHidden } from "@/lib/feature-flags";
 
 // ─── Role catalog (codes are stable identifiers; display names live in DB) ───
 export const ROLES = {
@@ -57,8 +58,13 @@ export type Portal = "developer" | "apply" | "student" | "staff" | "admin";
 // Preferred landing portal when a user holds several roles.
 const PORTAL_PRIORITY: Portal[] = ["developer", "admin", "staff", "student", "apply"];
 
-export function homePortalFor(roles: string[]): Portal | null {
+/** `hidden` is the set of developer-hidden feature keys (src/lib/feature-flags.ts);
+ * a portal hidden that way is skipped for every role except developer, whose
+ * access can never be hidden — it owns the console that undoes the hide. */
+export function homePortalFor(roles: string[], hidden: Set<string> = new Set()): Portal | null {
+  const isDev = roles.includes(ROLES.DEVELOPER);
   for (const portal of PORTAL_PRIORITY) {
+    if (!isDev && isPortalHidden(hidden, portal)) continue;
     if (PORTAL_ACCESS[portal].some((r) => roles.includes(r))) return portal;
   }
   return null;
@@ -66,8 +72,12 @@ export function homePortalFor(roles: string[]): Portal | null {
 
 /** All portals a set of roles may enter — powers the portal switcher for
  * multi-role accounts (e.g. the testing super user holding every role). */
-export function accessiblePortals(roles: string[]): Portal[] {
-  return PORTAL_PRIORITY.filter((p) => PORTAL_ACCESS[p].some((r) => roles.includes(r)));
+export function accessiblePortals(roles: string[], hidden: Set<string> = new Set()): Portal[] {
+  const isDev = roles.includes(ROLES.DEVELOPER);
+  return PORTAL_PRIORITY.filter((p) => {
+    if (!isDev && isPortalHidden(hidden, p)) return false;
+    return PORTAL_ACCESS[p].some((r) => roles.includes(r));
+  });
 }
 
 export const PORTAL_HOME: Record<Portal, string> = {
@@ -126,8 +136,12 @@ export async function requireUser(): Promise<CurrentUser> {
 
 export async function requirePortal(portal: Portal): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!PORTAL_ACCESS[portal].some((r) => user.roles.includes(r))) {
-    const home = homePortalFor(user.roles);
+  const inRoleSet = PORTAL_ACCESS[portal].some((r) => user.roles.includes(r));
+  // Developer access can never be hidden — skip the DB round trip entirely.
+  const isDev = user.roles.includes(ROLES.DEVELOPER);
+  const hidden = isDev ? new Set<string>() : await getHiddenFeatureKeys();
+  if (!inRoleSet || (!isDev && isPortalHidden(hidden, portal))) {
+    const home = homePortalFor(user.roles, hidden);
     redirect(home ? PORTAL_HOME[home] : "/login");
   }
   return user;
@@ -136,8 +150,9 @@ export async function requirePortal(portal: Portal): Promise<CurrentUser> {
 /** Redirects to the user's portal home with a visible error message. Thrown
  * plain Errors are masked by Next.js in production server actions (the user
  * would only see a generic digest), so expected authz failures redirect. */
-function denied(user: CurrentUser, message: string): never {
-  const home = homePortalFor(user.roles);
+async function denied(user: CurrentUser, message: string): Promise<never> {
+  const hidden = await getHiddenFeatureKeys();
+  const home = homePortalFor(user.roles, hidden);
   const base = home ? PORTAL_HOME[home] : "/login";
   redirect(`${base}?error=${encodeURIComponent(message)}`);
 }
@@ -145,7 +160,7 @@ function denied(user: CurrentUser, message: string): never {
 export async function requirePermission(code: string): Promise<CurrentUser> {
   const user = await requireUser();
   if (!user.roles.includes(ROLES.DEVELOPER) && !user.permissions.includes(code)) {
-    denied(user, "You do not have permission to perform that action.");
+    await denied(user, "You do not have permission to perform that action.");
   }
   return user;
 }
@@ -161,7 +176,7 @@ export function hasRole(user: CurrentUser, ...roles: RoleCode[]): boolean {
 export async function requireRole(...roles: RoleCode[]): Promise<CurrentUser> {
   const user = await requireUser();
   if (!hasRole(user, ...roles)) {
-    denied(user, "Your account does not have the required role for that action.");
+    await denied(user, "Your account does not have the required role for that action.");
   }
   return user;
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser, homePortalFor, PORTAL_HOME, ROLES } from "@/lib/rbac";
+import { getHiddenFeatureKeys } from "@/lib/feature-flags";
 
 /**
  * Post-login dispatcher: sends the user to the highest-priority portal they
@@ -26,7 +27,8 @@ export default async function DashboardDispatch() {
     redirect(PORTAL_HOME.apply);
   }
 
-  const portal = homePortalFor(user.roles);
+  const hidden = user.roles.includes(ROLES.DEVELOPER) ? new Set<string>() : await getHiddenFeatureKeys();
+  const portal = homePortalFor(user.roles, hidden);
   if (!portal) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">

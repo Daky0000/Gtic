@@ -11,6 +11,7 @@ export default async function DeveloperLayout({ children }: { children: React.Re
         { label: "Overview", href: "/developer" },
         { label: "Fees & pricing", href: "/developer/fees" },
         { label: "System settings", href: "/developer/settings" },
+        { label: "Feature visibility", href: "/developer/features" },
         // The developer also owns the shared admin console pages — linked
         // here so everything is reachable from one place.
         { label: "Users & roles", href: "/admin/users" },

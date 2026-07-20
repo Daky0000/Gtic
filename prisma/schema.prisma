@@ -165,6 +165,15 @@ model SystemSetting {
   updatedById String?
 }
 
+// Developer-controlled visibility of portals and portal menu items. A row's
+// presence means that key is hidden; deleting it restores the default
+// (visible). Keys are "portal:<portal>" or "nav:<href>" — see src/lib/feature-flags.ts.
+model FeatureFlag {
+  key         String   @id
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 // ───────────────────── Academic structure (demo scope) ───────────────────
 
 enum ProgrammeLevel {
