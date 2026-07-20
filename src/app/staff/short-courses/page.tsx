@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole, ROLES } from "@/lib/rbac";
 import { formatGHS } from "@/lib/money";
-import { PageHeader, StatusChip, type ChipTone } from "@/components/ui";
+import { ButtonLink, PageHeader, StatusChip, type ChipTone } from "@/components/ui";
 
 export const metadata = { title: "Short Course Registrations" };
 
@@ -40,6 +40,7 @@ export default async function StaffShortCoursesPage() {
       <PageHeader
         title={<>Short course <em className="text-forest">registrations.</em></>}
         lead="Every registration for the Center's vocational intensives, with payment status. Confirmed rows are paid places."
+        action={<ButtonLink href="/staff/short-courses/new">Register a walk-in</ButtonLink>}
       />
 
       {courses.map((c) => {

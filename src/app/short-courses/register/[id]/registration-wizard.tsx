@@ -49,6 +49,7 @@ export function ShortCourseRegistrationWizard({
     dateOfBirth: string | null;
     idNumber: string | null;
     phone: string | null;
+    email: string | null;
     currentAddress: string | null;
     homeRegion: string | null;
     emergencyName: string | null;
@@ -83,10 +84,11 @@ export function ShortCourseRegistrationWizard({
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
   const [tools, setTools] = useState<Set<string>>(new Set(reg.toolsOwned));
   const [fullDuration, setFullDuration] = useState(reg.fullDuration === false ? "no" : reg.fullDuration === true ? "yes" : "");
+  const [hasMedicalCondition, setHasMedicalCondition] = useState(!!reg.medicalConditions);
 
   const requiredByStep: Record<number, string[]> = useMemo(
     () => ({
-      0: ["fullName", "gender", "dateOfBirth", "idNumber", "phone", "currentAddress", "homeRegion", "emergencyName", "emergencyPhone"],
+      0: ["fullName", "gender", "dateOfBirth", "idNumber", "phone", "email", "currentAddress", "homeRegion", "emergencyName", "emergencyPhone"],
       1: ["batchId", "fullDuration", "accommodation", "tshirtSize"],
       2: ["educationLevel"],
       3: [],
@@ -203,6 +205,10 @@ export function ShortCourseRegistrationWizard({
                 <input name="phone" defaultValue={reg.phone ?? ""} disabled={!editable} className={cls("phone")} placeholder="0241234567" />
               </div>
               <div>
+                <label className={labelCls}>Email address {req}</label>
+                <input type="email" name="email" defaultValue={reg.email ?? ""} disabled={!editable} className={cls("email")} placeholder="you@example.com" />
+              </div>
+              <div>
                 <label className={labelCls}>Where are you currently staying? {req}</label>
                 <input name="currentAddress" defaultValue={reg.currentAddress ?? ""} disabled={!editable} className={cls("currentAddress")} placeholder="e.g. Madina, Accra" />
               </div>
@@ -295,10 +301,13 @@ export function ShortCourseRegistrationWizard({
                 <label className={labelCls}>Accommodation needed? {req}</label>
                 <select name="accommodation" defaultValue={reg.accommodation ?? ""} disabled={!editable} className={cls("accommodation")}>
                   <option value="">Select…</option>
-                  <option value="YES">Yes — I need hostel (shared room, GH₵800/month)</option>
+                  <option value="YES">Yes — I need hostel (GH₵800/month)</option>
                   <option value="NO">No — I have my own accommodation</option>
                   <option value="NOT_SURE">Not sure — contact me with options</option>
                 </select>
+                <p className="mt-1 text-[11px] text-faint">
+                  Shared room, 2 per room — includes bed, fan, water and light. Meals not included.
+                </p>
               </div>
               <div>
                 <label className={labelCls}>T-shirt size for PPE {req}</label>
@@ -392,17 +401,41 @@ export function ShortCourseRegistrationWizard({
           <div className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="font-semibold text-brand-800">Medical &amp; safety</h2>
             <p className="mt-1 text-xs text-ink-500">For safety during rooftop and field practicals. Examples: epilepsy, fear of heights, asthma.</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelCls}>Medical conditions we should know about</label>
+            <div className="mt-4">
+              <label className={labelCls}>Do you have any medical conditions we should know about?</label>
+              <div className="mt-1.5 flex gap-4 text-sm text-ink">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="hasMedicalCondition"
+                    disabled={!editable}
+                    checked={!hasMedicalCondition}
+                    onChange={() => setHasMedicalCondition(false)}
+                  />
+                  No
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="hasMedicalCondition"
+                    disabled={!editable}
+                    checked={hasMedicalCondition}
+                    onChange={() => setHasMedicalCondition(true)}
+                  />
+                  Yes
+                </label>
+              </div>
+              {hasMedicalCondition && (
                 <input
                   name="medicalConditions"
                   defaultValue={reg.medicalConditions ?? ""}
                   disabled={!editable}
-                  className={inputCls}
-                  placeholder="Leave blank if none"
+                  className={`${inputCls} mt-2`}
+                  placeholder="Describe the condition"
                 />
-              </div>
+              )}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>Blood group (optional but recommended)</label>
                 <input name="bloodGroup" defaultValue={reg.bloodGroup ?? ""} disabled={!editable} className={inputCls} placeholder="e.g. O+" />

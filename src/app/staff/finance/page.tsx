@@ -28,6 +28,14 @@ export default async function FinancePage({
     include: { invoice: { include: { user: true } } },
     orderBy: { createdAt: "asc" },
   });
+  const INVOICE_KIND_LABEL: Record<string, string> = {
+    TUITION: "Tuition", APPLICATION: "Application fee", ACCEPTANCE: "Enrollment fee",
+    HOSTEL: "Hostel", DOCUMENT: "Document request", RESIT: "Resit fee", FINE: "Fine",
+    SHORT_COURSE: "Short course", OTHER: "Other",
+  };
+  const PAYMENT_METHOD_LABEL: Record<string, string> = {
+    MOMO: "MTN MoMo", VODAFONE_CASH: "Vodafone Cash", CASH: "Cash", PAYSTACK: "Paystack",
+  };
 
   const totalBilled = invoices.reduce((s, i) => s + i.total, 0);
   const totalCollected = invoices.reduce((s, i) => s + i.paid, 0);
@@ -56,7 +64,15 @@ export default async function FinancePage({
         {pendingTellers.map((p) => (
           <div key={p.id} className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
             <div>
-              <div className="font-medium">{p.invoice.user.name}</div>
+              <div className="font-medium">
+                {p.invoice.user.name}
+                <span className="ml-2 font-normal text-ink-500">
+                  {INVOICE_KIND_LABEL[p.invoice.kind] ?? p.invoice.kind}
+                  {(p.meta as { method?: string } | null)?.method
+                    ? ` · ${PAYMENT_METHOD_LABEL[(p.meta as { method?: string }).method!] ?? (p.meta as { method?: string }).method}`
+                    : ""}
+                </span>
+              </div>
               <div className="text-xs text-ink-500">{formatGHS(p.amount)} · ref {(p.meta as { tellerRef?: string } | null)?.tellerRef ?? "—"}</div>
             </div>
             <div className="flex gap-2">

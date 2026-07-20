@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import {
-  deleteShortCourseDocument, payShortCourseRegistrationFee, saveShortCourseRegistrationDetails,
-  submitShortCourseRegistration, uploadShortCourseDocument,
+  deleteShortCourseDocument, payShortCourseRegistrationFee, recordManualShortCourseFeePayment,
+  saveShortCourseRegistrationDetails, submitShortCourseRegistration, uploadShortCourseDocument,
 } from "@/lib/actions/short-courses";
 import { reconcilePendingPaystackPayments } from "@/lib/payments";
 import { formatGHS } from "@/lib/money";
@@ -23,16 +23,26 @@ const DOC_KIND_LABEL: Record<string, string> = {
   OTHER: "Other",
 };
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  MOMO: "MTN MoMo",
+  VODAFONE_CASH: "Vodafone Cash",
+  CASH: "cash",
+  PAYSTACK: "Paystack",
+};
+
 export default async function ShortCourseRegistrationPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; saved?: string; submitted?: string; paid?: string; uploaded?: string; step?: string }>;
+  searchParams: Promise<{
+    error?: string; saved?: string; submitted?: string; paid?: string; uploaded?: string; step?: string;
+    paymentSubmitted?: string;
+  }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
-  const { error, saved, submitted, paid, uploaded, step } = await searchParams;
+  const { error, saved, submitted, paid, uploaded, step, paymentSubmitted } = await searchParams;
 
   const reg = await db.shortCourseRegistration.findFirst({
     where: { id, userId: user.id },
@@ -48,6 +58,7 @@ export default async function ShortCourseRegistrationPage({
   const invoice = reg.invoiceId
     ? await db.invoice.findUnique({ where: { id: reg.invoiceId }, include: { payments: true } })
     : null;
+  const pendingTellerPayment = invoice?.payments.find((p) => p.channel === "TELLER" && p.status === "PENDING") ?? null;
 
   const editable = reg.status === "DRAFT";
   const now = new Date();
@@ -68,7 +79,9 @@ export default async function ShortCourseRegistrationPage({
         ? "Registration submitted — pay the course fee below to confirm your place."
         : paid
           ? "Payment received — your registration is confirmed."
-          : undefined;
+          : paymentSubmitted
+            ? "Payment reference submitted — the Center will confirm it and your place will be secured shortly."
+            : undefined;
 
   const documentsSection = (
     <div>
@@ -155,6 +168,7 @@ export default async function ShortCourseRegistrationPage({
           dateOfBirth: reg.dateOfBirth ? reg.dateOfBirth.toISOString().slice(0, 10) : null,
           idNumber: reg.idNumber,
           phone: reg.phone,
+          email: reg.email,
           currentAddress: reg.currentAddress,
           homeRegion: reg.homeRegion,
           emergencyName: reg.emergencyName,
@@ -211,6 +225,40 @@ export default async function ShortCourseRegistrationPage({
               Pay {formatGHS(invoice.total - invoice.paid)}
             </button>
           </form>
+
+          {pendingTellerPayment ? (
+            <p className="mt-4 rounded-[11px] border border-line-soft bg-cream p-3 text-sm text-ink">
+              A {PAYMENT_METHOD_LABEL[(pendingTellerPayment.meta as { method?: string } | null)?.method ?? ""] ?? "manual"}{" "}
+              payment (ref {(pendingTellerPayment.meta as { tellerRef?: string } | null)?.tellerRef ?? "—"}) is awaiting
+              confirmation by the Center.
+            </p>
+          ) : (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-medium text-[#7a5a22]">
+                Already paid via MTN MoMo, Vodafone Cash or cash at the office?
+              </summary>
+              <form action={recordManualShortCourseFeePayment} className="mt-3 grid gap-3 sm:grid-cols-3">
+                <input type="hidden" name="registrationId" value={reg.id} />
+                <div>
+                  <label className="block text-[13px] text-muted">Payment method</label>
+                  <select name="paymentMethod" required className="mt-1.5 w-full rounded-[11px] border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest">
+                    <option value="MOMO">MTN MoMo</option>
+                    <option value="VODAFONE_CASH">Vodafone Cash</option>
+                    <option value="CASH">Cash at office</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-muted">MoMo transaction ID / receipt no.</label>
+                  <input name="tellerRef" required className="mt-1.5 w-full rounded-[11px] border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest" />
+                </div>
+                <div className="flex items-end">
+                  <button type="submit" className="rounded-full border border-[#7a5a22] px-4 py-2.5 text-sm font-medium text-[#7a5a22] hover:bg-[#f0e6cf]">
+                    Submit for confirmation
+                  </button>
+                </div>
+              </form>
+            </details>
+          )}
         </div>
       )}
     </div>

@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireRole, ROLES } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { StatusChip, type ChipTone } from "@/components/ui";
+import { ButtonLink, StatusChip, type ChipTone } from "@/components/ui";
+import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Registration Details" };
 
@@ -43,14 +44,20 @@ const SPONSORSHIP_LABEL: Record<string, string> = {
 const REFERRAL_LABEL: Record<string, string> = {
   FACEBOOK: "Facebook", WHATSAPP: "WhatsApp", FRIEND: "Friend", RADIO: "Radio", ECG: "ECG", OTHER: "Other",
 };
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  MOMO: "MTN MoMo", VODAFONE_CASH: "Vodafone Cash", CASH: "cash", PAYSTACK: "Paystack",
+};
 
 export default async function StaffShortCourseRegistrationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ registered?: string }>;
 }) {
   await requireRole(ROLES.ADMISSIONS_OFFICER, ROLES.REGISTRAR, ROLES.MANAGEMENT, ROLES.SYSTEM_ADMIN);
   const { id } = await params;
+  const { registered } = await searchParams;
 
   const reg = await db.shortCourseRegistration.findUnique({
     where: { id },
@@ -63,7 +70,12 @@ export default async function StaffShortCourseRegistrationPage({
   });
   if (!reg) notFound();
 
-  const invoice = reg.invoiceId ? await db.invoice.findUnique({ where: { id: reg.invoiceId } }) : null;
+  const invoice = reg.invoiceId
+    ? await db.invoice.findUnique({ where: { id: reg.invoiceId }, include: { payments: true } })
+    : null;
+  const lastPayment = invoice?.payments.at(-1) ?? null;
+  const paymentMethod = (lastPayment?.meta as { method?: string } | null)?.method;
+  const editable = reg.status === "DRAFT" || reg.status === "PENDING_PAYMENT";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -73,11 +85,25 @@ export default async function StaffShortCourseRegistrationPage({
         <div>
           <h1 className="text-2xl font-bold">{reg.fullName || reg.user.name}</h1>
           <p className="font-mono text-sm text-ink-500">
-            {reg.refNo ?? "no reference yet"} · {reg.user.email} · {reg.shortCourse.name}
+            {reg.refNo ?? "no reference yet"} · {reg.email ?? reg.user.email} · {reg.shortCourse.name}
           </p>
         </div>
-        <StatusChip tone={STATUS_TONE[reg.status] ?? "neutral"}>{reg.status.replace("_", " ")}</StatusChip>
+        <div className="flex items-center gap-2">
+          <StatusChip tone={STATUS_TONE[reg.status] ?? "neutral"}>{reg.status.replace("_", " ")}</StatusChip>
+          {editable && <ButtonLink href={`/staff/short-courses/${reg.id}/edit`} variant="outline">Edit</ButtonLink>}
+        </div>
       </div>
+      {registered && (
+        <div className="mt-3">
+          <Flash
+            success={
+              reg.status === "CONFIRMED"
+                ? "Registration submitted and payment confirmed — the applicant's place is secured."
+                : "Registration submitted and payment recorded — the balance still owing keeps this pending until it's paid in full."
+            }
+          />
+        </div>
+      )}
 
       <div className="mt-6 space-y-6">
         <section className="rounded-2xl border border-line bg-paper p-5">
@@ -87,6 +113,7 @@ export default async function StaffShortCourseRegistrationPage({
             <div><dt className="text-ink-500">Date of birth</dt><dd>{reg.dateOfBirth?.toLocaleDateString() ?? "—"}</dd></div>
             <div><dt className="text-ink-500">Ghana Card / Passport</dt><dd>{reg.idNumber ?? "—"}</dd></div>
             <div><dt className="text-ink-500">Phone</dt><dd>{reg.phone ?? "—"}</dd></div>
+            <div><dt className="text-ink-500">Email</dt><dd>{reg.email ?? reg.user.email}</dd></div>
             <div><dt className="text-ink-500">Currently staying at</dt><dd>{reg.currentAddress ?? "—"}</dd></div>
             <div><dt className="text-ink-500">Home region</dt><dd>{reg.homeRegion ?? "—"}</dd></div>
             <div className="col-span-2">
@@ -148,7 +175,13 @@ export default async function StaffShortCourseRegistrationPage({
             <div><dt className="text-ink-500">Heard about us via</dt><dd>{reg.referralSource ? REFERRAL_LABEL[reg.referralSource] : "—"}{reg.referralOther ? ` — ${reg.referralOther}` : ""}</dd></div>
             <div><dt className="text-ink-500">Sponsorship</dt><dd>{reg.sponsorship ? SPONSORSHIP_LABEL[reg.sponsorship] : "—"}{reg.sponsorName ? ` — ${reg.sponsorName}` : ""}</dd></div>
             <div><dt className="text-ink-500">Declaration</dt><dd>{reg.declarationAccepted ? `Accepted — ${reg.declarationName ?? ""} (${reg.declarationSignedAt?.toLocaleString() ?? "—"})` : "Not accepted"}</dd></div>
-            <div><dt className="text-ink-500">Course fee</dt><dd>{invoice ? `${formatGHS(invoice.paid)} / ${formatGHS(invoice.total)} paid` : "No invoice yet"}</dd></div>
+            <div>
+              <dt className="text-ink-500">Course fee</dt>
+              <dd>
+                {invoice ? `${formatGHS(invoice.paid)} / ${formatGHS(invoice.total)} paid` : "No invoice yet"}
+                {paymentMethod && ` — via ${PAYMENT_METHOD_LABEL[paymentMethod] ?? paymentMethod}`}
+              </dd>
+            </div>
           </dl>
         </section>
       </div>

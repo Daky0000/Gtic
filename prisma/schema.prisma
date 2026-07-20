@@ -1448,6 +1448,7 @@ model ShortCourseRegistration {
   dateOfBirth           DateTime?
   idNumber              String? // Ghana Card / Passport number
   phone                 String?
+  email                 String? // contact email on the form (defaults to the account email)
   currentAddress        String? // "Where are you currently staying?"
   homeRegion            String? // "Home region / where coming from"
   emergencyName         String?
