@@ -115,7 +115,7 @@ export default async function PaymentsPage({
       {(app.status === "OFFER_ISSUED" || app.status === "ACCEPTED") && (
         <Card>
           <div className="flex items-center justify-between">
-            <h2 className="font-serif text-[20px] text-ink">Acceptance fee</h2>
+            <h2 className="font-serif text-[20px] text-ink">Enrollment fee</h2>
             <StatusChip tone={acceptanceInvoice?.status === "PAID" ? "green" : "amber"}>
               {acceptanceInvoice?.status === "PAID" ? "Paid" : "Not yet paid"}
             </StatusChip>

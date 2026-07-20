@@ -526,7 +526,7 @@ async function main() {
         opensAt: new Date("2026-07-01"),
         closesAt: new Date("2026-08-25"),
         applicationFee: 5000, // GHS 50 application voucher
-        acceptanceFee: 20000, // GHS 200 (placeholder)
+        acceptanceFee: 200000, // GHS 2,000 enrollment fee
         status: "OPEN",
       },
     });

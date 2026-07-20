@@ -398,4 +398,19 @@ export async function bootstrapInstitutionCatalog(
     docsCreated++;
   }
   if (docsCreated) log(`✓ ${docsCreated} knowledge documents published for the AI assistant`);
+
+  // 7. One-time correction: cycles auto-bootstrapped before the Center gave
+  // its real enrollment fee (GHS 2,000) carry an old GHS 200 placeholder
+  // (see src/lib/admission-cycle.ts). Only cycles still exactly at that
+  // placeholder are touched, so a developer's deliberate fee-console edit is
+  // never overwritten.
+  const LEGACY_PLACEHOLDER_ACCEPTANCE_FEE_PESEWAS = 20_000;
+  const REAL_ACCEPTANCE_FEE_PESEWAS = 200_000; // GHS 2,000 — the real enrollment fee
+  const feesCorrected = await db.admissionCycle.updateMany({
+    where: { acceptanceFee: LEGACY_PLACEHOLDER_ACCEPTANCE_FEE_PESEWAS },
+    data: { acceptanceFee: REAL_ACCEPTANCE_FEE_PESEWAS },
+  });
+  if (feesCorrected.count) {
+    log(`✓ corrected the enrollment fee on ${feesCorrected.count} cycle(s) to GHS 2,000`);
+  }
 }

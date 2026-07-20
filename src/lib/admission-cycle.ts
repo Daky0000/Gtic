@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 
 /** Default application voucher fee: GHS 50, stored in pesewas. */
 export const APPLICATION_VOUCHER_FEE_PESEWAS = 5000;
-/** Placeholder acceptance fee for auto-created cycles (GHS 200). */
-const DEFAULT_ACCEPTANCE_FEE_PESEWAS = 20000;
+/** Default enrollment fee for auto-created cycles: GHS 2,000. */
+const DEFAULT_ACCEPTANCE_FEE_PESEWAS = 200_000;
 
 /**
  * The admission cycle new applications attach to. On a fresh database (e.g.

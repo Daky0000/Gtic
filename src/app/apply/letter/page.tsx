@@ -85,7 +85,7 @@ export default async function LetterPage({
           <strong>{offer.programme.name}</strong> training cohort at {institutionName}, subject to the terms
           and conditions of the Center.
           <br /><br />
-          Please accept this offer and pay the acceptance fee by the deadline shown below to secure your place.
+          Please accept this offer and pay the enrollment fee by the deadline shown below to secure your place.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-4 rounded-md bg-ink-50 p-4 text-sm">
@@ -124,7 +124,7 @@ export default async function LetterPage({
             <form action={payAcceptanceFee}>
               <input type="hidden" name="applicationId" value={app.id} />
               <button type="submit" className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
-                Pay acceptance fee to confirm
+                Pay enrollment fee to confirm
               </button>
             </form>
           ) : null}

@@ -126,7 +126,7 @@ export default async function FeesConsolePage({
               <AmountInputs ghsName="applicationFeeGhs" usdName="applicationFeeUsd" pesewas={c.applicationFee} rate={rate} />
             </div>
             <div className="flex items-end gap-2">
-              <span className="pb-2 text-xs font-medium text-ink-600">Acceptance</span>
+              <span className="pb-2 text-xs font-medium text-ink-600">Enrollment</span>
               <AmountInputs ghsName="acceptanceFeeGhs" usdName="acceptanceFeeUsd" pesewas={c.acceptanceFee} rate={rate} />
             </div>
             <button type="submit" className={saveBtn}>Save</button>

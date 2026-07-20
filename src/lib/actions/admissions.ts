@@ -439,7 +439,7 @@ export async function acceptOffer(formData: FormData) {
         userId: user.id,
         total: cycle.acceptanceFee,
         meta: { applicationId: app.id },
-        lines: { create: [{ description: "Acceptance fee", amount: cycle.acceptanceFee }] },
+        lines: { create: [{ description: "Enrollment fee", amount: cycle.acceptanceFee }] },
       },
     });
   }

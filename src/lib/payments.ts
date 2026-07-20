@@ -98,7 +98,7 @@ async function settleInvoiceSideEffects(invoiceId: string) {
       await notify(
         invoice.userId,
         "Admission confirmed",
-        "Your acceptance fee is paid and your place is secured. Enrollment instructions will follow.",
+        "Your enrollment fee is paid and your place is secured. Enrollment instructions will follow.",
         "/apply/letter"
       );
       return;
