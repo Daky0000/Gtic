@@ -5,13 +5,20 @@ import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
 import { ButtonLink, StatusChip, type ChipTone } from "@/components/ui";
 import { Flash } from "@/components/flash";
+import {
+  staffApproveShortCourseRegistration, staffRejectShortCourseRegistration,
+  staffWaitlistShortCourseRegistration,
+} from "@/lib/actions/short-courses";
 
 export const metadata = { title: "Registration Details" };
 
 const STATUS_TONE: Record<string, ChipTone> = {
   CONFIRMED: "green",
   PENDING_PAYMENT: "amber",
+  SUBMITTED: "violet",
+  WAITLISTED: "sky",
   DRAFT: "neutral",
+  REJECTED: "neutral",
   CANCELLED: "neutral",
 };
 
@@ -53,11 +60,11 @@ export default async function StaffShortCourseRegistrationPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ registered?: string }>;
+  searchParams: Promise<{ registered?: string; decided?: string; error?: string }>;
 }) {
   await requireRole(ROLES.ADMISSIONS_OFFICER, ROLES.REGISTRAR, ROLES.MANAGEMENT, ROLES.SYSTEM_ADMIN);
   const { id } = await params;
-  const { registered } = await searchParams;
+  const { registered, decided, error } = await searchParams;
 
   const reg = await db.shortCourseRegistration.findUnique({
     where: { id },
@@ -75,7 +82,8 @@ export default async function StaffShortCourseRegistrationPage({
     : null;
   const lastPayment = invoice?.payments.at(-1) ?? null;
   const paymentMethod = (lastPayment?.meta as { method?: string } | null)?.method;
-  const editable = reg.status === "DRAFT" || reg.status === "PENDING_PAYMENT";
+  const editable = reg.status !== "CONFIRMED" && reg.status !== "CANCELLED";
+  const needsDecision = reg.status === "SUBMITTED" || reg.status === "WAITLISTED";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -93,16 +101,60 @@ export default async function StaffShortCourseRegistrationPage({
           {editable && <ButtonLink href={`/staff/short-courses/${reg.id}/edit`} variant="outline">Edit</ButtonLink>}
         </div>
       </div>
-      {registered && (
+      {(registered || decided || error) && (
         <div className="mt-3">
           <Flash
+            error={error}
             success={
-              reg.status === "CONFIRMED"
-                ? "Registration submitted and payment confirmed — the applicant's place is secured."
-                : "Registration submitted and payment recorded — the balance still owing keeps this pending until it's paid in full."
+              registered
+                ? reg.status === "CONFIRMED"
+                  ? "Registration submitted and payment confirmed — the applicant's place is secured."
+                  : "Registration submitted and payment recorded — the balance still owing keeps this pending until it's paid in full."
+                : decided
+                  ? "Decision recorded — the applicant has been notified."
+                  : undefined
             }
           />
         </div>
+      )}
+
+      {needsDecision && (
+        <div className="mt-4 rounded-lg border border-gold/30 bg-[#f6efdf] p-5">
+          <h2 className="font-semibold text-[#7a5a22]">FOR OFFICE USE — admission decision</h2>
+          <p className="mt-1 text-sm text-[#7a5a22]">
+            Approving raises the course-fee invoice; the applicant pays to confirm their place.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <form action={staffApproveShortCourseRegistration} className="space-y-2">
+              <input type="hidden" name="registrationId" value={reg.id} />
+              <input type="text" name="note" placeholder="Note (optional)" className="w-full rounded-[11px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-forest" />
+              <button type="submit" className="w-full rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
+                Approve
+              </button>
+            </form>
+            {reg.status === "SUBMITTED" && (
+              <form action={staffWaitlistShortCourseRegistration} className="space-y-2">
+                <input type="hidden" name="registrationId" value={reg.id} />
+                <input type="text" name="note" placeholder="Note (optional)" className="w-full rounded-[11px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-forest" />
+                <button type="submit" className="w-full rounded-full border border-[#2e6f86] px-4 py-2 text-sm font-medium text-[#2e6f86] hover:bg-[#deebf0]">
+                  Waitlist
+                </button>
+              </form>
+            )}
+            <form action={staffRejectShortCourseRegistration} className="space-y-2">
+              <input type="hidden" name="registrationId" value={reg.id} />
+              <input type="text" name="note" required placeholder="Reason (shown to applicant)" className="w-full rounded-[11px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-forest" />
+              <button type="submit" className="w-full rounded-full border border-[#b23a2e] px-4 py-2 text-sm font-medium text-[#b23a2e] hover:bg-[#faece9]">
+                Reject
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {reg.decidedAt && (
+        <p className="mt-3 text-xs text-ink-500">
+          Decision recorded {reg.decidedAt.toLocaleString()}{reg.decisionNote ? ` — ${reg.decisionNote}` : ""}
+        </p>
       )}
 
       <div className="mt-6 space-y-6">

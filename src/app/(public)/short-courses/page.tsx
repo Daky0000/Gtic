@@ -11,8 +11,11 @@ export const metadata = { title: "Short Courses" };
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Continue application",
+  SUBMITTED: "View submission",
+  WAITLISTED: "View waitlist status",
   PENDING_PAYMENT: "Complete payment",
   CONFIRMED: "✓ Registered",
+  REJECTED: "View decision",
   CANCELLED: "Register",
 };
 

@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { invoiceNo, paymentReference, shortCourseRefNo } from "@/lib/codes";
 import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment, confirmPayment } from "@/lib/payments";
+import { notify } from "@/lib/notify";
 import type { ShortCourseDocKind } from "@prisma/client";
 
 /** Redirect back with a human-readable error instead of crashing the page. */
@@ -244,8 +245,14 @@ export async function deleteShortCourseDocument(formData: FormData) {
   redirect(back);
 }
 
-// ─── Applicant: submit + pay ───
+// ─── Applicant: submit for review + pay ───
 
+/**
+ * Submits the form for the office's review — the paper form's "FOR OFFICE
+ * USE ONLY" strip (Admission Status: Approved/Waitlisted/Rejected) happens
+ * next, not automatically. No invoice is raised here; approval is what
+ * raises it (see staffApproveShortCourseRegistration).
+ */
 export async function submitShortCourseRegistration(formData: FormData) {
   const user = await requireUser();
   const registrationId = String(formData.get("registrationId"));
@@ -265,36 +272,18 @@ export async function submitShortCourseRegistration(formData: FormData) {
 
   const refNo = shortCourseRefNo(reg.shortCourse.code);
 
-  let invoice = await db.invoice.findFirst({
-    where: { userId: user.id, kind: "SHORT_COURSE", meta: { path: ["registrationId"], equals: reg.id } },
-  });
-  if (!invoice) {
-    invoice = await db.invoice.create({
-      data: {
-        invoiceNo: invoiceNo("SHO"),
-        kind: "SHORT_COURSE",
-        userId: user.id,
-        total: reg.shortCourse.feePesewas,
-        meta: { registrationId: reg.id, shortCourseCode: reg.shortCourse.code },
-        lines: {
-          create: [{ description: `${reg.shortCourse.name} — ${reg.shortCourse.durationWeeks}-week intensive`, amount: reg.shortCourse.feePesewas }],
-        },
-      },
-    });
-  }
-
   await db.shortCourseRegistration.update({
     where: { id: reg.id },
     data: {
-      status: "PENDING_PAYMENT",
+      status: "SUBMITTED",
       refNo,
-      invoiceId: invoice.id,
+      submittedAt: new Date(),
       declarationSignedAt: new Date(),
     },
   });
   await audit({
     actorId: user.id, action: "short_course.submitted", entityType: "ShortCourseRegistration",
-    entityId: reg.id, after: { refNo, invoiceNo: invoice.invoiceNo },
+    entityId: reg.id, after: { refNo },
   });
 
   redirect(`${back}?submitted=1`);
@@ -354,6 +343,126 @@ export async function recordManualShortCourseFeePayment(formData: FormData) {
     },
   });
   redirect(`${back}?paymentSubmitted=1`);
+}
+
+/** Raises (or reuses) the SHORT_COURSE invoice an approved registration is billed against. */
+async function getOrCreateShortCourseInvoice(reg: {
+  id: string; userId: string; invoiceId: string | null;
+  shortCourse: { name: string; code: string; feePesewas: number; durationWeeks: number };
+}) {
+  if (reg.invoiceId) {
+    const existing = await db.invoice.findUnique({ where: { id: reg.invoiceId } });
+    if (existing) return existing;
+  }
+  return db.invoice.create({
+    data: {
+      invoiceNo: invoiceNo("SHO"),
+      kind: "SHORT_COURSE",
+      userId: reg.userId,
+      total: reg.shortCourse.feePesewas,
+      meta: { registrationId: reg.id, shortCourseCode: reg.shortCourse.code },
+      lines: {
+        create: [{ description: `${reg.shortCourse.name} — ${reg.shortCourse.durationWeeks}-week intensive`, amount: reg.shortCourse.feePesewas }],
+      },
+    },
+  });
+}
+
+// ─── Staff: review a submitted registration (the paper form's "Admission Status") ───
+
+export async function staffApproveShortCourseRegistration(formData: FormData) {
+  const staff = await requireRole(...STAFF_ROLES);
+  const registrationId = String(formData.get("registrationId"));
+  const reg = await db.shortCourseRegistration.findFirstOrThrow({
+    where: { id: registrationId },
+    include: { shortCourse: true },
+  });
+  const back = `/staff/short-courses/${reg.id}`;
+
+  if (reg.status !== "SUBMITTED" && reg.status !== "WAITLISTED") {
+    fail(back, "Only submitted or waitlisted registrations can be approved.");
+  }
+  if (!reg.shortCourse.active) fail(back, "This course is no longer open for registration.");
+  if (reg.shortCourse.feePesewas <= 0) fail(back, `The fee for "${reg.shortCourse.name}" has not been published yet.`);
+
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const invoice = await getOrCreateShortCourseInvoice(reg);
+
+  await db.shortCourseRegistration.update({
+    where: { id: reg.id },
+    data: { status: "PENDING_PAYMENT", invoiceId: invoice.id, decidedAt: new Date(), decisionNote: note },
+  });
+  await audit({
+    actorId: staff.id, action: "short_course.approved", entityType: "ShortCourseRegistration",
+    entityId: reg.id, after: { note },
+  });
+  await notify(
+    reg.userId,
+    "Application approved",
+    `Your application for "${reg.shortCourse.name}" has been approved. Pay the course fee to confirm your place.`,
+    `/short-courses/register/${reg.id}`,
+  );
+  redirect(`${back}?decided=1`);
+}
+
+export async function staffWaitlistShortCourseRegistration(formData: FormData) {
+  const staff = await requireRole(...STAFF_ROLES);
+  const registrationId = String(formData.get("registrationId"));
+  const reg = await db.shortCourseRegistration.findFirstOrThrow({
+    where: { id: registrationId },
+    include: { shortCourse: true },
+  });
+  const back = `/staff/short-courses/${reg.id}`;
+  if (reg.status !== "SUBMITTED") fail(back, "Only submitted registrations can be waitlisted.");
+
+  const note = String(formData.get("note") ?? "").trim() || null;
+  await db.shortCourseRegistration.update({
+    where: { id: reg.id },
+    data: { status: "WAITLISTED", decidedAt: new Date(), decisionNote: note },
+  });
+  await audit({
+    actorId: staff.id, action: "short_course.waitlisted", entityType: "ShortCourseRegistration",
+    entityId: reg.id, after: { note },
+  });
+  await notify(
+    reg.userId,
+    "You're on the waitlist",
+    `You've been placed on the waitlist for "${reg.shortCourse.name}"${note ? `: ${note}` : "."} We'll let you know if a place opens up.`,
+    `/short-courses/register/${reg.id}`,
+  );
+  redirect(`${back}?decided=1`);
+}
+
+export async function staffRejectShortCourseRegistration(formData: FormData) {
+  const staff = await requireRole(...STAFF_ROLES);
+  const registrationId = String(formData.get("registrationId"));
+  const reg = await db.shortCourseRegistration.findFirstOrThrow({
+    where: { id: registrationId },
+    include: { shortCourse: true },
+  });
+  const back = `/staff/short-courses/${reg.id}`;
+  if (reg.status !== "SUBMITTED" && reg.status !== "WAITLISTED") {
+    fail(back, "Only submitted or waitlisted registrations can be rejected.");
+  }
+
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) fail(back, "Give a reason the applicant will see.");
+
+  await db.shortCourseRegistration.update({
+    where: { id: reg.id },
+    data: { status: "REJECTED", decidedAt: new Date(), decisionNote: note },
+  });
+  await audit({
+    actorId: staff.id, action: "short_course.rejected", entityType: "ShortCourseRegistration",
+    entityId: reg.id, after: { note },
+  });
+  await notify(
+    reg.userId,
+    "Application decision",
+    `Your application for "${reg.shortCourse.name}" was not successful this time: ${note}`,
+    `/short-courses/register/${reg.id}`,
+  );
+  redirect(`${back}?decided=1`);
 }
 
 // ─── Staff: register a walk-in applicant (paper-form intake) ───
@@ -495,22 +604,7 @@ export async function staffSubmitAndRecordPayment(formData: FormData) {
   const amount = Number.isFinite(amountGHS) && amountGHS > 0 ? Math.round(amountGHS * 100) : reg.shortCourse.feePesewas;
 
   const refNo = reg.refNo ?? shortCourseRefNo(reg.shortCourse.code);
-
-  let invoice = reg.invoiceId ? await db.invoice.findUnique({ where: { id: reg.invoiceId } }) : null;
-  if (!invoice) {
-    invoice = await db.invoice.create({
-      data: {
-        invoiceNo: invoiceNo("SHO"),
-        kind: "SHORT_COURSE",
-        userId: reg.userId,
-        total: reg.shortCourse.feePesewas,
-        meta: { registrationId: reg.id, shortCourseCode: reg.shortCourse.code },
-        lines: {
-          create: [{ description: `${reg.shortCourse.name} — ${reg.shortCourse.durationWeeks}-week intensive`, amount: reg.shortCourse.feePesewas }],
-        },
-      },
-    });
-  }
+  const invoice = await getOrCreateShortCourseInvoice(reg);
 
   await db.shortCourseRegistration.update({
     where: { id: reg.id },
@@ -518,6 +612,9 @@ export async function staffSubmitAndRecordPayment(formData: FormData) {
       status: "PENDING_PAYMENT",
       refNo,
       invoiceId: invoice.id,
+      submittedAt: reg.submittedAt ?? new Date(),
+      decidedAt: new Date(),
+      decisionNote: `Registered and approved by staff (${staff.name}).`,
       declarationSignedAt: reg.declarationSignedAt ?? new Date(),
     },
   });

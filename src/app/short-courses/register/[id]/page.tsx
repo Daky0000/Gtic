@@ -76,7 +76,7 @@ export default async function ShortCourseRegistrationPage({
     : uploaded
       ? "Document uploaded."
       : submitted
-        ? "Registration submitted — pay the course fee below to confirm your place."
+        ? "Registration submitted for review — we'll notify you once a decision is made."
         : paid
           ? "Payment received — your registration is confirmed."
           : paymentSubmitted
@@ -147,16 +147,36 @@ export default async function ShortCourseRegistrationPage({
       </p>
       <Flash error={error} success={successMsg} />
 
-      {!editable && reg.status !== "CONFIRMED" && (
+      {reg.status === "SUBMITTED" && (
         <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">
-          Your registration has been submitted and can no longer be edited. Pay the course fee below to
-          confirm your place.
+          Submitted{reg.submittedAt ? ` ${reg.submittedAt.toLocaleDateString()}` : ""} — awaiting the Center&apos;s
+          review. You&apos;ll be notified once a decision is made.
+        </p>
+      )}
+      {reg.status === "WAITLISTED" && (
+        <p className="mt-3 rounded-[11px] border border-[#c9dde4] bg-[#deebf0] p-3 text-sm text-[#2e6f86]">
+          You&apos;re on the waitlist for this course{reg.decisionNote ? `: ${reg.decisionNote}` : "."} We&apos;ll
+          let you know if a place opens up.
+        </p>
+      )}
+      {reg.status === "REJECTED" && (
+        <p className="mt-3 rounded-[11px] border border-[#e3b5ad] bg-[#faece9] p-3 text-sm text-[#b23a2e]">
+          Your application was not successful this time{reg.decisionNote ? `: ${reg.decisionNote}` : "."}
+        </p>
+      )}
+      {reg.status === "PENDING_PAYMENT" && (
+        <p className="mt-3 rounded-[11px] border border-brand-200 bg-[#eaf0ea] p-3 text-sm text-forest">
+          ✓ Approved{reg.decisionNote ? `: ${reg.decisionNote}` : "."} Pay the course fee below to confirm your
+          place.
         </p>
       )}
       {reg.status === "CONFIRMED" && (
         <p className="mt-3 rounded-[11px] border border-brand-200 bg-[#eaf0ea] p-3 text-sm text-forest">
           ✓ Registration confirmed. The Center will contact you with joining details.
         </p>
+      )}
+      {reg.status === "CANCELLED" && (
+        <p className="mt-3 rounded-[11px] bg-line-soft p-3 text-sm text-ink">This registration was cancelled.</p>
       )}
 
       <ShortCourseRegistrationWizard

@@ -1376,8 +1376,11 @@ model ShortCourseBatch {
 
 enum ShortCourseRegStatus {
   DRAFT
-  PENDING_PAYMENT
+  SUBMITTED // awaiting the office's review (FOR OFFICE USE ONLY: Admission Status)
+  WAITLISTED
+  PENDING_PAYMENT // approved — the invoice is raised and awaiting the course fee
   CONFIRMED
+  REJECTED
   CANCELLED
 }
 
@@ -1425,9 +1428,13 @@ enum ReferralSource {
   OTHER
 }
 
-// Mirrors the paper form's Sections A–E. Editable only while DRAFT; the
-// registration reference ("Form Code" on the paper form) is assigned when
-// the applicant submits and moves to PENDING_PAYMENT.
+// Mirrors the paper form's Sections A–E plus its "FOR OFFICE USE ONLY" strip.
+// Editable only while DRAFT; the registration reference ("Form Code" on the
+// paper form) is assigned when the applicant submits for review. Submitting
+// does NOT raise an invoice — the office reviews the form first (Admission
+// Status: Approved/Waitlisted/Rejected); approval is what raises the invoice
+// and moves the registration to PENDING_PAYMENT, exactly like the paper
+// form's "Payment Confirmed" line follows its "Admission Status" line.
 model ShortCourseRegistration {
   id            String               @id @default(cuid())
   refNo         String?              @unique
@@ -1440,6 +1447,9 @@ model ShortCourseRegistration {
   status        ShortCourseRegStatus @default(DRAFT)
   invoiceId     String?
   createdAt     DateTime             @default(now())
+  submittedAt   DateTime? // applicant submitted for review
+  decidedAt     DateTime? // office recorded an admission decision
+  decisionNote  String? // reason shown to the applicant on waitlist/reject
   confirmedAt   DateTime?
 
   // Section A — personal details

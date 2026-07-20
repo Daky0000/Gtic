@@ -43,7 +43,7 @@ export default async function StaffEditShortCourseRegistrationPage({
   });
   if (!reg) notFound();
 
-  const editable = reg.status === "DRAFT" || reg.status === "PENDING_PAYMENT";
+  const editable = reg.status !== "CONFIRMED" && reg.status !== "CANCELLED";
   const now = new Date();
   const batches: BatchOption[] = reg.shortCourse.batches
     .filter((b) => b.active && (b.startDate > now || b.id === reg.batchId))

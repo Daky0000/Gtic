@@ -9,15 +9,23 @@ export const metadata = { title: "Short Course Registrations" };
 const STATUS_TONE: Record<string, ChipTone> = {
   CONFIRMED: "green",
   PENDING_PAYMENT: "amber",
+  SUBMITTED: "violet",
+  WAITLISTED: "sky",
   DRAFT: "neutral",
+  REJECTED: "neutral",
   CANCELLED: "neutral",
 };
 const STATUS_LABEL: Record<string, string> = {
   CONFIRMED: "Confirmed",
   PENDING_PAYMENT: "Awaiting payment",
+  SUBMITTED: "Needs review",
+  WAITLISTED: "Waitlisted",
   DRAFT: "In progress",
+  REJECTED: "Rejected",
   CANCELLED: "Cancelled",
 };
+// Surfaces the review queue first, then everything else newest-first.
+const ROW_PRIORITY: Record<string, number> = { SUBMITTED: 0, WAITLISTED: 1 };
 
 export default async function StaffShortCoursesPage() {
   await requireRole(
@@ -45,6 +53,13 @@ export default async function StaffShortCoursesPage() {
 
       {courses.map((c) => {
         const confirmed = c.registrations.filter((r) => r.status === "CONFIRMED").length;
+        const needsReview = c.registrations.filter((r) => r.status === "SUBMITTED").length;
+        const rows = [...c.registrations].sort((a, b) => {
+          const pa = ROW_PRIORITY[a.status] ?? 2;
+          const pb = ROW_PRIORITY[b.status] ?? 2;
+          if (pa !== pb) return pa - pb;
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        });
         return (
           <section key={c.id} className="mb-6 rounded-2xl border border-line bg-paper p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -59,13 +74,21 @@ export default async function StaffShortCoursesPage() {
                   {c.feePesewas > 0 ? formatGHS(c.feePesewas) : "fee not yet published"}
                 </p>
               </div>
-              <div className="text-right text-sm">
-                <div className="font-serif text-[22px] leading-none text-ink">{confirmed}</div>
-                <div className="text-xs text-faint">confirmed</div>
+              <div className="flex items-center gap-5 text-right text-sm">
+                {needsReview > 0 && (
+                  <div>
+                    <div className="font-serif text-[22px] leading-none text-[#5b4a86]">{needsReview}</div>
+                    <div className="text-xs text-faint">needs review</div>
+                  </div>
+                )}
+                <div>
+                  <div className="font-serif text-[22px] leading-none text-ink">{confirmed}</div>
+                  <div className="text-xs text-faint">confirmed</div>
+                </div>
               </div>
             </div>
 
-            {c.registrations.length > 0 ? (
+            {rows.length > 0 ? (
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="text-[11px] uppercase tracking-[0.06em] text-faint">
@@ -79,7 +102,7 @@ export default async function StaffShortCoursesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {c.registrations.map((r) => (
+                    {rows.map((r) => (
                       <tr key={r.id} className="border-t border-line-soft">
                         <td className="py-2 pr-2 font-medium">
                           <Link href={`/staff/short-courses/${r.id}`} className="text-forest hover:text-moss">
