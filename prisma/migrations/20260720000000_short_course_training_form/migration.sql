@@ -19,9 +19,6 @@ CREATE TYPE "ReferralSource" AS ENUM ('FACEBOOK', 'WHATSAPP', 'FRIEND', 'RADIO',
 -- CreateEnum
 CREATE TYPE "ShortCourseDocKind" AS ENUM ('CV', 'CERTIFICATE', 'PHOTO', 'ID_DOCUMENT', 'OTHER');
 
--- AlterEnum
-ALTER TYPE "ShortCourseRegStatus" ADD VALUE 'DRAFT';
-
 -- AlterTable
 -- durationWeeks backfills existing rows via a temporary default (the old
 -- trainingWindow/registrationCloses text columns they came from are being
