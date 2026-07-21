@@ -113,6 +113,34 @@ export async function saveIntegrations(formData: FormData) {
     await setSetting(SETTING_KEYS.AI_PROVIDER, aiProvider === "auto" ? "" : aiProvider, dev.id);
   }
 
+  // Hubtel SMS
+  const hubtelClientId = String(formData.get("hubtelClientId") ?? "").trim();
+  const hubtelClientSecret = String(formData.get("hubtelClientSecret") ?? "").trim();
+  const hubtelSenderId = String(formData.get("hubtelSenderId") ?? "").trim();
+  if (formData.get("clearHubtel")) {
+    await setSetting(SETTING_KEYS.HUBTEL_SMS_CLIENT_ID, "", dev.id);
+    await setSetting(SETTING_KEYS.HUBTEL_SMS_CLIENT_SECRET, "", dev.id);
+    await setSetting(SETTING_KEYS.HUBTEL_SMS_SENDER_ID, "", dev.id);
+  } else {
+    if (hubtelClientId) await setSetting(SETTING_KEYS.HUBTEL_SMS_CLIENT_ID, hubtelClientId, dev.id);
+    if (hubtelClientSecret) await setSetting(SETTING_KEYS.HUBTEL_SMS_CLIENT_SECRET, hubtelClientSecret, dev.id);
+    if (hubtelSenderId) await setSetting(SETTING_KEYS.HUBTEL_SMS_SENDER_ID, hubtelSenderId, dev.id);
+  }
+
+  // WhatsApp gateway
+  const whatsappUrl = String(formData.get("whatsappUrl") ?? "").trim();
+  const whatsappKey = String(formData.get("whatsappKey") ?? "").trim();
+  const whatsappSender = String(formData.get("whatsappSender") ?? "").trim();
+  if (formData.get("clearWhatsapp")) {
+    await setSetting(SETTING_KEYS.WHATSAPP_API_URL, "", dev.id);
+    await setSetting(SETTING_KEYS.WHATSAPP_API_KEY, "", dev.id);
+    await setSetting(SETTING_KEYS.WHATSAPP_SENDER, "", dev.id);
+  } else {
+    if (whatsappUrl) await setSetting(SETTING_KEYS.WHATSAPP_API_URL, whatsappUrl, dev.id);
+    if (whatsappKey) await setSetting(SETTING_KEYS.WHATSAPP_API_KEY, whatsappKey, dev.id);
+    if (whatsappSender) await setSetting(SETTING_KEYS.WHATSAPP_SENDER, whatsappSender, dev.id);
+  }
+
   redirect(`${back}?saved=1`);
 }
 

@@ -24,16 +24,32 @@ export default async function SystemSettingsPage({
   await requirePortal("developer");
   const { error, saved, paystack, paystackMsg } = await searchParams;
 
-  const [institution, paystackOverride, paystackPublicOverride, anthropicOverride, aiProviderOverride] = await Promise.all([
+  const [
+    institution, paystackOverride, paystackPublicOverride, anthropicOverride, aiProviderOverride,
+    hubtelClientIdOverride, hubtelClientSecretOverride, hubtelSenderIdOverride,
+    whatsappUrlOverride, whatsappKeyOverride, whatsappSenderOverride,
+  ] = await Promise.all([
     db.institution.findFirst(),
     getSettingOverride(SETTING_KEYS.PAYSTACK_SECRET_KEY),
     getSettingOverride(SETTING_KEYS.PAYSTACK_PUBLIC_KEY),
     getSettingOverride(SETTING_KEYS.ANTHROPIC_API_KEY),
     getSettingOverride(SETTING_KEYS.AI_PROVIDER),
+    getSettingOverride(SETTING_KEYS.HUBTEL_SMS_CLIENT_ID),
+    getSettingOverride(SETTING_KEYS.HUBTEL_SMS_CLIENT_SECRET),
+    getSettingOverride(SETTING_KEYS.HUBTEL_SMS_SENDER_ID),
+    getSettingOverride(SETTING_KEYS.WHATSAPP_API_URL),
+    getSettingOverride(SETTING_KEYS.WHATSAPP_API_KEY),
+    getSettingOverride(SETTING_KEYS.WHATSAPP_SENDER),
   ]);
   const paystackEnv = !!process.env.PAYSTACK_SECRET_KEY;
   const paystackPublicEnv = !!process.env.PAYSTACK_PUBLIC_KEY;
   const anthropicEnv = !!process.env.ANTHROPIC_API_KEY;
+  const hubtelConfigured = !!(hubtelClientIdOverride || process.env.HUBTEL_SMS_CLIENT_ID)
+    && !!(hubtelClientSecretOverride || process.env.HUBTEL_SMS_CLIENT_SECRET)
+    && !!(hubtelSenderIdOverride || process.env.HUBTEL_SMS_SENDER_ID);
+  const whatsappConfigured = !!(whatsappUrlOverride || process.env.WHATSAPP_API_URL)
+    && !!(whatsappKeyOverride || process.env.WHATSAPP_API_KEY)
+    && !!(whatsappSenderOverride || process.env.WHATSAPP_SENDER);
 
   const field = "mt-1 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none";
   const label = "block text-sm font-medium text-ink-700";
@@ -139,6 +155,67 @@ export default async function SystemSettingsPage({
               <option value="anthropic">Always Claude (requires a key)</option>
               <option value="mock">Always mock (no external calls, no cost)</option>
             </select>
+          </div>
+
+          <div className="border-t border-ink-100 pt-4">
+            <div className="flex items-center justify-between">
+              <label className={label}>Hubtel SMS</label>
+              <StatusChip override={hubtelClientIdOverride} env={hubtelConfigured && !hubtelClientIdOverride} />
+            </div>
+            <p className="mt-1 text-xs text-ink-500">Used to text applicants at key steps (voucher paid, offer issued, …) — see /admin/notifications.</p>
+            <div className="mt-2 grid gap-3 sm:grid-cols-3">
+              <input
+                name="hubtelClientId" type="text" autoComplete="off"
+                placeholder={hubtelClientIdOverride ? `Current: ${maskSecret(hubtelClientIdOverride)}` : "Client ID"}
+                className={field}
+              />
+              <input
+                name="hubtelClientSecret" type="password" autoComplete="off"
+                placeholder={hubtelClientSecretOverride ? `Current: ${maskSecret(hubtelClientSecretOverride)}` : "Client secret"}
+                className={field}
+              />
+              <input
+                name="hubtelSenderId" type="text" autoComplete="off"
+                placeholder={hubtelSenderIdOverride ?? "Sender ID (e.g. SYDA-GTIC)"}
+                className={field}
+              />
+            </div>
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+              <input type="checkbox" name="clearHubtel" value="1" />
+              Clear the console values (fall back to environment)
+            </label>
+          </div>
+
+          <div className="border-t border-ink-100 pt-4">
+            <div className="flex items-center justify-between">
+              <label className={label}>WhatsApp gateway</label>
+              <StatusChip override={whatsappUrlOverride} env={whatsappConfigured && !whatsappUrlOverride} />
+            </div>
+            <p className="mt-1 text-xs text-ink-500">
+              Optional — Hubtel doesn&apos;t publish a general WhatsApp API today, so this targets any
+              Bearer-key JSON gateway (a WhatsApp Business API proxy, Twilio, etc.).
+            </p>
+            <div className="mt-2 grid gap-3 sm:grid-cols-3">
+              <input
+                name="whatsappUrl" type="text" autoComplete="off"
+                placeholder={whatsappUrlOverride ?? "Gateway URL"}
+                className={field}
+              />
+              <input
+                name="whatsappKey" type="password" autoComplete="off"
+                placeholder={whatsappKeyOverride ? `Current: ${maskSecret(whatsappKeyOverride)}` : "API key"}
+                className={field}
+              />
+              <input
+                name="whatsappSender" type="text" autoComplete="off"
+                placeholder={whatsappSenderOverride ?? "Sender / from"}
+                className={field}
+              />
+            </div>
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+              <input type="checkbox" name="clearWhatsapp" value="1" />
+              Clear the console values (fall back to environment)
+            </label>
           </div>
         </div>
 
