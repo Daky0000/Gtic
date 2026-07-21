@@ -40,6 +40,7 @@ export function ShortCourseRegistrationWizard({
   editable,
   initialStep,
   saveAction,
+  returnTo,
 }: {
   saveAction: (formData: FormData) => Promise<void>;
   reg: {
@@ -79,6 +80,9 @@ export function ShortCourseRegistrationWizard({
   documentsSection: ReactNode;
   editable: boolean;
   initialStep: number;
+  /** Threaded into the form so submissions land back on whichever page
+   * rendered this wizard (/short-courses/register/[id] or /apply/application). */
+  returnTo?: string;
 }) {
   const [step, setStep] = useState(Math.min(Math.max(initialStep, 0), STEPS.length - 1));
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
@@ -171,6 +175,7 @@ export function ShortCourseRegistrationWizard({
 
       <form id="short-course-form" action={saveAction} onSubmit={handleSubmit} className="space-y-6">
         <input type="hidden" name="registrationId" value={reg.id} />
+        {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
         {/* STEP 1 — Personal details */}
         <section className={step === 0 ? "" : "hidden"}>

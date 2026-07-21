@@ -19,6 +19,15 @@ function isEditable(status: string) {
   return status === "DRAFT";
 }
 
+/** Where an applicant-facing action redirects back to — defaults to the
+ * course-specific /short-courses URL, but a hidden `returnTo` field lets
+ * /apply/application (a stable, course-agnostic URL) keep the applicant on
+ * that same page through the whole flow instead of bouncing them elsewhere. */
+function resolveBack(formData: FormData, fallback: string): string {
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  return returnTo || fallback;
+}
+
 /** Staff roles allowed to key in a walk-in's paper-form registration and review it. */
 const STAFF_ROLES = [ROLES.ADMISSIONS_OFFICER, ROLES.REGISTRAR, ROLES.MANAGEMENT, ROLES.SYSTEM_ADMIN] as const;
 
@@ -173,9 +182,10 @@ function checkRegistrationComplete(
 export async function startShortCourseRegistration(formData: FormData) {
   const user = await requireUser();
   const shortCourseId = String(formData.get("shortCourseId"));
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
 
   const course = await db.shortCourse.findUnique({ where: { id: shortCourseId } });
-  if (!course || !course.active) fail("/short-courses", "That course is not open for registration.");
+  if (!course || !course.active) fail(returnTo || "/short-courses", "That course is not open for registration.");
 
   const existing = await db.shortCourseRegistration.findUnique({
     where: { shortCourseId_userId: { shortCourseId: course.id, userId: user.id } },
@@ -186,14 +196,14 @@ export async function startShortCourseRegistration(formData: FormData) {
       data: { shortCourseId: course.id, userId: user.id, email: user.email },
     }));
 
-  redirect(`/short-courses/register/${registration.id}`);
+  redirect(returnTo || `/short-courses/register/${registration.id}`);
 }
 
 export async function saveShortCourseRegistrationDetails(formData: FormData) {
   const user = await requireUser();
   const registrationId = String(formData.get("registrationId"));
   const reg = await getOwnRegistration(registrationId, user.id);
-  const back = `/short-courses/register/${reg.id}`;
+  const back = resolveBack(formData, `/short-courses/register/${reg.id}`);
 
   if (!isEditable(reg.status)) fail(back, "This registration can no longer be edited.");
 
@@ -212,7 +222,7 @@ export async function uploadShortCourseDocument(formData: FormData) {
   const user = await requireUser();
   const registrationId = String(formData.get("registrationId"));
   const reg = await getOwnRegistration(registrationId, user.id);
-  const back = `/short-courses/register/${reg.id}`;
+  const back = resolveBack(formData, `/short-courses/register/${reg.id}`);
   if (!isEditable(reg.status)) fail(back, "Documents can no longer be changed after submission.");
 
   const kindRaw = String(formData.get("kind"));
@@ -237,7 +247,7 @@ export async function deleteShortCourseDocument(formData: FormData) {
     where: { id: documentId },
     include: { registration: true },
   });
-  const back = `/short-courses/register/${doc.registrationId}`;
+  const back = resolveBack(formData, `/short-courses/register/${doc.registrationId}`);
   if (doc.registration.userId !== user.id) fail(back, "Not your document.");
   if (!isEditable(doc.registration.status)) fail(back, "Documents can no longer be changed after submission.");
 
@@ -260,7 +270,7 @@ export async function submitShortCourseRegistration(formData: FormData) {
     where: { id: registrationId, userId: user.id },
     include: { shortCourse: true, documents: true },
   });
-  const back = `/short-courses/register/${reg.id}`;
+  const back = resolveBack(formData, `/short-courses/register/${reg.id}`);
 
   if (!isEditable(reg.status)) fail(back, "This registration has already been submitted.");
   if (!reg.shortCourse.active) fail(back, "This course is no longer open for registration.");
@@ -293,7 +303,7 @@ export async function payShortCourseRegistrationFee(formData: FormData) {
   const user = await requireUser();
   const registrationId = String(formData.get("registrationId"));
   const reg = await getOwnRegistration(registrationId, user.id);
-  const back = `/short-courses/register/${reg.id}`;
+  const back = resolveBack(formData, `/short-courses/register/${reg.id}`);
   if (reg.status !== "PENDING_PAYMENT" || !reg.invoiceId) fail(back, "Nothing to pay yet — submit your registration first.");
 
   const result = await beginInvoicePayment({
@@ -317,7 +327,7 @@ export async function recordManualShortCourseFeePayment(formData: FormData) {
   const user = await requireUser();
   const registrationId = String(formData.get("registrationId"));
   const reg = await getOwnRegistration(registrationId, user.id);
-  const back = `/short-courses/register/${reg.id}`;
+  const back = resolveBack(formData, `/short-courses/register/${reg.id}`);
   if (reg.status !== "PENDING_PAYMENT" || !reg.invoiceId) {
     fail(back, "Nothing to pay yet — submit your registration first.");
   }
