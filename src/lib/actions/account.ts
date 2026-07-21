@@ -6,6 +6,8 @@ import { currentOrBootstrapCycle } from "@/lib/admission-cycle";
 import { initializePaystackTransaction, isPaystackConfigured } from "@/lib/paystack";
 import { startPendingRegistration, completePendingRegistration } from "@/lib/registration";
 import { appBaseUrl } from "@/lib/base-url";
+import { applyProcessingFee } from "@/lib/money";
+import { getProcessingFeePercent } from "@/lib/settings";
 
 export type SignupState = { error: string } | null;
 
@@ -56,9 +58,13 @@ export async function startApplicationWithPayment(
   }
 
   try {
+    // The PendingRegistration/invoice keep tracking the base applicationFee
+    // (matches what the signup page quoted) — the checkout processing fee is
+    // only added to what Paystack actually charges, same as beginInvoicePayment.
+    const feePercent = await getProcessingFeePercent();
     const { authorizationUrl } = await initializePaystackTransaction({
       email,
-      amount: cycle.applicationFee,
+      amount: applyProcessingFee(cycle.applicationFee, feePercent),
       reference: started.reference,
       callbackUrl: `${appBaseUrl()}/api/payments/paystack/callback`,
     });

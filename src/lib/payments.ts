@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { paymentReference } from "@/lib/codes";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
-import { formatGHS } from "@/lib/money";
+import { dispatchNotification } from "@/lib/notification-events";
+import { applyProcessingFee, formatGHS } from "@/lib/money";
+import { getProcessingFeePercent } from "@/lib/settings";
 import { initializePaystackTransaction, isPaystackConfigured, verifyPaystackTransaction } from "@/lib/paystack";
 import { appBaseUrl } from "@/lib/base-url";
 
@@ -95,12 +97,15 @@ async function settleInvoiceSideEffects(invoiceId: string) {
         actorId: invoice.userId, action: "admissions.offer_accepted",
         entityType: "Application", entityId: app.id,
       });
-      await notify(
-        invoice.userId,
-        "Admission confirmed",
-        "Your enrollment fee is paid and your place is secured. Enrollment instructions will follow.",
-        "/apply/letter"
-      );
+      await dispatchNotification({
+        event: "ENROLLMENT_FEE_PAID",
+        userId: invoice.userId,
+        phone: app.phone,
+        title: "Admission confirmed",
+        body: "Your enrollment fee is paid and your place is secured. Enrollment instructions will follow.",
+        href: "/apply/letter",
+        vars: { refNo: app.refNo },
+      });
       return;
     }
     case "HOSTEL": {
@@ -136,12 +141,15 @@ async function settleInvoiceSideEffects(invoiceId: string) {
         data: { status: "CONFIRMED", confirmedAt: new Date() },
       });
       const batchNote = reg.batch ? ` (${reg.batch.label}, starting ${reg.batch.startDate.toLocaleDateString()})` : "";
-      await notify(
-        invoice.userId,
-        "Short course registration confirmed",
-        `Your place on "${reg.shortCourse.name}"${batchNote} is confirmed. The Center will contact you with joining details.`,
-        "/short-courses"
-      );
+      await dispatchNotification({
+        event: "SHORT_COURSE_CONFIRMED",
+        userId: invoice.userId,
+        phone: reg.phone,
+        title: "Short course registration confirmed",
+        body: `Your place on "${reg.shortCourse.name}"${batchNote} is confirmed. The Center will contact you with joining details.`,
+        href: "/short-courses",
+        vars: { courseName: reg.shortCourse.name, batchInfo: batchNote },
+      });
       return;
     }
     default:
@@ -187,6 +195,25 @@ export type BeginPaymentResult =
   | { kind: "redirect"; url: string }
   | { kind: "settled" }
   | { kind: "failed"; message: string };
+
+/**
+ * What a real online checkout will actually charge for a given base amount —
+ * the developer-set processing-fee percentage added on top (see
+ * SETTING_KEYS.PROCESSING_FEE_PERCENT), never reflected in the sticker price
+ * shown while applying/browsing. UI pages that render a "Pay X" button call
+ * this so their own label matches what Paystack's hosted checkout will show,
+ * instead of quoting the bare invoice balance.
+ */
+export async function getCheckoutAmount(basePesewas: number): Promise<{ base: number; fee: number; total: number; percent: number }> {
+  // The mock channel is a free instant settlement, not a real gateway charge
+  // — no processing fee applies (mirrors beginInvoicePayment/payInvoiceMock).
+  if (!(await isPaystackConfigured())) {
+    return { base: basePesewas, fee: 0, total: basePesewas, percent: 0 };
+  }
+  const percent = await getProcessingFeePercent();
+  const total = applyProcessingFee(basePesewas, percent);
+  return { base: basePesewas, fee: total - basePesewas, total, percent };
+}
 
 /**
  * Starts payment of an invoice's outstanding balance. With Paystack
@@ -241,17 +268,26 @@ export async function beginInvoicePayment(params: {
     },
   });
 
+  // The invoice ledger only ever tracks `balance` (the base fee owed) —
+  // Paystack is charged `chargeAmount` (base + processing fee) so the payer
+  // covers the checkout cost, but that surcharge is never credited as
+  // revenue against the invoice. verifyPaystackTransaction's `>= payment
+  // .amount` check still passes since the real charge is always at least
+  // the base amount.
+  const feePercent = await getProcessingFeePercent();
+  const chargeAmount = applyProcessingFee(balance, feePercent);
+
   const baseUrl = appBaseUrl();
   try {
     const { authorizationUrl } = await initializePaystackTransaction({
       email: params.userEmail,
-      amount: balance,
+      amount: chargeAmount,
       reference,
       callbackUrl: `${baseUrl}/api/payments/paystack/callback`,
     });
     await db.payment.update({
       where: { id: payment.id },
-      data: { meta: { returnTo: params.returnTo, authorizationUrl } },
+      data: { meta: { returnTo: params.returnTo, authorizationUrl, chargeAmount, processingFeePesewas: chargeAmount - balance } },
     });
     return { kind: "redirect", url: authorizationUrl };
   } catch (e) {

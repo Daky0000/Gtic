@@ -6,7 +6,7 @@ import {
   getOrCreateDraftApplication, isApplicationFeeCleared, payApplicationFee, redeemVoucher,
 } from "@/lib/actions/admissions";
 import { isPaystackConfigured } from "@/lib/paystack";
-import { reconcilePendingPaystackPayments } from "@/lib/payments";
+import { getCheckoutAmount, reconcilePendingPaystackPayments } from "@/lib/payments";
 import { Flash } from "@/components/flash";
 import { PageHeader, Card, StatusChip } from "@/components/ui";
 
@@ -29,6 +29,7 @@ export default async function PaymentsPage({
   const cycle = await db.admissionCycle.findUniqueOrThrow({ where: { id: app.cycleId } });
   const feeCleared = await isApplicationFeeCleared(app.id, user.id, app.cycleId);
   const paystackReady = await isPaystackConfigured();
+  const checkout = await getCheckoutAmount(cycle.applicationFee);
 
   const applicationInvoice = await db.invoice.findFirst({
     where: { userId: user.id, kind: "APPLICATION", meta: { path: ["applicationId"], equals: app.id } },
@@ -77,14 +78,14 @@ export default async function PaymentsPage({
                 {hasPendingCheckout
                   ? "You have a checkout in progress — continuing takes you back to the same secure Paystack page, so you can never be charged twice."
                   : paystackReady
-                    ? "Card or mobile money (MTN, Telecel, AT) — secure checkout via Paystack."
+                    ? `Card or mobile money (MTN, Telecel, AT) — secure checkout via Paystack.${checkout.fee > 0 ? ` Includes a ${checkout.percent}% processing fee.` : ""}`
                     : "Card or mobile money (demo payment — settles instantly)."}
               </p>
               <button
                 type="submit"
                 className="mt-3 rounded-full bg-forest px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-forest-deep"
               >
-                {hasPendingCheckout ? "Continue payment" : `Pay ${formatGHS(cycle.applicationFee)}`}
+                {hasPendingCheckout ? "Continue payment" : `Pay ${formatGHS(checkout.total)}`}
               </button>
             </form>
             <form action={redeemVoucher}>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
+import { getCheckoutAmount } from "@/lib/payments";
 import { payTuition, recordTellerPayment } from "@/lib/actions/finance";
 import { Flash } from "@/components/flash";
 
@@ -22,6 +23,7 @@ export default async function FeesPage({
     include: { lines: true, payments: true },
     orderBy: { createdAt: "desc" },
   });
+  const checkouts = await Promise.all(invoices.map((inv) => getCheckoutAmount(inv.total - inv.paid)));
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -30,8 +32,9 @@ export default async function FeesPage({
 
       {invoices.length === 0 && <p className="mt-4 text-sm text-ink-500">No bills issued yet.</p>}
 
-      {invoices.map((inv) => {
+      {invoices.map((inv, idx) => {
         const balance = inv.total - inv.paid;
+        const checkout = checkouts[idx];
         return (
           <section key={inv.id} className="mt-6 rounded-2xl border border-line bg-paper p-5">
             <div className="flex items-center justify-between">
@@ -62,7 +65,7 @@ export default async function FeesPage({
                 <form action={payTuition}>
                   <input type="hidden" name="invoiceId" value={inv.id} />
                   <button type="submit" className="w-full rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
-                    Pay {formatGHS(balance)} online
+                    Pay {formatGHS(checkout.total)} online
                   </button>
                 </form>
                 <form action={recordTellerPayment} className="flex gap-2">

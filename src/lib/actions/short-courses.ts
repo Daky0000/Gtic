@@ -7,7 +7,7 @@ import { audit } from "@/lib/audit";
 import { invoiceNo, paymentReference, shortCourseRefNo } from "@/lib/codes";
 import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment, confirmPayment } from "@/lib/payments";
-import { notify } from "@/lib/notify";
+import { dispatchNotification } from "@/lib/notification-events";
 import type { ShortCourseDocKind } from "@prisma/client";
 import type { CourseOption } from "@/app/short-courses/register/[id]/registration-wizard";
 
@@ -492,12 +492,15 @@ export async function staffApproveShortCourseRegistration(formData: FormData) {
     actorId: staff.id, action: "short_course.approved", entityType: "ShortCourseRegistration",
     entityId: reg.id, after: { note },
   });
-  await notify(
-    reg.userId,
-    "Application approved",
-    `Your application for "${reg.shortCourse.name}" has been approved. Pay the course fee to confirm your place.`,
-    `/short-courses/register/${reg.id}`,
-  );
+  await dispatchNotification({
+    event: "SHORT_COURSE_APPROVED",
+    userId: reg.userId,
+    phone: reg.phone,
+    title: "Application approved",
+    body: `Your application for "${reg.shortCourse.name}" has been approved. Pay the course fee to confirm your place.`,
+    href: `/short-courses/register/${reg.id}`,
+    vars: { courseName: reg.shortCourse.name },
+  });
   redirect(`${back}?decided=1`);
 }
 
@@ -520,12 +523,15 @@ export async function staffWaitlistShortCourseRegistration(formData: FormData) {
     actorId: staff.id, action: "short_course.waitlisted", entityType: "ShortCourseRegistration",
     entityId: reg.id, after: { note },
   });
-  await notify(
-    reg.userId,
-    "You're on the waitlist",
-    `You've been placed on the waitlist for "${reg.shortCourse.name}"${note ? `: ${note}` : "."} We'll let you know if a place opens up.`,
-    `/short-courses/register/${reg.id}`,
-  );
+  await dispatchNotification({
+    event: "SHORT_COURSE_WAITLISTED",
+    userId: reg.userId,
+    phone: reg.phone,
+    title: "You're on the waitlist",
+    body: `You've been placed on the waitlist for "${reg.shortCourse.name}"${note ? `: ${note}` : "."} We'll let you know if a place opens up.`,
+    href: `/short-courses/register/${reg.id}`,
+    vars: { courseName: reg.shortCourse.name },
+  });
   redirect(`${back}?decided=1`);
 }
 
@@ -552,12 +558,15 @@ export async function staffRejectShortCourseRegistration(formData: FormData) {
     actorId: staff.id, action: "short_course.rejected", entityType: "ShortCourseRegistration",
     entityId: reg.id, after: { note },
   });
-  await notify(
-    reg.userId,
-    "Application decision",
-    `Your application for "${reg.shortCourse.name}" was not successful this time: ${note}`,
-    `/short-courses/register/${reg.id}`,
-  );
+  await dispatchNotification({
+    event: "SHORT_COURSE_REJECTED",
+    userId: reg.userId,
+    phone: reg.phone,
+    title: "Application decision",
+    body: `Your application for "${reg.shortCourse.name}" was not successful this time: ${note}`,
+    href: `/short-courses/register/${reg.id}`,
+    vars: { courseName: reg.shortCourse.name },
+  });
   redirect(`${back}?decided=1`);
 }
 

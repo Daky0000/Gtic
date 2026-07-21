@@ -37,3 +37,24 @@ export function formatUSDEquivalent(pesewas: number, rate: number): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+// ─── Processing fee ───
+// A developer-set percentage added on top of a fee only at the moment a real
+// Paystack checkout is started — never on the sticker price shown while
+// browsing/applying. e.g. a GHS 50 course fee becomes GHS 50.50 to charge at
+// 1%. The invoice ledger always keeps crediting the base amount; the fee is
+// a checkout-time surcharge, not revenue owed to the institution.
+
+/** Parses a developer-entered processing-fee percentage; null when it isn't
+ * a usable non-negative number (0 is valid — "no fee"). */
+export function parseProcessingFeePercent(raw: string | null | undefined): number | null {
+  const trimmed = String(raw ?? "").trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
+}
+
+/** GHS 50 at 1% → 5050 pesewas (GHS 50.50) to actually charge at checkout. */
+export function applyProcessingFee(pesewas: number, percent: number): number {
+  return Math.round(pesewas * (1 + percent / 100));
+}

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getOrCreateDraftApplication, acceptOffer, payAcceptanceFee, declineOffer } from "@/lib/actions/admissions";
-import { reconcilePendingPaystackPayments } from "@/lib/payments";
+import { getCheckoutAmount, reconcilePendingPaystackPayments } from "@/lib/payments";
+import { formatGHS } from "@/lib/money";
 import { Flash } from "@/components/flash";
 
 export const metadata = { title: "Admission Letter" };
@@ -49,6 +50,9 @@ export default async function LetterPage({
   const acceptanceInvoice = await db.invoice.findFirst({
     where: { userId: user.id, kind: "ACCEPTANCE", meta: { path: ["applicationId"], equals: app.id } },
   });
+  const acceptanceCheckout = acceptanceInvoice
+    ? await getCheckoutAmount(acceptanceInvoice.total - acceptanceInvoice.paid)
+    : null;
   const institution = await db.institution.findFirst();
   const institutionName = institution?.name ?? "SYDA — Green Energy & Innovation Center";
 
@@ -124,7 +128,7 @@ export default async function LetterPage({
             <form action={payAcceptanceFee}>
               <input type="hidden" name="applicationId" value={app.id} />
               <button type="submit" className="rounded-full bg-forest px-5 py-2.5 font-medium text-white hover:bg-forest-deep">
-                Pay enrollment fee to confirm
+                Pay {formatGHS(acceptanceCheckout?.total ?? acceptanceInvoice.total)} enrollment fee to confirm
               </button>
             </form>
           ) : null}

@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { isDeveloper, requireRole, ROLES } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { getSetting, setSetting, SETTING_KEYS } from "@/lib/settings";
-import { parseUsdRate, usdToPesewas } from "@/lib/money";
+import { parseProcessingFeePercent, parseUsdRate, usdToPesewas } from "@/lib/money";
 import type { ProgrammeLevel } from "@prisma/client";
 
 /** Developer console actions (settings, users). Developer or system admin —
@@ -17,18 +17,32 @@ async function requireDeveloper() {
   return requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
 }
 
-/** Pricing actions are the developer's ALONE — the system admin keeps the
- * rest of the console, but fees and the currency multiplier are excluded. */
+/** Fee-editing actions: developer or system admin — the fees console itself
+ * (/developer/fees, /admin/fees) is shared between both. */
 async function requireFees() {
+  return requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
+}
+
+/** The currency multiplier and processing fee are a developer decision
+ * alone — the system admin keeps every other fee on the console. */
+async function requireDeveloperOnlyFees() {
   const user = await requireRole(ROLES.DEVELOPER, ROLES.SYSTEM_ADMIN);
   if (!isDeveloper(user)) {
-    fail("/admin", "Fees and pricing are managed by the developer account only.");
+    fail("/admin/fees", "This setting is managed by the developer account only.");
   }
   return user;
 }
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+/** Where a fees-console action redirects back to — the fees console is
+ * shared between /developer/fees and /admin/fees, so a hidden `returnTo`
+ * field keeps a save on whichever page submitted it. */
+function resolveBack(formData: FormData, fallback = "/developer/fees"): string {
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  return returnTo || fallback;
 }
 
 /** GHS form input ("150" / "150.50") → pesewas int, or null when invalid. */
@@ -51,7 +65,7 @@ async function pairedAmountToPesewas(
   if (usdRaw !== "") {
     const rate = parseUsdRate(await getSetting(SETTING_KEYS.USD_TO_GHS_RATE));
     if (!rate) {
-      fail("/developer/fees", "Set the USD→GHS multiplier before pricing fees in dollars.");
+      fail(resolveBack(formData), "Set the USD→GHS multiplier before pricing fees in dollars.");
     }
     const usd = Number(usdRaw);
     if (!Number.isFinite(usd) || usd < 0) return null;
@@ -146,11 +160,12 @@ export async function saveInstitution(formData: FormData) {
 
 export async function updateCycleFees(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const cycleId = String(formData.get("cycleId"));
   const applicationFee = await pairedAmountToPesewas(formData, "applicationFeeGhs", "applicationFeeUsd");
   const acceptanceFee = await pairedAmountToPesewas(formData, "acceptanceFeeGhs", "acceptanceFeeUsd");
   if (applicationFee == null || acceptanceFee == null) {
-    fail("/developer/fees", "Enter valid amounts.");
+    fail(back, "Enter valid amounts.");
   }
 
   await db.admissionCycle.update({
@@ -161,11 +176,12 @@ export async function updateCycleFees(formData: FormData) {
     actorId: dev.id, action: "system.cycle_fees_updated", entityType: "AdmissionCycle",
     entityId: cycleId, after: { applicationFee, acceptanceFee },
   });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function updateDocumentFees(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const entries: [string, string, (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS]][] = [
     ["transcriptGhs", "transcriptUsd", SETTING_KEYS.DOC_FEE_TRANSCRIPT],
     ["attestationGhs", "attestationUsd", SETTING_KEYS.DOC_FEE_ATTESTATION],
@@ -173,104 +189,123 @@ export async function updateDocumentFees(formData: FormData) {
   ];
   for (const [ghsField, usdField, key] of entries) {
     const pesewas = await pairedAmountToPesewas(formData, ghsField, usdField);
-    if (pesewas == null) fail("/developer/fees", "Enter valid amounts.");
+    if (pesewas == null) fail(back, "Enter valid amounts.");
     await setSetting(key, String(pesewas), dev.id);
   }
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function updateShortCourseFee(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const shortCourseId = String(formData.get("shortCourseId"));
   const pesewas = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
-  if (pesewas == null) fail("/developer/fees", "Enter a valid amount.");
+  if (pesewas == null) fail(back, "Enter a valid amount.");
   await db.shortCourse.update({ where: { id: shortCourseId }, data: { feePesewas: pesewas } });
   await audit({
     actorId: dev.id, action: "system.short_course_fee_updated", entityType: "ShortCourse",
     entityId: shortCourseId, after: { feePesewas: pesewas },
   });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function updateLibraryFine(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const pesewas = await pairedAmountToPesewas(formData, "fineGhs", "fineUsd");
-  if (pesewas == null) fail("/developer/fees", "Enter a valid amount.");
+  if (pesewas == null) fail(back, "Enter a valid amount.");
   await setSetting(SETTING_KEYS.LIBRARY_FINE_PER_DAY, String(pesewas), dev.id);
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
-/** Sets (or clears) the USD→GHS multiplier used to price fees in dollars. */
+/** Sets (or clears) the USD→GHS multiplier used to price fees in dollars.
+ * Developer-only — see requireDeveloperOnlyFees. */
 export async function saveCurrencyRate(formData: FormData) {
-  const dev = await requireFees();
+  const dev = await requireDeveloperOnlyFees();
+  const back = resolveBack(formData);
   const raw = String(formData.get("rate") ?? "").trim();
   if (raw === "" || formData.get("clear")) {
     await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, "", dev.id);
-    redirect("/developer/fees?saved=1");
+    redirect(`${back}?saved=1`);
   }
   const rate = parseUsdRate(raw);
   if (!rate) {
-    fail("/developer/fees", "Enter a valid multiplier — how many GHS one US dollar buys, e.g. 15.50.");
+    fail(back, "Enter a valid multiplier — how many GHS one US dollar buys, e.g. 15.50.");
   }
   await setSetting(SETTING_KEYS.USD_TO_GHS_RATE, String(rate), dev.id);
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
+}
+
+/** Sets the checkout processing-fee percentage. Developer-only — see
+ * requireDeveloperOnlyFees. */
+export async function saveProcessingFee(formData: FormData) {
+  const dev = await requireDeveloperOnlyFees();
+  const back = resolveBack(formData);
+  const percent = parseProcessingFeePercent(String(formData.get("percent") ?? "").trim());
+  if (percent == null) fail(back, "Enter a valid percentage between 0 and 100.");
+  await setSetting(SETTING_KEYS.PROCESSING_FEE_PERCENT, String(percent), dev.id);
+  redirect(`${back}?saved=1`);
 }
 
 export async function updateHostelFee(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const hostelId = String(formData.get("hostelId"));
   const feePerYear = await pairedAmountToPesewas(formData, "feeGhs", "feeUsd");
-  if (feePerYear == null) fail("/developer/fees", "Enter a valid amount.");
+  if (feePerYear == null) fail(back, "Enter a valid amount.");
 
   await db.hostel.update({ where: { id: hostelId }, data: { feePerYear } });
   await audit({
     actorId: dev.id, action: "system.hostel_fee_updated", entityType: "Hostel",
     entityId: hostelId, after: { feePerYear },
   });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function createFeeSchedule(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const academicYearId = String(formData.get("academicYearId"));
   const level = String(formData.get("level")) as ProgrammeLevel;
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) fail("/developer/fees", "Give the fee schedule a name.");
+  if (!name) fail(back, "Give the fee schedule a name.");
 
   const existing = await db.feeSchedule.findUnique({
     where: { academicYearId_level: { academicYearId, level } },
   });
-  if (existing) fail("/developer/fees", "A schedule for that year and level already exists.");
+  if (existing) fail(back, "A schedule for that year and level already exists.");
 
   await db.feeSchedule.create({ data: { academicYearId, level, name } });
   await audit({ actorId: dev.id, action: "system.fee_schedule_created", entityType: "FeeSchedule" });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function addFeeItem(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const scheduleId = String(formData.get("scheduleId"));
   const name = String(formData.get("name") ?? "").trim();
   const amount = await pairedAmountToPesewas(formData, "amountGhs", "amountUsd");
-  if (!name || amount == null) fail("/developer/fees", "Enter a fee item name and a valid amount.");
+  if (!name || amount == null) fail(back, "Enter a fee item name and a valid amount.");
 
   await db.feeItem.create({ data: { scheduleId, name, amount } });
   await audit({
     actorId: dev.id, action: "system.fee_item_added", entityType: "FeeSchedule",
     entityId: scheduleId, after: { name, amount },
   });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 export async function deleteFeeItem(formData: FormData) {
   const dev = await requireFees();
+  const back = resolveBack(formData);
   const itemId = String(formData.get("itemId"));
   const item = await db.feeItem.delete({ where: { id: itemId } });
   await audit({
     actorId: dev.id, action: "system.fee_item_deleted", entityType: "FeeSchedule",
     entityId: item.scheduleId, after: { name: item.name },
   });
-  redirect("/developer/fees?saved=1");
+  redirect(`${back}?saved=1`);
 }
 
 // ─── Users & roles ───

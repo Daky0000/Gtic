@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cedisToPesewas, formatGHS, formatUSDEquivalent, parseUsdRate, percentPaid, usdToPesewas,
+  applyProcessingFee, cedisToPesewas, formatGHS, formatUSDEquivalent, parseProcessingFeePercent,
+  parseUsdRate, percentPaid, usdToPesewas,
 } from "@/lib/money";
 
 describe("formatGHS", () => {
@@ -82,5 +83,33 @@ describe("formatUSDEquivalent", () => {
 
   it("formats with thousands separators", () => {
     expect(formatUSDEquivalent(1550000, 15.5)).toBe("$1,000.00");
+  });
+});
+
+describe("parseProcessingFeePercent", () => {
+  it("accepts sane percentages, including 0", () => {
+    expect(parseProcessingFeePercent("1")).toBe(1);
+    expect(parseProcessingFeePercent("0")).toBe(0);
+    expect(parseProcessingFeePercent(" 2.5 ")).toBe(2.5);
+    expect(parseProcessingFeePercent("100")).toBe(100);
+  });
+
+  it("rejects junk, negatives, and anything over 100", () => {
+    expect(parseProcessingFeePercent("")).toBeNull();
+    expect(parseProcessingFeePercent(null)).toBeNull();
+    expect(parseProcessingFeePercent(undefined)).toBeNull();
+    expect(parseProcessingFeePercent("abc")).toBeNull();
+    expect(parseProcessingFeePercent("-1")).toBeNull();
+    expect(parseProcessingFeePercent("100.01")).toBeNull();
+    expect(parseProcessingFeePercent("Infinity")).toBeNull();
+  });
+});
+
+describe("applyProcessingFee", () => {
+  it("adds the percentage on top, rounded to the nearest pesewa", () => {
+    expect(applyProcessingFee(5000, 1)).toBe(5050); // GHS 50 at 1% -> GHS 50.50
+    expect(applyProcessingFee(5000, 0)).toBe(5000);
+    expect(applyProcessingFee(100, 1)).toBe(101); // 101 -> rounds up from 101.0
+    expect(applyProcessingFee(333, 2.5)).toBe(341); // 341.325 -> 341
   });
 });

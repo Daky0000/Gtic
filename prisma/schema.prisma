@@ -174,6 +174,27 @@ model FeatureFlag {
   updatedById String?
 }
 
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+}
+
+// Admin-configurable SMS/WhatsApp mirror of an in-app notification event —
+// see src/lib/notification-events.ts for the event registry and built-in
+// default templates. A row's absence means "use the built-in default"
+// (enabled, default template) for that event+channel, same fallback
+// convention as SystemSetting falling back to an env var.
+model NotificationTemplate {
+  event       String
+  channel     NotificationChannel
+  enabled     Boolean  @default(true)
+  template    String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@id([event, channel])
+}
+
 // ───────────────────── Academic structure (demo scope) ───────────────────
 
 enum ProgrammeLevel {

@@ -2,8 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { notify } from "@/lib/notify";
-import { sendSMS } from "@/lib/sms";
+import { dispatchNotification } from "@/lib/notification-events";
 import { ROLES } from "@/lib/rbac";
 import { paymentReference, voucherPin, voucherSerial } from "@/lib/codes";
 import { getOrCreateDraftApplication } from "@/lib/actions/admissions";
@@ -125,20 +124,15 @@ export async function completePendingRegistration(reference: string): Promise<{ 
   });
 
   await audit({ actorId: user.id, action: "account.applicant_registered_paid", entityType: "User", entityId: user.id, after: { serial: reg.serial } });
-  try {
-    await notify(
-      user.id,
-      "Welcome to SYDA-GTIC",
-      `Your application voucher is paid. Voucher Serial ${reg.serial}, PIN ${reg.pin} — keep these safe. Complete your application form to proceed.`,
-      "/apply"
-    );
-    await sendSMS({
-      to: reg.phone,
-      message: `SYDA-GTIC: payment received. Your application voucher Serial: ${reg.serial}, PIN: ${reg.pin}. Sign in at the portal with your email to complete your application.`,
-    });
-  } catch (e) {
-    console.error("[registration] post-completion notify/SMS failed", e);
-  }
+  await dispatchNotification({
+    event: "SIGNUP_VOUCHER_PAID",
+    userId: user.id,
+    phone: reg.phone,
+    title: "Welcome to SYDA-GTIC",
+    body: `Your application voucher is paid. Voucher Serial ${reg.serial}, PIN ${reg.pin} — keep these safe. Complete your application form to proceed.`,
+    href: "/apply",
+    vars: { serial: reg.serial, pin: reg.pin },
+  });
 
   return { userId: user.id, email: reg.email };
 }

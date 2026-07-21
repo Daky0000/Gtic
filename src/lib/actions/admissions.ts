@@ -8,6 +8,7 @@ import { applicationRefNo, verificationCode } from "@/lib/codes";
 import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment } from "@/lib/payments";
 import { notify } from "@/lib/notify";
+import { dispatchNotification } from "@/lib/notification-events";
 import { extractApplicationDocument, prescreenApplication } from "@/lib/ai/tasks";
 import { isAdmissionOpen } from "@/lib/intake";
 import type { ApplicationDocKind, Recommendation } from "@prisma/client";
@@ -399,14 +400,19 @@ export async function submitApplication(formData: FormData) {
   await audit({
     actorId: user.id, action: "admissions.application_submitted", entityType: "Application", entityId: app.id,
   });
-  await notify(
-    user.id,
-    wasInfoRequested ? "Application updated" : "Application submitted",
-    wasInfoRequested
-      ? `Thanks — your updates to ${app.refNo} are back with the admissions office.`
-      : `We received your application ${app.refNo}. You'll be notified as soon as it is reviewed.`,
-    "/apply"
-  );
+  if (wasInfoRequested) {
+    await notify(user.id, "Application updated", `Thanks — your updates to ${app.refNo} are back with the admissions office.`, "/apply");
+  } else {
+    await dispatchNotification({
+      event: "APPLICATION_SUBMITTED",
+      userId: user.id,
+      phone: app.phone,
+      title: "Application submitted",
+      body: `We received your application ${app.refNo}. You'll be notified as soon as it is reviewed.`,
+      href: "/apply",
+      vars: { refNo: app.refNo },
+    });
+  }
 
   redirect("/apply");
 }
@@ -605,12 +611,15 @@ export async function approveAndIssueOffer(formData: FormData) {
     await audit({
       actorId: registrar.id, action: "admissions.rejection_confirmed", entityType: "Application", entityId: app.id,
     });
-    await notify(
-      app.userId,
-      "Admission decision",
-      `A decision has been made on your application ${app.refNo}. Unfortunately it was not successful this cycle.`,
-      "/apply"
-    );
+    await dispatchNotification({
+      event: "APPLICATION_REJECTED",
+      userId: app.userId,
+      phone: app.phone,
+      title: "Admission decision",
+      body: `A decision has been made on your application ${app.refNo}. Unfortunately it was not successful this cycle.`,
+      href: "/apply",
+      vars: { refNo: app.refNo },
+    });
     redirect(back);
   }
 
@@ -621,12 +630,15 @@ export async function approveAndIssueOffer(formData: FormData) {
     await audit({
       actorId: registrar.id, action: "admissions.waitlisted", entityType: "Application", entityId: app.id,
     });
-    await notify(
-      app.userId,
-      "You are on the waitlist",
-      `Your application ${app.refNo} has been placed on the waitlist. You'll be notified immediately if a place opens up.`,
-      "/apply"
-    );
+    await dispatchNotification({
+      event: "APPLICATION_WAITLISTED",
+      userId: app.userId,
+      phone: app.phone,
+      title: "You are on the waitlist",
+      body: `Your application ${app.refNo} has been placed on the waitlist. You'll be notified immediately if a place opens up.`,
+      href: "/apply",
+      vars: { refNo: app.refNo },
+    });
     redirect(back);
   }
 
@@ -674,11 +686,14 @@ export async function approveAndIssueOffer(formData: FormData) {
     actorId: registrar.id, action: "admissions.offer_issued", entityType: "Application",
     entityId: applicationId, after: { programmeId, letterCode: code },
   });
-  await notify(
-    app.userId,
-    "🎉 Admission offer issued",
-    `Congratulations — you have been offered admission to ${programme.name}. Open your admission letter to accept.`,
-    "/apply/letter"
-  );
+  await dispatchNotification({
+    event: "OFFER_ISSUED",
+    userId: app.userId,
+    phone: app.phone,
+    title: "🎉 Admission offer issued",
+    body: `Congratulations — you have been offered admission to ${programme.name}. Open your admission letter to accept.`,
+    href: "/apply/letter",
+    vars: { programmeName: programme.name },
+  });
   redirect(back);
 }

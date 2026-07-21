@@ -1,6 +1,13 @@
-import { redirect } from "next/navigation";
+import { isDeveloper, requireDeveloperConsole } from "@/lib/rbac";
+import { FeesConsole } from "../../developer/fees/fees-console";
 
-// Fees & pricing moved to the developer portal (developer-only console).
-export default function LegacyFeesRedirect() {
-  redirect("/developer/fees");
+export const metadata = { title: "Fees & Pricing" };
+
+export default async function AdminFeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; saved?: string }>;
+}) {
+  const user = await requireDeveloperConsole();
+  return <FeesConsole basePath="/admin/fees" isDev={isDeveloper(user)} searchParams={await searchParams} />;
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { parseProcessingFeePercent } from "@/lib/money";
 
 /**
  * System settings managed from the developer portal (/developer/settings).
@@ -26,6 +27,20 @@ export const SETTING_KEYS = {
    * inputs on the fees console accept USD and convert at this rate —
    * Paystack Ghana settles in GHS only, so USD pricing needs it. */
   USD_TO_GHS_RATE: "pricing.usd_to_ghs_rate",
+  /** Developer-set percentage added on top of a fee only at the moment a
+   * real Paystack checkout is started (never on the sticker price shown
+   * while browsing/applying) — see applyProcessingFee in money.ts. Defaults
+   * to 1 when unset. */
+  PROCESSING_FEE_PERCENT: "pricing.processing_fee_percent",
+  HUBTEL_SMS_CLIENT_ID: "integration.hubtel_sms_client_id",
+  HUBTEL_SMS_CLIENT_SECRET: "integration.hubtel_sms_client_secret",
+  HUBTEL_SMS_SENDER_ID: "integration.hubtel_sms_sender_id",
+  /** Generic WhatsApp Business gateway (Hubtel doesn't publish a public
+   * WhatsApp API today) — same "Bearer key + JSON POST" shape as the old
+   * generic SMS gateway, so any provider that fits it can be dropped in. */
+  WHATSAPP_API_URL: "integration.whatsapp_api_url",
+  WHATSAPP_API_KEY: "integration.whatsapp_api_key",
+  WHATSAPP_SENDER: "integration.whatsapp_sender",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -36,6 +51,12 @@ const ENV_FALLBACK: Partial<Record<SettingKey, string>> = {
   [SETTING_KEYS.PAYSTACK_PUBLIC_KEY]: "PAYSTACK_PUBLIC_KEY",
   [SETTING_KEYS.ANTHROPIC_API_KEY]: "ANTHROPIC_API_KEY",
   [SETTING_KEYS.AI_PROVIDER]: "AI_PROVIDER",
+  [SETTING_KEYS.HUBTEL_SMS_CLIENT_ID]: "HUBTEL_SMS_CLIENT_ID",
+  [SETTING_KEYS.HUBTEL_SMS_CLIENT_SECRET]: "HUBTEL_SMS_CLIENT_SECRET",
+  [SETTING_KEYS.HUBTEL_SMS_SENDER_ID]: "HUBTEL_SMS_SENDER_ID",
+  [SETTING_KEYS.WHATSAPP_API_URL]: "WHATSAPP_API_URL",
+  [SETTING_KEYS.WHATSAPP_API_KEY]: "WHATSAPP_API_KEY",
+  [SETTING_KEYS.WHATSAPP_SENDER]: "WHATSAPP_SENDER",
 };
 
 export async function getSetting(key: SettingKey): Promise<string | null> {
@@ -70,6 +91,14 @@ export async function setSetting(key: SettingKey, value: string, actorId: string
     entityId: key,
     // Never write secret values into the audit trail — the key name suffices.
   });
+}
+
+/** Developer-set checkout processing-fee percentage — defaults to 1 when
+ * never configured. Only ever applied at the moment a real Paystack charge
+ * is initiated (see beginInvoicePayment / startApplicationWithPayment). */
+export async function getProcessingFeePercent(): Promise<number> {
+  const raw = await getSetting(SETTING_KEYS.PROCESSING_FEE_PERCENT);
+  return parseProcessingFeePercent(raw) ?? 1;
 }
 
 export async function getIntFee(key: SettingKey, fallbackPesewas: number): Promise<number> {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
+import { getCheckoutAmount } from "@/lib/payments";
 import { APPLICATION_VOUCHER_FEE_PESEWAS } from "@/lib/admission-cycle";
 import { admissionForm } from "@/lib/form-placement";
 import { SignupForm } from "./signup-form";
@@ -14,7 +15,10 @@ export default async function SignupPage() {
     db.admissionCycle.findFirst({ where: { status: "OPEN" }, orderBy: { opensAt: "desc" } }),
     admissionForm(),
   ]);
-  const feeLabel = formatGHS(cycle?.applicationFee ?? APPLICATION_VOUCHER_FEE_PESEWAS);
+  // The button shows what will actually be charged at checkout (base fee +
+  // any processing fee) so it matches Paystack's own hosted checkout total.
+  const checkout = await getCheckoutAmount(cycle?.applicationFee ?? APPLICATION_VOUCHER_FEE_PESEWAS);
+  const feeLabel = formatGHS(checkout.total);
 
   // Admissions can be closed from the form builder (admission form not
   // published). Respect that instead of taking payment for a closed intake.

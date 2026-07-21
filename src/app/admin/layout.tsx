@@ -7,8 +7,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const dev = isDeveloper(user);
 
   // Registrar/management see the overview + calendar; the console pages
-  // (settings, users, forms, audit) are developer / system admin. Fees &
-  // pricing live in the separate developer portal — excluded here entirely.
+  // (settings, users, forms, audit, fees, notifications) are developer /
+  // system admin. Fees & pricing is shared with the developer portal (same
+  // component, same page) minus the currency multiplier and processing fee,
+  // which stay a developer-only decision.
   const isConsole = hasRole(user, ROLES.SYSTEM_ADMIN);
   const rawNav: NavItem[] = [
     { label: "Overview", href: "/admin" },
@@ -17,6 +19,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ? [
           { label: "Users & roles", href: "/admin/users" },
           { label: "Forms", href: "/admin/forms" },
+          { label: "Fees & pricing", href: "/admin/fees" },
+          { label: "Notifications", href: "/admin/notifications" },
           { label: "Audit log", href: "/admin/audit" },
         ]
       : []),
