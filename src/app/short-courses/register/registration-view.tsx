@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import {
-  deleteShortCourseDocument, payShortCourseRegistrationFee, recordManualShortCourseFeePayment,
-  saveShortCourseRegistrationDetails, submitShortCourseRegistration, uploadShortCourseDocument,
+  deleteShortCourseDocument, listSelectableShortCourses, payShortCourseRegistrationFee,
+  recordManualShortCourseFeePayment, saveShortCourseRegistrationDetails, submitShortCourseRegistration,
+  uploadShortCourseDocument,
 } from "@/lib/actions/short-courses";
 import { formatGHS } from "@/lib/money";
 import { Flash } from "@/components/flash";
-import { ShortCourseRegistrationWizard, type BatchOption } from "./[id]/registration-wizard";
+import { ShortCourseRegistrationWizard } from "./[id]/registration-wizard";
 import type { Prisma } from "@prisma/client";
 
 const STEP_INDEX: Record<string, number> = { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5 };
@@ -60,16 +61,7 @@ export async function RegistrationView({
   const pendingTellerPayment = invoice?.payments.find((p) => p.channel === "TELLER" && p.status === "PENDING") ?? null;
 
   const editable = reg.status === "DRAFT";
-  const now = new Date();
-  const batches: BatchOption[] = reg.shortCourse.batches
-    .filter((b) => b.active && (b.startDate > now || b.id === reg.batchId))
-    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-    .map((b) => ({
-      id: b.id,
-      label: b.label,
-      startDate: b.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-      endDate: b.endDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    }));
+  const courses = await listSelectableShortCourses({ pinnedCourseId: reg.shortCourseId, pinnedBatchId: reg.batchId });
 
   const successMsg = saved
     ? "Your details were saved."
@@ -185,6 +177,7 @@ export async function RegistrationView({
         saveAction={saveShortCourseRegistrationDetails}
         reg={{
           id: reg.id,
+          shortCourseId: reg.shortCourseId,
           fullName: reg.fullName,
           gender: reg.gender,
           dateOfBirth: reg.dateOfBirth ? reg.dateOfBirth.toISOString().slice(0, 10) : null,
@@ -216,7 +209,7 @@ export async function RegistrationView({
           declarationName: reg.declarationName,
           declarationAccepted: reg.declarationAccepted,
         }}
-        batches={batches}
+        courses={courses}
         documentsSection={documentsSection}
         editable={editable}
         initialStep={step ? (STEP_INDEX[step] ?? 0) : 0}

@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { requireRole, ROLES } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import {
-  staffDeleteShortCourseDocument, staffSaveShortCourseRegistrationDetails,
+  listSelectableShortCourses, staffDeleteShortCourseDocument, staffSaveShortCourseRegistrationDetails,
   staffSubmitAndRecordPayment, staffUploadShortCourseDocument,
 } from "@/lib/actions/short-courses";
 import { formatGHS } from "@/lib/money";
 import { Flash } from "@/components/flash";
-import { ShortCourseRegistrationWizard, type BatchOption } from "@/app/short-courses/register/[id]/registration-wizard";
+import { ShortCourseRegistrationWizard } from "@/app/short-courses/register/[id]/registration-wizard";
 
 export const metadata = { title: "Walk-in Registration" };
 
@@ -44,15 +44,7 @@ export default async function StaffEditShortCourseRegistrationPage({
   if (!reg) notFound();
 
   const editable = reg.status !== "CONFIRMED" && reg.status !== "CANCELLED";
-  const now = new Date();
-  const batches: BatchOption[] = reg.shortCourse.batches
-    .filter((b) => b.active && (b.startDate > now || b.id === reg.batchId))
-    .map((b) => ({
-      id: b.id,
-      label: b.label,
-      startDate: b.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-      endDate: b.endDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    }));
+  const courses = await listSelectableShortCourses({ pinnedCourseId: reg.shortCourseId, pinnedBatchId: reg.batchId });
 
   const successMsg = saved ? "Details saved." : uploaded ? "Document uploaded." : undefined;
 
@@ -133,6 +125,7 @@ export default async function StaffEditShortCourseRegistrationPage({
         saveAction={staffSaveShortCourseRegistrationDetails}
         reg={{
           id: reg.id,
+          shortCourseId: reg.shortCourseId,
           fullName: reg.fullName,
           gender: reg.gender,
           dateOfBirth: reg.dateOfBirth ? reg.dateOfBirth.toISOString().slice(0, 10) : null,
@@ -164,7 +157,7 @@ export default async function StaffEditShortCourseRegistrationPage({
           declarationName: reg.declarationName,
           declarationAccepted: reg.declarationAccepted,
         }}
-        batches={batches}
+        courses={courses}
         documentsSection={documentsSection}
         editable={editable}
         initialStep={step ? (STEP_INDEX[step] ?? 0) : 0}

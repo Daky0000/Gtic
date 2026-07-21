@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { formatGHS } from "@/lib/money";
 
 export type BatchOption = { id: string; label: string; startDate: string; endDate: string };
+export type CourseOption = { id: string; name: string; durationWeeks: number; feePesewas: number; batches: BatchOption[] };
 
 const inputCls =
   "mt-1.5 w-full rounded-[11px] border border-line bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-forest disabled:opacity-70";
@@ -35,7 +37,7 @@ function fieldFilled(form: HTMLFormElement, name: string): boolean {
 
 export function ShortCourseRegistrationWizard({
   reg,
-  batches,
+  courses,
   documentsSection,
   editable,
   initialStep,
@@ -45,6 +47,7 @@ export function ShortCourseRegistrationWizard({
   saveAction: (formData: FormData) => Promise<void>;
   reg: {
     id: string;
+    shortCourseId: string;
     fullName: string | null;
     gender: string | null;
     dateOfBirth: string | null;
@@ -76,7 +79,7 @@ export function ShortCourseRegistrationWizard({
     declarationName: string | null;
     declarationAccepted: boolean;
   };
-  batches: BatchOption[];
+  courses: CourseOption[];
   documentsSection: ReactNode;
   editable: boolean;
   initialStep: number;
@@ -89,11 +92,14 @@ export function ShortCourseRegistrationWizard({
   const [tools, setTools] = useState<Set<string>>(new Set(reg.toolsOwned));
   const [fullDuration, setFullDuration] = useState(reg.fullDuration === false ? "no" : reg.fullDuration === true ? "yes" : "");
   const [hasMedicalCondition, setHasMedicalCondition] = useState(!!reg.medicalConditions);
+  const [courseId, setCourseId] = useState(reg.shortCourseId);
+  const [batchId, setBatchId] = useState(reg.batchId ?? "");
+  const courseBatches = useMemo(() => courses.find((c) => c.id === courseId)?.batches ?? [], [courses, courseId]);
 
   const requiredByStep: Record<number, string[]> = useMemo(
     () => ({
       0: ["fullName", "gender", "dateOfBirth", "idNumber", "phone", "email", "currentAddress", "homeRegion", "emergencyName", "emergencyPhone"],
-      1: ["batchId", "fullDuration", "accommodation", "tshirtSize"],
+      1: ["shortCourseId", "batchId", "fullDuration", "accommodation", "tshirtSize"],
       2: ["educationLevel"],
       3: [],
       4: ["referralSource", "declarationName", "declarationAccepted"],
@@ -250,16 +256,43 @@ export function ShortCourseRegistrationWizard({
           <div className="rounded-2xl border border-line bg-paper p-5">
             <h2 className="font-semibold text-brand-800">Training details</h2>
             <div className="mt-4">
+              <label className={labelCls}>Which training are you applying for? {req}</label>
+              <select
+                name="shortCourseId"
+                value={courseId}
+                disabled={!editable}
+                onChange={(e) => {
+                  setCourseId(e.target.value);
+                  setBatchId("");
+                }}
+                className={cls("shortCourseId")}
+              >
+                <option value="">Select a training session…</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.durationWeeks} weeks — {formatGHS(c.feePesewas)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-4">
               <label className={labelCls}>Preferred batch {req}</label>
-              <select name="batchId" defaultValue={reg.batchId ?? ""} disabled={!editable} className={cls("batchId")}>
+              <select
+                name="batchId"
+                value={batchId}
+                disabled={!editable}
+                onChange={(e) => setBatchId(e.target.value)}
+                className={cls("batchId")}
+              >
                 <option value="">Select a batch…</option>
-                {batches.map((b) => (
+                {courseBatches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.label} — {b.startDate} to {b.endDate}
                   </option>
                 ))}
               </select>
-              {batches.length === 0 && (
+              {courseBatches.length === 0 && (
                 <p className="mt-1 text-xs text-[#a85a2e]">No open batches right now — check back soon.</p>
               )}
             </div>

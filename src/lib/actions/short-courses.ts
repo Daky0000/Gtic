@@ -9,6 +9,7 @@ import { saveUpload, uploadRejection } from "@/lib/storage";
 import { beginInvoicePayment, confirmPayment } from "@/lib/payments";
 import { notify } from "@/lib/notify";
 import type { ShortCourseDocKind } from "@prisma/client";
+import type { CourseOption } from "@/app/short-courses/register/[id]/registration-wizard";
 
 /** Redirect back with a human-readable error instead of crashing the page. */
 function fail(path: string, message: string): never {
@@ -61,12 +62,34 @@ async function getOwnRegistration(registrationId: string, userId: string) {
 /** Shared Section A–E field mapping for both the applicant's own wizard and
  * the staff paper-form intake — one source of truth for what a submitted
  * form actually contains. */
-async function applyRegistrationFields(reg: { id: string; shortCourseId: string }, formData: FormData, back: string) {
+async function applyRegistrationFields(
+  reg: { id: string; shortCourseId: string; userId: string },
+  formData: FormData,
+  back: string,
+) {
   const str = (k: string) => {
     const v = formData.get(k);
     const s = v ? String(v).trim() : "";
     return s.length > 0 ? s : null;
   };
+
+  // Which training this registration is for — chosen inline in the
+  // Training details step rather than gating access to the form itself.
+  // Switching to a different open, priced course is allowed until
+  // submission, same as every other field on a DRAFT.
+  let shortCourseId = reg.shortCourseId;
+  const requestedCourseId = str("shortCourseId");
+  if (requestedCourseId && requestedCourseId !== reg.shortCourseId) {
+    const course = await db.shortCourse.findUnique({ where: { id: requestedCourseId } });
+    if (!course || !course.active || course.feePesewas <= 0) {
+      fail(back, "Choose an open training session.");
+    }
+    const clash = await db.shortCourseRegistration.findUnique({
+      where: { shortCourseId_userId: { shortCourseId: requestedCourseId, userId: reg.userId } },
+    });
+    if (clash) fail(back, "You already have a registration for that training session — switch back or contact the Center.");
+    shortCourseId = requestedCourseId;
+  }
 
   const dobRaw = str("dateOfBirth");
   let dateOfBirth: Date | null = null;
@@ -91,11 +114,11 @@ async function applyRegistrationFields(reg: { id: string; shortCourseId: string 
     fail(back, "Check the emergency contact phone number — digits only.");
   }
 
-  // Batch must belong to this course and still be open.
+  // Batch must belong to the (possibly just-switched) course and still be open.
   const batchId = str("batchId");
   if (batchId) {
     const batch = await db.shortCourseBatch.findUnique({ where: { id: batchId } });
-    if (!batch || batch.shortCourseId !== reg.shortCourseId || !batch.active) {
+    if (!batch || batch.shortCourseId !== shortCourseId || !batch.active) {
       fail(back, "Choose a valid batch for this course.");
     }
   }
@@ -108,6 +131,7 @@ async function applyRegistrationFields(reg: { id: string; shortCourseId: string 
   await db.shortCourseRegistration.update({
     where: { id: reg.id },
     data: {
+      shortCourseId,
       batchId,
       // Section A
       fullName: str("fullName"),
@@ -197,6 +221,68 @@ export async function startShortCourseRegistration(formData: FormData) {
     }));
 
   redirect(returnTo || `/short-courses/register/${registration.id}`);
+}
+
+/**
+ * Ensures the applicant portal's stable /apply/application URL always has a
+ * registration to show, so the intake form itself — not a "pick a course
+ * first" gate — is the first thing an applicant sees there. Auto-creates a
+ * DRAFT against the first open (active, priced) training session the first
+ * time someone with no registration visits; they can change which course
+ * it's for from the Training details step before ever saving. Returns null
+ * only when there is genuinely nothing open to apply for.
+ */
+export async function getOrCreateDraftShortCourseRegistration(userId: string, email: string) {
+  const existing = await db.shortCourseRegistration.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) return existing;
+
+  const course = await db.shortCourse.findFirst({
+    where: { active: true, feePesewas: { gt: 0 } },
+    orderBy: { name: "asc" },
+  });
+  if (!course) return null;
+
+  return db.shortCourseRegistration.create({
+    data: { shortCourseId: course.id, userId, email },
+  });
+}
+
+/**
+ * Every course the intake form's "which training?" dropdown should offer —
+ * active, priced courses, plus (defensively) whichever course/batch a
+ * registration is already pinned to even if it since went inactive or
+ * unpriced, so an existing selection never silently vanishes from the list.
+ */
+export async function listSelectableShortCourses(opts: {
+  pinnedCourseId?: string;
+  pinnedBatchId?: string | null;
+} = {}): Promise<CourseOption[]> {
+  const { pinnedCourseId, pinnedBatchId } = opts;
+  const rows = await db.shortCourse.findMany({
+    where: pinnedCourseId
+      ? { OR: [{ active: true, feePesewas: { gt: 0 } }, { id: pinnedCourseId }] }
+      : { active: true, feePesewas: { gt: 0 } },
+    orderBy: { name: "asc" },
+    include: { batches: { where: { active: true }, orderBy: { startDate: "asc" } } },
+  });
+  const now = new Date();
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    durationWeeks: c.durationWeeks,
+    feePesewas: c.feePesewas,
+    batches: c.batches
+      .filter((b) => b.startDate > now || (!!pinnedBatchId && b.id === pinnedBatchId))
+      .map((b) => ({
+        id: b.id,
+        label: b.label,
+        startDate: b.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        endDate: b.endDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      })),
+  }));
 }
 
 export async function saveShortCourseRegistrationDetails(formData: FormData) {
