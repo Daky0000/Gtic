@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { getCheckoutAmount } from "@/lib/payments";
 import { bookBed, payHostelFee } from "@/lib/actions/accommodation";
 import type { BookingStatus } from "@prisma/client";
 
@@ -34,8 +33,6 @@ export default async function AccommodationPage({
         include: { bed: { include: { room: { include: { hostel: true } } } } },
       })
     : null;
-  const hostelCheckout = myBooking ? await getCheckoutAmount(myBooking.bed.room.hostel.feePerYear) : null;
-
   const hostels = await db.hostel.findMany({
     include: { rooms: { include: { beds: { include: { bookings: { where: { academicYearId: year?.id, status: { in: ACTIVE_STATUSES } } } } } } } },
   });
@@ -65,7 +62,7 @@ export default async function AccommodationPage({
               <form action={payHostelFee} className="mt-3">
                 <input type="hidden" name="bookingId" value={myBooking.id} />
                 <button type="submit" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
-                  Pay {formatGHS(hostelCheckout?.total ?? myBooking.bed.room.hostel.feePerYear)} hostel fee
+                  Pay {formatGHS(myBooking.bed.room.hostel.feePerYear)} hostel fee
                 </button>
               </form>
             </>

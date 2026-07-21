@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requirePortal } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatGHS } from "@/lib/money";
-import { getCheckoutAmount } from "@/lib/payments";
 import { payDocumentFee, requestDocument } from "@/lib/actions/comms";
 import { Flash } from "@/components/flash";
 
@@ -36,9 +35,6 @@ export default async function DocumentRequestsPage({
 
   const invoices = await db.invoice.findMany({ where: { userId: user.id, kind: "DOCUMENT" } });
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
-  const checkoutById = new Map(
-    await Promise.all(invoices.map(async (i) => [i.id, await getCheckoutAmount(i.total - i.paid)] as const))
-  );
   const issuedDocs = await db.issuedDocument.findMany({ where: { userId: user.id } });
   const issuedById = new Map(issuedDocs.map((d) => [d.id, d]));
 
@@ -75,7 +71,7 @@ export default async function DocumentRequestsPage({
                 <form action={payDocumentFee} className="mt-2">
                   <input type="hidden" name="requestId" value={r.id} />
                   <button type="submit" className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest-deep">
-                    Pay {formatGHS(checkoutById.get(invoice.id)?.total ?? invoice.total)}
+                    Pay {formatGHS(invoice.total - invoice.paid)}
                   </button>
                 </form>
               )}

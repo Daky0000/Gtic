@@ -5,7 +5,6 @@ import {
   recordManualShortCourseFeePayment, saveShortCourseRegistrationDetails, submitShortCourseRegistration,
   uploadShortCourseDocument,
 } from "@/lib/actions/short-courses";
-import { getCheckoutAmount } from "@/lib/payments";
 import { formatGHS } from "@/lib/money";
 import { Flash } from "@/components/flash";
 import { ShortCourseRegistrationWizard } from "./[id]/registration-wizard";
@@ -60,7 +59,7 @@ export async function RegistrationView({
     ? await db.invoice.findUnique({ where: { id: reg.invoiceId }, include: { payments: true } })
     : null;
   const pendingTellerPayment = invoice?.payments.find((p) => p.channel === "TELLER" && p.status === "PENDING") ?? null;
-  const checkout = invoice ? await getCheckoutAmount(invoice.total - invoice.paid) : null;
+  const balance = invoice ? invoice.total - invoice.paid : null;
 
   const editable = reg.status === "DRAFT";
   const courses = await listSelectableShortCourses({ pinnedCourseId: reg.shortCourseId, pinnedBatchId: reg.batchId });
@@ -233,19 +232,18 @@ export async function RegistrationView({
         </form>
       )}
 
-      {reg.status === "PENDING_PAYMENT" && invoice && checkout && (
+      {reg.status === "PENDING_PAYMENT" && invoice && balance !== null && (
         <div className="mt-6 rounded-lg border border-gold/30 bg-[#f6efdf] p-5">
           <h2 className="font-semibold text-[#7a5a22]">Pay the course fee</h2>
-          <p className="mt-1 font-serif text-[26px] text-forest">{formatGHS(checkout.total)}</p>
+          <p className="mt-1 font-serif text-[26px] text-forest">{formatGHS(balance)}</p>
           <p className="mt-1 text-sm text-[#7a5a22]">
             Payment confirms your place on the course.
-            {checkout.fee > 0 && ` Includes a ${checkout.percent}% processing fee.`}
           </p>
           <form action={payShortCourseRegistrationFee} className="mt-3">
             <input type="hidden" name="registrationId" value={reg.id} />
             <input type="hidden" name="returnTo" value={returnTo} />
             <button type="submit" className="rounded-full bg-forest px-5 py-2.5 text-sm font-medium text-white hover:bg-forest-deep">
-              Pay {formatGHS(checkout.total)}
+              Pay {formatGHS(balance)}
             </button>
           </form>
 

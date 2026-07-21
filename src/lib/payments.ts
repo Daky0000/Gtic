@@ -197,25 +197,6 @@ export type BeginPaymentResult =
   | { kind: "failed"; message: string };
 
 /**
- * What a real online checkout will actually charge for a given base amount —
- * the developer-set processing-fee percentage added on top (see
- * SETTING_KEYS.PROCESSING_FEE_PERCENT), never reflected in the sticker price
- * shown while applying/browsing. UI pages that render a "Pay X" button call
- * this so their own label matches what Paystack's hosted checkout will show,
- * instead of quoting the bare invoice balance.
- */
-export async function getCheckoutAmount(basePesewas: number): Promise<{ base: number; fee: number; total: number; percent: number }> {
-  // The mock channel is a free instant settlement, not a real gateway charge
-  // — no processing fee applies (mirrors beginInvoicePayment/payInvoiceMock).
-  if (!(await isPaystackConfigured())) {
-    return { base: basePesewas, fee: 0, total: basePesewas, percent: 0 };
-  }
-  const percent = await getProcessingFeePercent();
-  const total = applyProcessingFee(basePesewas, percent);
-  return { base: basePesewas, fee: total - basePesewas, total, percent };
-}
-
-/**
  * Starts payment of an invoice's outstanding balance. With Paystack
  * configured this creates a PENDING payment and returns the hosted checkout
  * URL; otherwise it settles instantly on the mock channel.
