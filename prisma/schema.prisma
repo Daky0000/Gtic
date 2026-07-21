@@ -40,6 +40,7 @@ model User {
 
   shortCourseRegistrations ShortCourseRegistration[]
   formResponses            FormResponse[]
+  mediaAssets              MediaAsset[]
 
   @@map("user")
 }
@@ -1629,4 +1630,24 @@ model FormResponse {
   submittedAt     DateTime @default(now())
 
   @@index([formId, submittedAt])
+}
+
+// ─────────────────────────── Media library ─────────────────────────────
+// A reusable asset store for the admin/developer console — upload once, get
+// a stable public URL (/api/media/<id>), embed it anywhere (announcements,
+// course/short-course content, public pages). Distinct from the per-record
+// document uploads (ApplicationDocument, ShortCourseDocument, Material, …),
+// which stay owner-scoped and privately served through /api/files.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  fileName     String
+  filePath     String   @unique
+  mimeType     String
+  size         Int
+  altText      String?
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
 }

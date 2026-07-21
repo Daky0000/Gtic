@@ -83,6 +83,16 @@ export async function readUpload(relPath: string): Promise<Buffer> {
   return fs.readFile(path.join(ROOT, relPath));
 }
 
+/** Removes an uploaded file from disk. Missing files are not an error — the
+ * caller's own record is the source of truth, not the disk. */
+export async function deleteUpload(relPath: string): Promise<void> {
+  try {
+    await fs.unlink(path.join(ROOT, relPath));
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
+}
+
 export async function uploadAsBase64(relPath: string): Promise<string> {
   const buf = await readUpload(relPath);
   return buf.toString("base64");
