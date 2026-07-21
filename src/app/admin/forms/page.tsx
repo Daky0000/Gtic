@@ -18,10 +18,14 @@ export default async function FormsPage({
   await requireDeveloperConsole();
   const { error, saved } = await searchParams;
 
-  const forms = await db.formDef.findMany({
-    orderBy: { updatedAt: "desc" },
-    include: { _count: { select: { responses: true } } },
-  });
+  const [forms, needsReview, confirmed] = await Promise.all([
+    db.formDef.findMany({
+      orderBy: { updatedAt: "desc" },
+      include: { _count: { select: { responses: true } } },
+    }),
+    db.shortCourseRegistration.count({ where: { status: "SUBMITTED" } }),
+    db.shortCourseRegistration.count({ where: { status: "CONFIRMED" } }),
+  ]);
 
   const field = "rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:border-brand-600 focus:outline-none";
 
@@ -33,7 +37,40 @@ export default async function FormsPage({
       </p>
       <Flash error={error} success={saved ? "Done." : undefined} />
 
-      <form action={createForm} className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-paper p-5">
+      <div className="mt-5 rounded-2xl border border-line bg-paper p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-ink">Renewable Energy Training Application</span>
+              <StatusChip tone="violet">Short courses</StatusChip>
+            </div>
+            <p className="mt-0.5 text-xs text-ink-500">
+              Solar PV, Wind Energy, Biogas and the Complete course — not built here in the generic form
+              builder. It has its own applicant flow (/short-courses), staff review queue and walk-in
+              intake, managed on the Short Courses page.
+            </p>
+          </div>
+          <Link href="/staff/short-courses" className="rounded-full bg-forest px-4 py-2 text-sm font-medium text-white hover:bg-forest-deep">
+            Manage registrations →
+          </Link>
+        </div>
+        <div className="mt-3 flex gap-5 text-sm">
+          <span>
+            <strong className="text-ink">{needsReview}</strong> <span className="text-ink-500">awaiting review</span>
+          </span>
+          <span>
+            <strong className="text-ink">{confirmed}</strong> <span className="text-ink-500">confirmed</span>
+          </span>
+        </div>
+      </div>
+
+      <h2 className="mt-8 font-semibold text-ink-700">Form builder</h2>
+      <p className="mt-1 text-xs text-ink-500">
+        Generic forms and surveys, plus the diploma-programme admission handle below (controls its intro
+        text and whether /signup is open — the application itself is a specialized flow, not built here).
+      </p>
+
+      <form action={createForm} className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-paper p-5">
         <label className="flex-1 text-xs text-ink-600">
           Title
           <input name="title" required minLength={3} placeholder="e.g. Trainee feedback — January cohort" className={`${field} mt-1 block w-full`} />
@@ -55,7 +92,9 @@ export default async function FormsPage({
                 {f.title}
               </Link>
               <div className="mt-0.5 text-xs text-ink-500">
-                {parseFields(f.fields).length} question(s) · /forms/{f.slug}
+                {f.type === "ADMISSION"
+                  ? `Diploma-programme admission handle · controls /signup`
+                  : `${parseFields(f.fields).length} question(s) · /forms/${f.slug}`}
               </div>
             </div>
             <div className="flex items-center gap-4">
